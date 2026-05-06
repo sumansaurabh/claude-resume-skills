@@ -1,6 +1,6 @@
 # Resume Skill Coverage
 
-This repo-local skill suite is designed to answer resume-grounded system design and principal engineer interview questions using `resume.txt`, `microsoft-experience.md`, and any future `*-experience.md` files added to the repo.
+This repo-local skill suite is designed to answer resume-grounded system design, API design, and low-level design interview questions using `resume.txt`, `microsoft-experience.md`, and any future `*-experience.md` files added to the repo.
 
 The default output is a multi-file design pack under `design-packs/`.
 
@@ -21,21 +21,21 @@ The default output is a multi-file design pack under `design-packs/`.
 | 13 | Design a safe training-to-deployment workflow with rollback | `/analyze-my-resume` | Promotion, validation, rollback controls |
 | 14 | Design an AutoML orchestration platform for very high job volume | `/analyze-my-resume` | Queueing, execution model, fleet scale |
 | 15 | Design an AutoML job state machine | `/analyze-my-resume` | Lifecycle states, retries, publishing |
-| 16 | Prevent duplicate execution in a retry-heavy job platform | `/analyze-my-resume` | Idempotency keys, leases, dedupe |
-| 17 | Design backpressure and admission control under limited compute capacity | `/analyze-my-resume` | Queueing policy, fairness, customer impact |
-| 18 | Choose storage systems for metadata, logs, metrics, artifacts, and lineage | `/analyze-my-resume` | Data model and operational tradeoffs |
-| 19 | Design a consistent backend for both SDK and UI based job submission | `/analyze-my-resume` | API contracts, versioning, user experience |
-| 20 | Explain how platform abstractions reduced model development time | `/analyze-my-resume` | Product leverage, DX, debuggability |
-| 21 | Threat model a multi-tenant ML training platform | `/analyze-my-resume` | Assets, trust boundaries, mitigations |
-| 22 | Prevent secrets leakage from jobs, logs, images, and user code | `/analyze-my-resume` | Secret scope, redaction, runtime controls |
-| 23 | Design secure CI/CD for ML infra, SDKs, and serving stacks | `/analyze-my-resume` | Supply chain, code scanning, release gates |
-| 24 | Explain compliance-driven security versus real security engineering | `/analyze-my-resume` | Tradeoffs, governance, durable fixes |
-| 25 | Design a QUIC-based secure protocol for large compute fleets | `/analyze-my-resume` | Identity, transport, resilience, telemetry |
-| 26 | Explain certificate rotation, replay protection, and flow control at scale | `/analyze-my-resume` | Protocol hardening and runtime behavior |
-| 27 | Design capacity expansion from pilot scale to enterprise GPU fleet scale | `/resume-design-pack` | Phasing, quotas, cost, migration |
-| 28 | Generate interviewer cross-questions for an existing design | `/resume-cross-exam` | Skeptical follow-ups and rebuttals |
-| 29 | Pressure-test a design with scaling, security, and leadership pushback | `/resume-cross-exam` | Challenge scenarios and crisp answers |
-| 30 | Create a principal engineer answer pack for future company-specific questions | `/resume-design-pack` | Reusable design pack structure |
+| 16 | Design submission, status, cancel, and artifact APIs for an ML job platform | `/analyze-my-resume` | Resource model, idempotency, pagination, errors |
+| 17 | Design the low-level job orchestrator components and interfaces | `/analyze-my-resume` | Service boundaries, classes, handlers, persistence |
+| 18 | Prevent duplicate execution in a retry-heavy job platform | `/analyze-my-resume` | Idempotency keys, leases, dedupe |
+| 19 | Design backpressure and admission control under limited compute capacity | `/analyze-my-resume` | Queueing policy, fairness, customer impact |
+| 20 | Choose storage systems and schemas for metadata, logs, metrics, artifacts, and lineage | `/analyze-my-resume` | Data model and operational tradeoffs |
+| 21 | Explain how platform abstractions reduced model development time | `/analyze-my-resume` | Product leverage, DX, debuggability |
+| 22 | Threat model a multi-tenant ML training platform | `/analyze-my-resume` | Assets, trust boundaries, mitigations |
+| 23 | Prevent secrets leakage from jobs, logs, images, and user code | `/analyze-my-resume` | Secret scope, redaction, runtime controls |
+| 24 | Design secure CI/CD for ML infra, SDKs, and serving stacks | `/analyze-my-resume` | Supply chain, code scanning, release gates |
+| 25 | Explain compliance-driven security versus real security engineering | `/analyze-my-resume` | Tradeoffs, governance, durable fixes |
+| 26 | Design a QUIC-based secure protocol for large compute fleets | `/analyze-my-resume` | Identity, transport, resilience, telemetry |
+| 27 | Explain certificate rotation, replay protection, and flow control at scale | `/analyze-my-resume` | Protocol hardening and runtime behavior |
+| 28 | Design capacity expansion from pilot scale to enterprise GPU fleet scale | `/resume-design-pack` | Phasing, quotas, cost, migration |
+| 29 | Generate interviewer cross-questions for an existing design, API, or LLD answer | `/resume-cross-exam` | Skeptical follow-ups and rebuttals |
+| 30 | Create a principal engineer answer pack for future company-specific system, API, or LLD questions | `/resume-design-pack` | Reusable design pack structure |
 
 ## Expected Output Style
 
@@ -43,6 +43,19 @@ Every full design pack should be principal-engineer level:
 
 - Explicit assumptions and scope boundaries.
 - Clear control flow and component responsibilities.
+- API contracts, request and response shapes, error semantics, and idempotency rules when applicable.
+- LLD coverage for key services, state machines, storage schemas, and component interfaces when applicable.
 - Scaling, cost, security, reliability, and observability sections.
 - Failure modes, tradeoffs, and alternative designs.
 - Cross-questions and short talking points for interview delivery.
+
+## API And LLD Expectations
+
+For applicable questions, the pack should also spell out:
+
+- external APIs and internal service-to-service interfaces
+- authn, authz, idempotency, versioning, pagination, and error contracts
+- state-machine transitions and command handlers
+- persistence schema, indexes, and concurrency controls
+- component responsibilities at the service, worker, scheduler, and storage layers
+- tradeoffs between a clean HLD answer and the deeper LLD an interviewer may ask next

@@ -2,7 +2,8 @@
 name: resume-design-pack
 description: |
   Build a multi-file principal engineer design pack from a concrete interview question
-  using `resume.txt` and the experience markdown files in this repo.
+  using `resume.txt` and the experience markdown files in this repo, with explicit
+  API design and low-level design coverage when relevant.
 allowed-tools:
   - Read
   - Write
@@ -40,13 +41,14 @@ Write a pack with at least these files:
 - `00-question-and-context.md`
 - `01-executive-summary.md`
 - `02-architecture.md`
-- `03-deep-dive.md`
-- `04-scaling-and-capacity.md`
-- `05-security-and-isolation.md`
-- `06-reliability-observability-and-failures.md`
-- `07-tradeoffs-and-alternatives.md`
-- `08-cross-questions.md`
-- `09-cheat-sheet.md`
+- `03-api-and-contracts.md`
+- `04-low-level-design.md`
+- `05-scaling-and-capacity.md`
+- `06-security-and-isolation.md`
+- `07-reliability-observability-and-failures.md`
+- `08-tradeoffs-and-alternatives.md`
+- `09-cross-questions.md`
+- `10-cheat-sheet.md`
 
 Add extra files when the question calls for them, especially around state machines,
 data models, protocol design, or control plane and data plane separation.
@@ -58,10 +60,12 @@ Use parallel agents when available.
 Minimum lanes:
 
 1. system architecture
-2. scale and cost
-3. security and isolation
-4. reliability and debugging
-5. skeptical interviewer follow-ups
+2. API and contract design
+3. low-level design and state machine
+4. scale and cost
+5. security and isolation
+6. reliability and debugging
+7. skeptical interviewer follow-ups
 
 Each lane should return concise notes that are then synthesized into the final files.
 
@@ -69,6 +73,7 @@ Each lane should return concise notes that are then synthesized into the final f
 
 - principal engineer tone and structure
 - explicit assumptions and scope limits
+- concrete API contract and likely LLD follow-through, not just high-level boxes
 - concrete failure handling and operational metrics
 - strong tradeoff discussion, not just a happy path
 - interview-ready cross-questions and short talking points
@@ -78,3 +83,4 @@ Each lane should return concise notes that are then synthesized into the final f
 - Do not invent private implementation details.
 - Do not leave the answer only in chat; write the files.
 - Do not collapse everything into a single summary file.
+- Do not omit API or LLD details when the prompt includes workflows, jobs, control planes, or orchestration.

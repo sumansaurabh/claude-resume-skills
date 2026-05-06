@@ -20,28 +20,31 @@ Each full pack should contain at least these files:
 - `00-question-and-context.md`
 - `01-executive-summary.md`
 - `02-architecture.md`
-- `03-deep-dive.md`
-- `04-scaling-and-capacity.md`
-- `05-security-and-isolation.md`
-- `06-reliability-observability-and-failures.md`
-- `07-tradeoffs-and-alternatives.md`
-- `08-cross-questions.md`
-- `09-cheat-sheet.md`
+- `03-api-and-contracts.md`
+- `04-low-level-design.md`
+- `05-scaling-and-capacity.md`
+- `06-security-and-isolation.md`
+- `07-reliability-observability-and-failures.md`
+- `08-tradeoffs-and-alternatives.md`
+- `09-cross-questions.md`
+- `10-cheat-sheet.md`
 
 ## Optional Files
 
 Add more files when the question needs them, for example:
 
-- `10-control-plane-vs-data-plane.md`
-- `11-state-machine-and-apis.md`
-- `12-data-model-and-storage.md`
-- `13-leadership-and-business-framing.md`
-- `14-risk-register.md`
+- `11-control-plane-vs-data-plane.md`
+- `12-state-machine-and-workflows.md`
+- `13-data-model-and-storage.md`
+- `14-leadership-and-business-framing.md`
+- `15-risk-register.md`
+- `16-debugging-playbooks.md`
 
 ## Quality Bar
 
 - Tie claims back to the resume and experience documents in this repo.
 - Do not invent confidential internal details.
 - Prefer explicit assumptions over vague hand-waving.
+- Include API-level design and likely LLD follow-ups when the topic naturally leads there.
 - Show tradeoffs, bottlenecks, and failure modes.
 - Write for principal engineer interview prep, not generic tutorial prose.

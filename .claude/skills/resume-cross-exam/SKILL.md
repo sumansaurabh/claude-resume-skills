@@ -2,7 +2,8 @@
 name: resume-cross-exam
 description: |
   Pressure-test a system design answer or an existing design pack with skeptical
-  interviewer questions, scaling stressors, security pushback, and concise rebuttals.
+  interviewer questions, including API and low-level design pushback, plus scaling
+  stressors, security pushback, and concise rebuttals.
 allowed-tools:
   - Read
   - Write
@@ -36,24 +37,27 @@ If no pack exists yet, create a new folder in `design-packs/` first.
 
 Create or update these files:
 
-- `08-cross-questions.md`: core follow-up questions and high-quality answers.
-- `10-scale-stressors.md`: bottleneck pushes, capacity shocks, and degradation scenarios.
-- `11-security-pushback.md`: threat-model objections and mitigation gaps.
-- `12-leadership-and-business-pushback.md`: roadmap, prioritization, and stakeholder tension.
-- `13-fast-rebuttals.md`: concise answers that can be delivered in under 60 seconds each.
+- `09-cross-questions.md`: core follow-up questions and high-quality answers.
+- `11-api-and-lld-pushback.md`: contract design, schemas, concurrency, and component-level objections.
+- `12-scale-stressors.md`: bottleneck pushes, capacity shocks, and degradation scenarios.
+- `13-security-pushback.md`: threat-model objections and mitigation gaps.
+- `14-leadership-and-business-pushback.md`: roadmap, prioritization, and stakeholder tension.
+- `15-fast-rebuttals.md`: concise answers that can be delivered in under 60 seconds each.
 
 ## Parallel Lanes
 
 When agent support is available, split the work into these lanes:
 
 1. skeptical architect
-2. scale and performance reviewer
-3. security reviewer
-4. principal engineer interviewer
+2. API and LLD reviewer
+3. scale and performance reviewer
+4. security reviewer
+5. principal engineer interviewer
 
 ## Quality Bar
 
 - challenge weak assumptions instead of accepting them
+- include API design and LLD follow-up questions for stateful or orchestration-heavy systems
 - include at least one failure-mode question per major subsystem
 - include at least one tradeoff question per design
 - include direct, crisp answer outlines instead of vague hints
