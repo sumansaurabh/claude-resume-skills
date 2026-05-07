@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "archetype": "system-design",
+  "slug": "wasm-sandbox-security-isolation",
+  "createdAt": "2026-05-07",
+  "question": "How would you prevent malicious AI-generated code from escaping the sandbox or abusing CPU, memory, filesystem, or network access?",
+  "questionHash": "sha256:54c3e55325bb3fcf8ccab5e7bc88bdda5ab31b05d6b07d72159eaffaff269682",
+  "company": "BlackBox",
+  "primarySkill": "/analyze-my-resume",
+  "sourceFiles": ["resume.txt", "blackbox-experience.md", "microsoft-experience.md"],
+  "grounding": {
+    "confidence": "high",
+    "strongAnchors": 2,
+    "supportingAnchors": 2,
+    "anchors": [
+      "Architected Golang-backed WASM sandbox plane isolating 1M+ daily zero-shot code executions, unblocking Enterprise SOC-2 compliance",
+      "Led design of secure multi-tenant ML infrastructure across Kubernetes and Azure, including isolation strategies for LLM workloads",
+      "Mentored 8 engineers on secure protocol design; standardized threat modeling to eliminate recurring vulnerabilities",
+      "Co-developed TunDRA, a secure QUIC-based communication protocol in Rust powering 1M+ compute instances"
+    ]
+  }
+}
