@@ -24,6 +24,9 @@ triggers:
 Use this skill when the user already has a concrete question and wants a file-backed answer
 pack written into the repo.
 
+The generated pack must follow a supported archetype from `design-packs/README.md` and
+must include `manifest.json`.
+
 ## Required Inputs
 
 - `resume.txt`
@@ -33,11 +36,22 @@ pack written into the repo.
 If the user supplied a target folder, use it. Otherwise create one in
 `design-packs/YYYY-MM-DD-short-topic-slug/`.
 
+Only update an existing pack when the folder is explicit or its manifest `questionHash`
+matches the normalized prompt exactly.
+
+## Grounding Standard
+
+- Use at least two concrete anchors when claiming architecture specifics or impact.
+- If the source material is thin, lower confidence and label assumptions explicitly.
+
 ## Mandatory Deliverables
 
-Write a pack with at least these files:
+Write `manifest.json` first, then the archetype-specific required files.
+
+For `system-design`, write at least these files:
 
 - `README.md`
+- `manifest.json`
 - `00-question-and-context.md`
 - `01-executive-summary.md`
 - `02-architecture.md`
@@ -50,8 +64,12 @@ Write a pack with at least these files:
 - `09-cross-questions.md`
 - `10-cheat-sheet.md`
 
+For `security-review`, write the required files listed in `design-packs/README.md`.
+
 Add extra files when the question calls for them, especially around state machines,
-data models, protocol design, or control plane and data plane separation.
+data models, protocol design, control plane and data plane separation, or cross-exam.
+
+Place extended challenge material under `cross-exam/`, not in the numbered root file sequence.
 
 ## Parallel Decomposition
 
@@ -77,10 +95,12 @@ Each lane should return concise notes that are then synthesized into the final f
 - concrete failure handling and operational metrics
 - strong tradeoff discussion, not just a happy path
 - interview-ready cross-questions and short talking points
+- deterministic reuse through `manifest.json` and exact `questionHash` matching
 
 ## Guardrails
 
 - Do not invent private implementation details.
 - Do not leave the answer only in chat; write the files.
 - Do not collapse everything into a single summary file.
+- Do not update a pack based on recency heuristics.
 - Do not omit API or LLD details when the prompt includes workflows, jobs, control planes, or orchestration.

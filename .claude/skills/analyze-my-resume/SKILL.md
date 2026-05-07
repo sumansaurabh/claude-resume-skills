@@ -30,6 +30,9 @@ architecture question that should be answered from the experience captured in th
 The skill should not stop at a chat answer. By default it should create a reusable,
 multi-file markdown pack under `design-packs/` unless the user explicitly asks not to.
 
+The pack must follow one of the supported archetypes in `design-packs/README.md` and
+must include `manifest.json`.
+
 ## Inputs To Read First
 
 Always read:
@@ -42,11 +45,27 @@ Read when present and relevant:
 - `*-questions.md`
 - `*-notes.md`
 - `*-architecture.md`
-- the most recent matching pack in `design-packs/`
+- an explicitly named pack folder in `design-packs/`
+- a pack whose `manifest.json` has an exact `questionHash` match
 
 If the question is ambiguous across multiple companies or roles, ask one short
 clarifying question. If the user names a company or domain, prioritize the matching
 experience file.
+
+## Archetype Selection
+
+- Use `system-design` for architecture, API design, LLD, scaling, protocol, and platform questions.
+- Use `security-review` for vulnerability-class, CI/CD security, CodeQL, or threat-model-to-control questions.
+- If the question does not fit a supported archetype cleanly, default to `system-design`
+  and say so explicitly.
+
+## Grounding Standard
+
+- Treat a bullet or sentence from `resume.txt` or a `*-experience.md` file as an anchor.
+- Use at least two concrete anchors when making detailed claims about architecture,
+  scale, security posture, or business impact.
+- If fewer than two anchors exist, lower the confidence and label assumptions clearly.
+- Never present inferred Microsoft internal details as facts.
 
 ## What Good Looks Like
 
@@ -56,6 +75,7 @@ The output should feel like a principal engineer answer, not a generic tutorial:
 - call out assumptions explicitly
 - separate control plane and data plane when relevant
 - include API contracts and likely low-level design follow-ups when relevant
+- use the manifest and archetype contract so outputs are deterministic and reusable
 - discuss scale, cost, reliability, security, observability, and tradeoffs
 - include interviewer pushback and crisp rebuttals
 - avoid pretending to know confidential internal Microsoft implementation details
@@ -63,12 +83,14 @@ The output should feel like a principal engineer answer, not a generic tutorial:
 ## Default Workflow
 
 1. Read the core context files and extract the strongest resume anchors for the question.
-2. Classify the request. Common classes are system design, API design, LLD,
-   scaling, debugging, threat model, protocol design, or platform tradeoff analysis.
-3. Create or update a pack folder in `design-packs/YYYY-MM-DD-short-topic-slug/`.
-4. Fan out parallel agent lanes when the Agent or Task tool is available.
-5. Synthesize the agent results into a coherent file set.
-6. Write the files, then return a short summary with the created folder path.
+2. Classify the request and choose a supported archetype.
+3. Compute the normalized `questionHash`.
+4. Reuse a pack only if the folder was explicitly named or an exact manifest hash match exists.
+5. Otherwise create a new pack folder in `design-packs/YYYY-MM-DD-short-topic-slug/`.
+6. Write `manifest.json` before writing the rest of the pack.
+7. Fan out the seven parallel agent lanes when the Agent or Task tool is available.
+8. Synthesize the agent results into a coherent file set.
+9. Write the files, then return a short summary with the created folder path.
 
 ## Parallel Agent Lanes
 
@@ -86,9 +108,10 @@ If agent support is unavailable, do the same reasoning sequentially and note the
 
 ## Required Output Files
 
-Create at least these files for a full pack:
+For `system-design`, create at least these files:
 
 - `README.md`: one-screen overview and file map.
+- `manifest.json`: pack metadata, archetype, question, hash, and grounding confidence.
 - `00-question-and-context.md`: original question, scope, assumptions, and resume anchors used.
 - `01-executive-summary.md`: the short, strong version of the answer.
 - `02-architecture.md`: end-to-end architecture and major components.
@@ -101,13 +124,18 @@ Create at least these files for a full pack:
 - `09-cross-questions.md`: challenging follow-ups and best answers.
 - `10-cheat-sheet.md`: concise talking points for interview delivery.
 
-Add extra files when needed. Good optional files include:
+Optional root files include:
 
 - `11-control-plane-vs-data-plane.md`
 - `12-state-machine-and-workflows.md`
 - `13-data-model-and-storage.md`
 - `14-leadership-and-business-framing.md`
 - `15-risk-register.md`
+
+For `security-review`, create the required root files defined in `design-packs/README.md`.
+
+If the user asks for deeper challenge material, write it under `cross-exam/` using the
+contract in `design-packs/README.md`.
 
 ## Writing Rules
 
@@ -143,7 +171,10 @@ The pack should explicitly cover:
 ## Failure Modes To Avoid
 
 - Do not answer with one big monolithic markdown file when the user asked for a folder of files.
+- Do not reuse a pack just because it is the most recent similar topic.
+- Do not write extended cross-exam artifacts into the numbered root file sequence.
 - Do not skip API design or likely LLD follow-up if the question touches workflows, orchestration, or services.
 - Do not skip scaling, security, or tradeoff analysis.
 - Do not generate generic architecture that is not anchored in the resume.
+- Do not claim specifics without adequate anchors.
 - Do not omit cross-questions or rebuttals.

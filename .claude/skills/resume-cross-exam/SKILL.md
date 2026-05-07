@@ -30,19 +30,26 @@ The input can be either:
 
 ## Output Behavior
 
-If a pack already exists, append or update cross-exam files inside that same folder.
-If no pack exists yet, create a new folder in `design-packs/` first.
+If a target pack folder is explicit, use it.
+
+If a target pack folder is not explicit, only attach to a pack when `manifest.json` has an
+exact `questionHash` match.
+
+If no matching pack exists yet, first create the base pack using the archetype rules from
+`design-packs/README.md`, then add the cross-exam expansion.
 
 ## Required Files
 
-Create or update these files:
+Keep the compact root `09-cross-questions.md` file in the base pack.
 
-- `09-cross-questions.md`: core follow-up questions and high-quality answers.
-- `11-api-and-lld-pushback.md`: contract design, schemas, concurrency, and component-level objections.
-- `12-scale-stressors.md`: bottleneck pushes, capacity shocks, and degradation scenarios.
-- `13-security-pushback.md`: threat-model objections and mitigation gaps.
-- `14-leadership-and-business-pushback.md`: roadmap, prioritization, and stakeholder tension.
-- `15-fast-rebuttals.md`: concise answers that can be delivered in under 60 seconds each.
+Write deeper challenge material under `cross-exam/`:
+
+- `cross-exam/README.md`: scope of the pressure test and how it maps to the base pack.
+- `cross-exam/api-and-lld-pushback.md`: contract design, schemas, concurrency, and component-level objections.
+- `cross-exam/scale-stressors.md`: bottleneck pushes, capacity shocks, and degradation scenarios.
+- `cross-exam/security-pushback.md`: threat-model objections and mitigation gaps.
+- `cross-exam/leadership-and-business-pushback.md`: roadmap, prioritization, and stakeholder tension.
+- `cross-exam/fast-rebuttals.md`: concise answers that can be delivered in under 60 seconds each.
 
 ## Parallel Lanes
 
@@ -62,3 +69,4 @@ When agent support is available, split the work into these lanes:
 - include at least one tradeoff question per design
 - include direct, crisp answer outlines instead of vague hints
 - anchor the pushback in the candidate's actual experience claims
+- do not create numbered root files that collide with the base pack schema

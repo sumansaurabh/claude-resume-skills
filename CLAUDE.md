@@ -17,7 +17,8 @@ When the user wants only follow-up questions, mock interview pressure, skepticis
 ## Repo Conventions
 
 - Primary context comes from `resume.txt` and any `*-experience.md` files in the repo root.
-- Generated outputs go under `design-packs/YYYY-MM-DD-short-topic-slug/`.
-- Every full pack should include summary, architecture, API contracts, LLD, scaling, security, reliability, tradeoffs, cross-questions, and a cheat sheet.
-- Use parallel agents when the Agent or Task tool is available. Default lanes are architecture, API and LLD, scale, security, reliability, and cross-exam.
-- Keep answers resume-grounded. If a detail is not supported by the source files, state it as an assumption instead of presenting it as fact.
+- Generated outputs go under `design-packs/YYYY-MM-DD-short-topic-slug/` and must include `manifest.json`.
+- Supported pack archetypes and required file sets are defined in `design-packs/README.md`.
+- Reuse a pack only when the folder is explicitly named or the manifest `questionHash` matches exactly.
+- Use the seven-lane default bundle from `/analyze-my-resume`: architecture, API and LLD, scale, security, reliability, cross-exam, and leadership.
+- Keep answers resume-grounded. Use at least two concrete anchors when claiming specifics; otherwise lower confidence and label assumptions explicitly.
