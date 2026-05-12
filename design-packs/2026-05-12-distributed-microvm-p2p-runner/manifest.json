@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "archetype": "system-design",
+  "slug": "distributed-microvm-p2p-runner",
+  "createdAt": "2026-05-12",
+  "question": "Understand the architecture of my current microVM runner and tell me how to make this distributed — like a Sentinel where multiple devices can connect together and form a consensus. No central control-plane like Daytona, more libp2p so multiple ecosystems can start talking to each other.",
+  "questionHash": "sha256:cd14abcb8d220271db1d6aed6076901063df74fe1022570cade9852c794878ae",
+  "company": "Personal open-source project (experience drawn from BlackBox WASM/gVisor sandbox plane and Microsoft AML scheduling)",
+  "primarySkill": "/analyze-my-resume",
+  "sourceFiles": ["resume.txt", "blackbox-experience.md", "microsoft-experience.md"],
+  "grounding": {
+    "confidence": "high",
+    "strongAnchors": 3,
+    "supportingAnchors": 4,
+    "anchors": [
+      "BlackBox: Architected Golang-backed WASM sandbox plane, isolating 1M+ daily zero-shot code executions (resume.txt)",
+      "BlackBox: SOC-2 compliance for sandbox isolation (resume.txt; blackbox-experience.md #5)",
+      "Microsoft AML: GPU scheduling, gang scheduling, bin-packing, multi-tenant isolation supporting 15M+ jobs/month and 200K+ users (resume.txt)",
+      "Microsoft: Co-developed TunDRA, a secure QUIC-based protocol in Rust powering 1M+ Compute Instances (resume.txt)",
+      "Skills: Kubernetes, Volcano, Nomad, Go, Rust (resume.txt)",
+      "BlackBox: Durable DAG workflow engine with checkpointing, retries, fault-tolerant execution across distributed environments (resume.txt; blackbox-experience.md #12-#15)",
+      "BlackBox: LLMOps telemetry mesh ingesting 50M spans/day (resume.txt)"
+    ]
+  }
+}
