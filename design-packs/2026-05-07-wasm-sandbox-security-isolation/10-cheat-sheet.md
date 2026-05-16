@@ -76,7 +76,7 @@ Topic: How do you prevent malicious AI-generated code from escaping the sandbox 
 
 | | WASM | Docker | gVisor | Firecracker |
 |---|---|---|---|---|
-| Warm start | <10ms | 500ms–2s | 100–500ms | 125ms (snapshotted) |
+| Per-exec dispatch (pre-pulled, fresh sandbox) | <10ms (warm pool) | 50–300ms (runc) | 100–500ms | 125ms (snapshotted) |
 | Memory overhead | ~5MB | ~50MB | ~100MB | ~50MB (kernel) |
 | Isolation model | Capability (formal spec) | Namespace + seccomp | Userspace kernel | Hardware VM |
 | Shared kernel | No (WASM is userspace) | Yes (biggest risk) | No | No |
