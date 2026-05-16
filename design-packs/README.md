@@ -61,6 +61,7 @@ Required root files:
 - `08-tradeoffs-and-alternatives.md`
 - `09-cross-questions.md`
 - `10-cheat-sheet.md`
+- `14-challenges-by-stage.md` (generated via Chain-of-Thought Challenge Generation; see the analyze-my-resume and resume-design-pack skills)
 
 Optional root files:
 
@@ -69,9 +70,9 @@ Add more files when the question needs them, for example:
 - `11-control-plane-vs-data-plane.md`
 - `12-state-machine-and-workflows.md`
 - `13-data-model-and-storage.md`
-- `14-leadership-and-business-framing.md`
-- `15-risk-register.md`
-- `16-debugging-playbooks.md`
+- `15-leadership-and-business-framing.md`
+- `16-risk-register.md`
+- `17-debugging-playbooks.md`
 
 ### `security-review`
 

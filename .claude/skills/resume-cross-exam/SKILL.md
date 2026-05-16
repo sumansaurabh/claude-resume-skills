@@ -60,6 +60,35 @@ When agent support is available, split the work into these lanes:
 3. scale and performance reviewer
 4. security reviewer
 5. principal engineer interviewer
+6. stage-scoped challenge reviewer (consumes `14-challenges-by-stage.md` if present)
+
+## Chain-of-Thought Challenge Generation (when no base pack exists)
+
+If the base pack does not yet have `14-challenges-by-stage.md`, generate it
+using the Chain-of-Thought procedure documented in `analyze-my-resume/SKILL.md`
+and `resume-design-pack/SKILL.md`. Cross-exam reuses the same procedure for
+two reasons:
+
+1. The hardest interviewer pushback usually targets a high-Pain challenge from
+   a specific stage; without that ranked inventory, pushback drifts into
+   generic skepticism.
+2. The Pain scores (Severity × Frequency × Difficulty / 100) give the
+   cross-exam writer a defensible reason to choose *which* objections to lead
+   with: top-Pain rows become the "make-or-break" cross-exam questions.
+
+When the base pack already has the file, **do not regenerate it**. Read it,
+map its top-10 leaderboard onto the cross-exam files as follows:
+
+| Top-10 row maps to | Cross-exam file |
+|---|---|
+| Identity, network, isolation, threat-model rows | `cross-exam/security-pushback.md` |
+| Comm-bound, all-to-all, fabric, capacity rows | `cross-exam/scale-stressors.md` |
+| Schema, contract, idempotency, state-machine rows | `cross-exam/api-and-lld-pushback.md` |
+| Quota fairness, SDK simplicity, roadmap, vendor rows | `cross-exam/leadership-and-business-pushback.md` |
+| Anything that needs a 60-second answer | `cross-exam/fast-rebuttals.md` |
+
+Each cross-exam objection should cite the challenge ID (e.g. `C2.1`) it derives
+from, so a reader can trace pushback back to the substrate.
 
 ## Quality Bar
 
@@ -69,4 +98,6 @@ When agent support is available, split the work into these lanes:
 - include at least one tradeoff question per design
 - include direct, crisp answer outlines instead of vague hints
 - anchor the pushback in the candidate's actual experience claims
+- when `14-challenges-by-stage.md` exists, the cross-exam must trace at least 50% of its objections to specific challenge IDs from the leaderboard
 - do not create numbered root files that collide with the base pack schema
+- do not regenerate `14-challenges-by-stage.md` if it already exists; cross-exam consumes it, the base skills produce it
