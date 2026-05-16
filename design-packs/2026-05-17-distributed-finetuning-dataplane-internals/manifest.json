@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "archetype": "system-design",
+  "slug": "distributed-finetuning-dataplane-internals",
+  "createdAt": "2026-05-17",
+  "question": "tell me the architecture of distributed finetuning system. i understand how the job goes to distributed finetuning system or the data-plane. but what is the architecture of dataplane itself where models are getting loaded and finetuned. show me low level code as well using all DFT + DeepSpeed + vLLM. I want to understand what is the difference in the code configuration and how each of them solves the problem differently How deepseek is solving the distributed fine tuning then Ray-Train or VLLM or distributed pytorch. What is the difference in architecture? Understand how artifacts get published and logs are getting tracked But how training works, this is the architecture I am looking for.",
+  "questionHash": "sha256:72205f65e4cbe829d29c49916108bc1f1c095b829764f9ebb87eaf93f955a380",
+  "company": "Microsoft",
+  "primarySkill": "/analyze-my-resume",
+  "sourceFiles": ["resume.txt", "microsoft-experience.md"],
+  "grounding": {
+    "confidence": "high",
+    "strongAnchors": 3,
+    "supportingAnchors": 4,
+    "anchors": [
+      "Founding team member of AI Fine-tuning on IPP, scaling secure LLM training across VNet and Kubernetes, vLLM, 20B+ tokens annually (resume.txt L73-74)",
+      "Technologies Used: DeepSpeed, PyTorch, vLLM, Ray Train, QLoRA, PEFT, Quantization, MLflow (resume.txt L100-101)",
+      "GPU scheduling (gang scheduling, bin-packing), cost-aware resource allocation, isolation strategies for LLM workloads (resume.txt L88-89, microsoft-experience.md #8)",
+      "Co-developed TunDRA, QUIC-based secure protocol in Rust powering 1M+ Compute Instances (resume.txt L97-98)",
+      "Founding member language: 'AI Fine-tuning on IPP' - data-plane runtime tied to vLLM and DeepSpeed (microsoft-experience.md #3, #6)",
+      "Secure multi-tenant ML infrastructure across Kubernetes and Azure (microsoft-experience.md #7)",
+      "AutoML supports 15M+ jobs/month, 200K+ users via SDK and AI Studio (resume.txt L91-92)"
+    ]
+  }
+}
