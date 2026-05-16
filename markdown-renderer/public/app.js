@@ -21,6 +21,22 @@
   let currentPath = null;
   let tocVisible = true;
 
+  // ─── Theme toggle ───
+  const themeToggle = document.getElementById('theme-toggle');
+  let currentTheme = localStorage.getItem('md-renderer-theme') || 'dark';
+
+  function applyTheme(theme) {
+    currentTheme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('md-renderer-theme', theme);
+  }
+
+  applyTheme(currentTheme);
+
+  themeToggle.addEventListener('click', () => {
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+  });
+
   // ─── Mermaid init ───
   mermaid.initialize({
     startOnLoad: false,
