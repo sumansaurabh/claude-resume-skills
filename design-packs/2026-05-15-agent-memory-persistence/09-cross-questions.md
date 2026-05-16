@@ -1,4 +1,4 @@
-# 09 — Cross Questions and Rebuttals
+# 09 - Cross Questions and Rebuttals
 
 Compact set of follow-ups a Principal-level interviewer is likely to throw,
 with the strong answer.
@@ -71,8 +71,8 @@ boundary and degrade under low selectivity.
 
 **Q6. "What stops the agent from writing garbage into long-term memory?"**
 
-A: Three guards. (1) Schema registry — keys are declared with JSON schemas;
-unknown keys → 422. (2) Source attribution + confidence — writes derived
+A: Three guards. (1) Schema registry - keys are declared with JSON schemas;
+unknown keys → 422. (2) Source attribution + confidence - writes derived
 from user input get `confidence < 0.5` and high-risk keys are
 `review_required`, which queues for human approval. (3) Audit trail per
 key change, so "the agent decided I'm in Berlin" is reversible and
@@ -97,7 +97,7 @@ ReAct budget.
 A: The ContextBuilder is the budgeter. It receives tier outputs and packs
 with a fixed priority: system prompt → short-term trace (most recent first)
 → episodic summary → long-term keyed facts → vector top-K. Each tier has a
-soft cap. The cross-encoder rerank is the lever for vector — top-50 ANN
+soft cap. The cross-encoder rerank is the lever for vector - top-50 ANN
 ∪ top-50 bm25 reranked to 5–8 relevant chunks rather than 30 mediocre
 ones. Over six months, we cut average context size by ~35% while improving
 agent task success by ~12% on internal evals. The math: rerank pays for
@@ -109,13 +109,13 @@ itself in saved input tokens within weeks.
 design wouldn't."**
 
 A: Two examples. (1) An agent author shipped a prompt that started writing
-a new long-term key `user.notes` that wasn't in the registry — the platform
+a new long-term key `user.notes` that wasn't in the registry - the platform
 refused all writes with 422, which surfaced in the schema-rejection
 dashboard before any user noticed; in a free-form K/V design the writes
 would have succeeded and polluted memory across tenants. (2) During a Qdrant
 deployment, retrieval went degraded; ContextBuilder marked manifests
 `vector=skipped` and the replay viewer correctly showed "this run had no
-vector context" — without that, the symptom ("agent forgot about the
+vector context" - without that, the symptom ("agent forgot about the
 user's docs") would have looked like an LLM regression and we'd have
 chased our tail.
 
@@ -148,7 +148,7 @@ we own what's remembered.
 **Q12. "Walk me through the worst incident."**
 
 A: A rollup pipeline regression generated summaries that contained
-JSON-shaped strings the agent then mis-parsed as tool calls — a classic
+JSON-shaped strings the agent then mis-parsed as tool calls - a classic
 "data eaten as instructions" bug. The blast radius was contained because
 (a) episodic events themselves were untouched (rollup is derived), (b) the
 safety eval gate on rollup output started failing, paging us within 4
@@ -165,7 +165,7 @@ reason MTTR was minutes not hours is the determinism + replay tooling
 **Q13. "Replay sounds expensive. How much trace volume is that?"**
 
 A: Spans for memory ops are a fraction of the platform's 50M spans/day.
-We don't store full payloads in spans — we store hashes and pointers; the
+We don't store full payloads in spans - we store hashes and pointers; the
 payloads live in PG/blob with bounded retention. So replay reads from PG
 and blob, not from the trace store. Trace store gives us the *index* into
 which run/step to look at; the actual replay reads source-of-truth
@@ -177,8 +177,8 @@ days hot for execution event payloads; longer for long-term and audit).
 **Q14. "How would you evolve this for a 10× scale jump?"**
 
 A: Three moves. (1) Partition `exec_event` by tenant_id hash + month and
-move cold partitions to columnar (Parquet on S3) earlier — keeps hot
-PG flat. (2) Tiered embedding models — small for high-volume episodic,
+move cold partitions to columnar (Parquet on S3) earlier - keeps hot
+PG flat. (2) Tiered embedding models - small for high-volume episodic,
 large for long-term + RAG; cuts embed spend ~40%. (3) Per-region active
 vector replicas with eventual consistency for cross-region read locality;
 writes stay region-pinned. The architecture doesn't fundamentally change;
@@ -192,10 +192,10 @@ A: The cross-encoder reranker, reluctantly. It's the most expensive piece
 and tenants without dense retrieval needs don't benefit. We'd make it a
 **per-tenant feature flag**, defaulting on, off-able for low-recall-need
 workloads. We'd never remove the schema registry or the execution event
-log — those are load-bearing for safety and replay respectively.
+log - those are load-bearing for safety and replay respectively.
 
 ---
 
 For deeper adversarial pressure (security-pushback, scale-stressors,
-api-and-lld-pushback) — extend under `cross-exam/` per the design-pack
+api-and-lld-pushback) - extend under `cross-exam/` per the design-pack
 contract.

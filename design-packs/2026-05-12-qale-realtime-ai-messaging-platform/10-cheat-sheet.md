@@ -1,10 +1,10 @@
-# 10 — Cheat Sheet
+# 10 - Cheat Sheet
 
 One page of talking points for live delivery. Read this before you walk into the interview.
 
 ## The opener (60 seconds)
 
-> "Qale is replacing email with a real-time, AI-native message bus. The whole architecture has to assume two things at once: every interaction is a sub-100ms WebSocket event, and the AI plane is *inline* with that bus, not a separate service the user clicks into. I've shipped each half of that — the BlackBox model router and telemetry mesh on the AI side, the Microsoft TunDRA QUIC protocol for 1M+ secure compute instances on the transport side, the ShareChat real-time ad infra at 40M DAU on the high-throughput backend side. The job at Turium is to put those halves together and lead the Hyderabad team that builds it."
+> "Qale is replacing email with a real-time, AI-native message bus. The whole architecture has to assume two things at once: every interaction is a sub-100ms WebSocket event, and the AI plane is *inline* with that bus, not a separate service the user clicks into. I've shipped each half of that - the BlackBox model router and telemetry mesh on the AI side, the Microsoft TunDRA QUIC protocol for 1M+ secure compute instances on the transport side, the ShareChat real-time ad infra at 40M DAU on the high-throughput backend side. The job at Turium is to put those halves together and lead the Hyderabad team that builds it."
 
 ## The architecture, in 6 bullets
 
@@ -33,18 +33,18 @@ One page of talking points for live delivery. Read this before you walk into the
 
 ## The 5 anchors I'll cite by name
 
-1. **TunDRA, Microsoft** — QUIC protocol in Rust, 1M+ Compute Instances, 50% data-transfer improvement (A-MS1). → Connection plane scale credibility.
-2. **Model router, BlackBox** — Claude/GPT/Grok, capability-aware, 1B+ tokens/month (A-BB4). → AI plane and cost story.
-3. **LLMOps telemetry mesh, BlackBox** — 50M spans/day, deterministic replay, 60% MTTR cut (A-BB5). → Observability and AI debug story.
-4. **ShareChat ads** — 40M DAU, RTB sub-100ms, $20M revenue in a year (A-SC1, A-SC2). → Hard-real-time backend at consumer scale.
-5. **AutoML at Microsoft** — 15M+ jobs/month, 200K+ users, founding member (A-MS3). → Operating an evolving platform under live load.
+1. **TunDRA, Microsoft** - QUIC protocol in Rust, 1M+ Compute Instances, 50% data-transfer improvement (A-MS1). → Connection plane scale credibility.
+2. **Model router, BlackBox** - Claude/GPT/Grok, capability-aware, 1B+ tokens/month (A-BB4). → AI plane and cost story.
+3. **LLMOps telemetry mesh, BlackBox** - 50M spans/day, deterministic replay, 60% MTTR cut (A-BB5). → Observability and AI debug story.
+4. **ShareChat ads** - 40M DAU, RTB sub-100ms, $20M revenue in a year (A-SC1, A-SC2). → Hard-real-time backend at consumer scale.
+5. **AutoML at Microsoft** - 15M+ jobs/month, 200K+ users, founding member (A-MS3). → Operating an evolving platform under live load.
 
 ## The 5 lines to use when pushed
 
 | When they say... | I say... |
 | --- | --- |
-| "Why not just use Stream / Sendbird?" | "For Alpha, that's a fine wedge if we want to skip the connection plane. But if Qale's moat is AI inline with messaging, the message bus *is* our product. Outsourcing it makes the AI integration second-class. I've built the equivalent for ShareChat ads at 40M DAU — the cost and risk of building it ourselves is less than people assume." |
-| "Why WebSocket, not SSE?" | "We need bidirectional. Typing indicators, presence, AI streaming, and outbound message send all want one socket. SSE is a fine fallback for restrictive networks. WebTransport over QUIC is where I'd want us in 18 months — same shape as TunDRA at Microsoft." |
+| "Why not just use Stream / Sendbird?" | "For Alpha, that's a fine wedge if we want to skip the connection plane. But if Qale's moat is AI inline with messaging, the message bus *is* our product. Outsourcing it makes the AI integration second-class. I've built the equivalent for ShareChat ads at 40M DAU - the cost and risk of building it ourselves is less than people assume." |
+| "Why WebSocket, not SSE?" | "We need bidirectional. Typing indicators, presence, AI streaming, and outbound message send all want one socket. SSE is a fine fallback for restrictive networks. WebTransport over QUIC is where I'd want us in 18 months - same shape as TunDRA at Microsoft." |
 | "How do you keep AI cost from blowing up?" | "Three layers: capability-aware routing so 80% of calls go to the cheap model; per-workspace hard token budgets enforced before the call leaves the queue; aggressive context summarization with cached embeddings. That's the BlackBox playbook at 1B+ tokens/month." |
 | "How do you not turn into a manager?" | "I time-box leadership work to 50% in the first six months. The other 50% is on-call, design docs, code in the hot path of the connection plane and the AI orchestrator. The day I can't pull a PR for the connection gateway is the day Qale has the wrong Head of Engineering." |
 | "Why should we hire you for *Head of Engineering* if you've never been a Head of Engineering?" | "I've been a Principal who led architecture for a 6-engineer agentic platform at BlackBox, mentored 8 engineers and ran 30+ architecture reviews at Microsoft, and built ShareChat's ad team from scratch to $20M revenue in a year. The shape of the work is identical. The title is the lagging indicator." |
@@ -59,4 +59,4 @@ One page of talking points for live delivery. Read this before you walk into the
 
 ## The close (45 seconds)
 
-> "If I take this role, the first 30 days are spent reading the code and running load tests myself. Days 31–60 are about hardening the connection gateway and the AI budgeter. Days 61–90 are about being publicly launchable: SLOs, multi-region read, SOC-2 gap analysis, the team at ~10. By the time we hit 1M users, the architecture has not changed shape — it has just had its shards multiplied. That predictability is what real-time AI infrastructure has to be designed for, and it's what I've shipped before."
+> "If I take this role, the first 30 days are spent reading the code and running load tests myself. Days 31–60 are about hardening the connection gateway and the AI budgeter. Days 61–90 are about being publicly launchable: SLOs, multi-region read, SOC-2 gap analysis, the team at ~10. By the time we hit 1M users, the architecture has not changed shape - it has just had its shards multiplied. That predictability is what real-time AI infrastructure has to be designed for, and it's what I've shipped before."

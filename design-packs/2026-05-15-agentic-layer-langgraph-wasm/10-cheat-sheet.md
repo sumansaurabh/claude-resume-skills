@@ -1,4 +1,4 @@
-# 10 — Cheat Sheet
+# 10 - Cheat Sheet
 
 Concise talking points for live delivery. Designed to be skimmable five
 minutes before the interview.
@@ -53,17 +53,17 @@ the UI with preview URL. Wall-clock: 6–11 min. Cost: ~$1.20–$1.80/run.
 
 ## Words I want to use
 
-- **Stateless worker, externalized state** — the durability trick.
-- **Signed envelope, content-addressed idempotency** — the safety trick.
-- **Plan + ReAct, milestone-scoped** — the loop trick.
-- **Capability-aware routing, prompt cache reuse** — the cost trick.
-- **Hash, replay, divergence** — the debugging trick.
+- **Stateless worker, externalized state** - the durability trick.
+- **Signed envelope, content-addressed idempotency** - the safety trick.
+- **Plan + ReAct, milestone-scoped** - the loop trick.
+- **Capability-aware routing, prompt cache reuse** - the cost trick.
+- **Hash, replay, divergence** - the debugging trick.
 
 ## Words I'll avoid
 
-- "LangGraph handles that" — it doesn't; we wrap it.
-- "We just retry" — never. Retries are scoped by `side_effect_class`.
-- "Bulletproof", "100% isolation" — defense in depth, not absolutes.
+- "LangGraph handles that" - it doesn't; we wrap it.
+- "We just retry" - never. Retries are scoped by `side_effect_class`.
+- "Bulletproof", "100% isolation" - defense in depth, not absolutes.
 
 ## The hardest pushback to prepare for
 
@@ -93,4 +93,4 @@ state diagram from `04-low-level-design.md`, then pick one of:
 - WASM-sandbox-as-tool security boundary,
 
 depending on which way the conversation is leaning. End with the trade-off
-between LangGraph and Temporal — interviewers love a real trade-off.
+between LangGraph and Temporal - interviewers love a real trade-off.

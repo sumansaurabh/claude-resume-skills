@@ -1,4 +1,4 @@
-# 04 — Low-Level Design
+# 04 - Low-Level Design
 
 ## Service Decomposition
 
@@ -51,7 +51,7 @@ class JobValidator:
         """
         Uses Azure RBAC token exchange to verify pod's Managed Identity
         will have Storage Blob Data Reader on the dataset container.
-        Does NOT actually read data — checks IAM policy only.
+        Does NOT actually read data - checks IAM policy only.
         """
 
     def check_model_availability(self, model_id: str, version: str) -> ModelResult:

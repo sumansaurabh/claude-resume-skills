@@ -1,4 +1,4 @@
-# 14 — Leadership and Business Framing
+# 14 - Leadership and Business Framing
 
 The "why does this exist, who is it for, and how do you make it land" view.
 Useful as the back half of an interview answer or the pitch to the first
@@ -8,19 +8,19 @@ contributor.
 
 There is a gap in the OSS landscape:
 
-- **Daytona / Codespaces / Coder** — opinionated dev-environment platforms.
+- **Daytona / Codespaces / Coder** - opinionated dev-environment platforms.
   Powerful, but central control plane and service-shaped operationally.
-- **Nomad** — closest existing primitive. Solid for general workloads, but
+- **Nomad** - closest existing primitive. Solid for general workloads, but
   not opinionated about microVM/sandbox isolation, and federation is per-
   region with central coordination.
-- **Kubernetes** — too heavy for "ephemeral one-shot sandbox", too
+- **Kubernetes** - too heavy for "ephemeral one-shot sandbox", too
   cluster-bound for "ecosystems mesh together."
-- **libp2p/IPFS** — beautiful federation primitives but no notion of
+- **libp2p/IPFS** - beautiful federation primitives but no notion of
   ephemeral compute.
 
 The opportunity: a runner that is small enough for a single bare-metal
 operator to run, distributed enough to scale to 10K nodes, and *meshable*
-across organizational ecosystems via libp2p — so two open-source projects,
+across organizational ecosystems via libp2p - so two open-source projects,
 two CI providers, two universities can join the same fabric without
 choosing one organization's central control plane.
 
@@ -51,7 +51,7 @@ choosing one organization's central control plane.
 3. **Universities and research labs** that want to share compute capacity
    across institutions without merging admin.
 4. **Edge / IoT operators** running compute at thousands of physical sites
-   with poor central network — gossip-based control plane fits the substrate.
+   with poor central network - gossip-based control plane fits the substrate.
 5. **Cloud-skeptics** who want a non-AWS, non-GCP path to ephemeral compute
    that's federation-friendly.
 
@@ -63,7 +63,7 @@ The relevant production experience:
   code executions with SOC-2 isolation requirements at BlackBox. Same
   domain, same shape of problem.
 - **Led GPU scheduling, gang-scheduling, bin-packing** for multi-tenant
-  Kubernetes ML infra at Microsoft AML — 15M+ jobs/month, 200K+ users.
+  Kubernetes ML infra at Microsoft AML - 15M+ jobs/month, 200K+ users.
   The placement and admission patterns are reused here.
 - **Co-developed TunDRA**, a Rust QUIC-based secure protocol powering 1M+
   Compute Instances at Microsoft. Direct precedent for the libp2p+QUIC
@@ -136,15 +136,15 @@ The relevant production experience:
 
 For a Principal Engineer profile, this side project demonstrates:
 
-- **Distributed systems judgment** — picking the right consistency
+- **Distributed systems judgment** - picking the right consistency
   substrate per concern, recognizing the control/data plane split,
   shipping v1 while keeping v2 reachable.
-- **Operational empathy** — choosing operability over theoretical purity
+- **Operational empathy** - choosing operability over theoretical purity
   for v1; designing for "what does the operator do at 3 AM."
-- **Cross-domain synthesis** — combining lessons from Microsoft AML
+- **Cross-domain synthesis** - combining lessons from Microsoft AML
   (scheduling), BlackBox (sandbox runtime), TunDRA (secure transport),
   and OSS (Nomad, libp2p, Sentinel) into a coherent design.
-- **Business framing** — knowing the niche, knowing why now, knowing the
+- **Business framing** - knowing the niche, knowing why now, knowing the
   adoption path. Not just an architecture doodle.
 
 ## What I Wouldn't Do

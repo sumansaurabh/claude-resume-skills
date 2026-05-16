@@ -1,4 +1,4 @@
-# Agent Memory Persistence — Design Pack
+# Agent Memory Persistence - Design Pack
 
 Principal-engineer pack on the BlackBox agent memory subsystem: short-term,
 long-term, vector, episodic, and execution-state stores, and the architecture
@@ -44,7 +44,7 @@ Anchored in `resume.txt` and `blackbox-experience.md`:
 - "You built or led **memory persistence** for agents, allowing state to survive
   across workflow steps and possibly across sessions." (blackbox-experience.md #14)
 - LangGraph/LangChain ReAct agent runtimes (resume.txt; blackbox #7).
-- LLMOps telemetry mesh — 50M spans/day, 2.5TB+/month, deterministic replay
+- LLMOps telemetry mesh - 50M spans/day, 2.5TB+/month, deterministic replay
   (resume.txt; blackbox #20).
 - 10K+ agent runs/day; 1B+ tokens/month context optimization (resume.txt).
 - Vector DB / HNSW / bm25 / cross-encoder stack (resume.txt technologies line).

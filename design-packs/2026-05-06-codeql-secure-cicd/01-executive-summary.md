@@ -1,4 +1,4 @@
-# 01 — Executive Summary
+# 01 - Executive Summary
 
 ## The Direct Answer
 
@@ -17,11 +17,11 @@ The recurring vulnerabilities that triggered this investment were: hardcoded sto
 
 ## The 60-Second Verbal Answer
 
-> "The trigger was two recurring vulnerability classes that kept showing up in security reviews. First, developers kept committing SAS tokens and service principal secrets into training scripts — easy to do when you're debugging locally and forget to clean up. Second, there was a path in our job spec renderer where user-supplied hyperparameter strings were interpolated into a shell command. That's command injection, and it came up twice before we standardized the fix.
+> "The trigger was two recurring vulnerability classes that kept showing up in security reviews. First, developers kept committing SAS tokens and service principal secrets into training scripts - easy to do when you're debugging locally and forget to clean up. Second, there was a path in our job spec renderer where user-supplied hyperparameter strings were interpolated into a shell command. That's command injection, and it came up twice before we standardized the fix.
 >
-> So we integrated three tools. CodeQL for static analysis — we configured it for Go and Python with the standard security queries plus custom queries for our platform-specific patterns (unsafe pod spec construction, improper tenant ID validation in API handlers). GitHub Advanced Security secret scanning to catch tokens and keys before they hit main. And Dependabot + GitHub's dependency review to block PRs that introduced known-CVE dependencies.
+> So we integrated three tools. CodeQL for static analysis - we configured it for Go and Python with the standard security queries plus custom queries for our platform-specific patterns (unsafe pod spec construction, improper tenant ID validation in API handlers). GitHub Advanced Security secret scanning to catch tokens and keys before they hit main. And Dependabot + GitHub's dependency review to block PRs that introduced known-CVE dependencies.
 >
-> For the Rust TunDRA codebase, CodeQL had limited support at the time, so we used cargo-audit for dependency CVEs and a custom CI step that counted unsafe blocks — any new unsafe block required a security sign-off.
+> For the Rust TunDRA codebase, CodeQL had limited support at the time, so we used cargo-audit for dependency CVEs and a custom CI step that counted unsafe blocks - any new unsafe block required a security sign-off.
 >
 > After rollout, we eliminated two classes of recurring vulnerabilities within 90 days and blocked 14 high-severity dependency CVEs before they merged. More importantly, the pipeline created a forcing function for the threat model work: every new component needed a CodeQL query to cover its specific risk, which meant developers had to think about their attack surface before writing the query."
 

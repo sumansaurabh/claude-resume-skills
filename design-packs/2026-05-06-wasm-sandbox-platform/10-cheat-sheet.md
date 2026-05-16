@@ -1,8 +1,8 @@
-# 10 — Interview Cheat Sheet
+# 10 - Interview Cheat Sheet
 
 ## The 30-Second Hook
 
-> "I architected the WASM sandbox execution plane at BlackBox — the isolation layer that lets the Copilot AI run LLM-generated code safely. 1M+ executions/day, sub-50ms warm start, pure-Go wazero runtime, and the control that unblocked our SOC-2 certification."
+> "I architected the WASM sandbox execution plane at BlackBox - the isolation layer that lets the Copilot AI run LLM-generated code safely. 1M+ executions/day, sub-50ms warm start, pure-Go wazero runtime, and the control that unblocked our SOC-2 certification."
 
 ---
 
@@ -10,7 +10,7 @@
 
 1. **Request intake:** `POST /execute` + SSE stream; JWT auth; rate limit via Redis token bucket
 2. **Schedule:** Pre-warm pool of 200 Go workers; weighted round-robin dispatch; cold start if pool empty
-3. **Sandbox creation:** Worker calls `wazero.InstantiateModule()` — fresh linear memory, WASI with **only stdin/stdout/stderr**, no filesystem, no network, 128MB memory cap
+3. **Sandbox creation:** Worker calls `wazero.InstantiateModule()` - fresh linear memory, WASI with **only stdin/stdout/stderr**, no filesystem, no network, 128MB memory cap
 4. **Execution:** WASM module (Pyodide for Python, QuickJS for JS) runs code with 30s CPU timeout; stdout/stderr stream back as SSE chunks
 5. **Cleanup:** `module.Close()` frees linear memory; worker resets and returns to pool in ~50ms
 
@@ -18,9 +18,9 @@
 
 ## The 3 Isolation Claims (Always Cite All Three)
 
-1. **WASM linear memory** — each instance has separate, bounded memory; no WASM instruction addresses host or other instances' memory
-2. **WASI capability model** — no filesystem, no network, no env vars exposed; the only channel is stdin/stdout/stderr
-3. **Instance discard** — module instance is closed and freed after each execution; no state crosses execution boundaries
+1. **WASM linear memory** - each instance has separate, bounded memory; no WASM instruction addresses host or other instances' memory
+2. **WASI capability model** - no filesystem, no network, no env vars exposed; the only channel is stdin/stdout/stderr
+3. **Instance discard** - module instance is closed and freed after each execution; no state crosses execution boundaries
 
 ---
 
@@ -39,8 +39,8 @@
 ## Why wazero Over Wasmtime/Wasmer
 
 - **No CGo** → no C-memory vulnerability surface in the runtime itself
-- Embeds as a single Go binary — no shared library deployment complexity
-- Goroutine-safe — multiple workers share one compiled module safely
+- Embeds as a single Go binary - no shared library deployment complexity
+- Goroutine-safe - multiple workers share one compiled module safely
 
 ---
 
@@ -60,7 +60,7 @@
 
 ## SOC-2 Connection (The Business Anchor)
 
-> "WASM's capability model gave auditors a demonstrable, enforceable isolation control. The prior approach (subprocess with restricted user) failed the SOC-2 audit because a Python jailbreak could still read /proc/self/environ. With WASI, there's no /proc to read — the filesystem API literally doesn't exist inside the sandbox."
+> "WASM's capability model gave auditors a demonstrable, enforceable isolation control. The prior approach (subprocess with restricted user) failed the SOC-2 audit because a Python jailbreak could still read /proc/self/environ. With WASI, there's no /proc to read - the filesystem API literally doesn't exist inside the sandbox."
 
 ---
 

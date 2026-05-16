@@ -1,8 +1,8 @@
-# Agentic Layer — LangGraph + WASM Sandboxes (BlackBox No-Code AI)
+# Agentic Layer - LangGraph + WASM Sandboxes (BlackBox No-Code AI)
 
 End-to-end Principal Engineer pack: the agentic layer that turns a natural-language
-prompt like *"design a website like Slack"* into a concrete project — code, files,
-preview, and reasoning trace — using a LangGraph-based ReAct runtime on top of a
+prompt like *"design a website like Slack"* into a concrete project - code, files,
+preview, and reasoning trace - using a LangGraph-based ReAct runtime on top of a
 Golang WASM sandbox plane and a multi-model router (Claude / GPT / Grok).
 
 This pack is grounded in the BlackBox Principal Engineer experience: agentic AI
@@ -30,6 +30,6 @@ multi-model router (1B+ tokens/month), and LLMOps telemetry mesh (50M spans/day)
 
 ## How to use this pack
 
-Read `01` for the elevator pitch, then `02` + `12` together — they walk the
+Read `01` for the elevator pitch, then `02` + `12` together - they walk the
 "design a website like Slack" prompt through every component. `04` is the file
 to study before LLD-style pushback. `09` is the sparring partner.

@@ -1,4 +1,4 @@
-# 11 — Control Plane vs Data Plane
+# 11 - Control Plane vs Data Plane
 
 The single most important architectural axis in this design. What lives
 where, and why.
@@ -31,7 +31,7 @@ where, and why.
 ┌──────────────────────────────────────────────────────────────┐
 │                        DATA PLANE                             │
 │                                                              │
-│  Per-node SQLite (sandbox state — owner-authoritative)        │
+│  Per-node SQLite (sandbox state - owner-authoritative)        │
 │  Per-node Caddy (ingress)                                     │
 │  Per-node Docker / runtime (gVisor)                           │
 │  Per-node admission controller (capacity)                     │
@@ -67,8 +67,8 @@ Control plane = state where strict ordering matters.
 | `node_id → port_partition` | Two nodes must not be assigned overlapping port ranges |
 | `idempotency_key → sandbox_id` (TTL'd) | Two simultaneous creates with same key must collapse |
 | Audit events | Must not be lost or reordered |
-| Membership liveness | Eventually consistent is enough — gossip, not Raft |
-| Capacity vectors | Eventually consistent — power-of-two-choices is robust to staleness |
+| Membership liveness | Eventually consistent is enough - gossip, not Raft |
+| Capacity vectors | Eventually consistent - power-of-two-choices is robust to staleness |
 
 The last two are control-plane *information* but live in gossip, not Raft.
 They tolerate inconsistency because the placement decision either succeeds
@@ -94,9 +94,9 @@ would be wasted.
 
 Three places only:
 
-1. **Create sandbox** — control plane decides owner; data plane runs the container.
-2. **Owner death (re-place)** — gossip detects, control plane re-elects, data plane on new owner reconciles.
-3. **Manual move (rebalance)** — control plane authorizes; data planes on source and destination coordinate handoff.
+1. **Create sandbox** - control plane decides owner; data plane runs the container.
+2. **Owner death (re-place)** - gossip detects, control plane re-elects, data plane on new owner reconciles.
+3. **Manual move (rebalance)** - control plane authorizes; data planes on source and destination coordinate handoff.
 
 Everything else is data plane.
 
@@ -105,9 +105,9 @@ Everything else is data plane.
 The current code already separates concerns this way, just without the
 distributed substrate:
 
-- `internal/store` — local data plane (SQLite).
-- `internal/service` — local data plane (lifecycle on local containers).
-- `pkg/docker`, `pkg/caddy`, `pkg/capacity` — local data plane.
+- `internal/store` - local data plane (SQLite).
+- `internal/service` - local data plane (lifecycle on local containers).
+- `pkg/docker`, `pkg/caddy`, `pkg/capacity` - local data plane.
 - The implicit "this node is the placement authority" assumption is the
   control plane today.
 

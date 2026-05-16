@@ -1,8 +1,8 @@
-# 00 — Question and Context
+# 00 - Question and Context
 
 ## The question (as posed by Turium AI)
 
-Turium AI is building **Qale** — a real-time, AI-native communication platform designed to replace legacy email and reset global messaging. Approaching Alpha. Hiring a hands-on Head of Engineering to lead Alpha → Public Launch → Scale (1M+ users).
+Turium AI is building **Qale** - a real-time, AI-native communication platform designed to replace legacy email and reset global messaging. Approaching Alpha. Hiring a hands-on Head of Engineering to lead Alpha → Public Launch → Scale (1M+ users).
 
 Key responsibilities pulled from the JD:
 
@@ -34,9 +34,9 @@ So the implicit interview question is:
 
 **Out of scope (called out so I don't get pulled in):**
 
-- Specific UI mocks or pixel design — Qale isn't public yet.
-- Deep WebRTC voice/video stack — JD lists it as *preferred*; I'll touch it as an extension lane, not the core product.
-- Email-protocol bridging (SMTP/IMAP) — possible inbound migration path, but not core architecture.
+- Specific UI mocks or pixel design - Qale isn't public yet.
+- Deep WebRTC voice/video stack - JD lists it as *preferred*; I'll touch it as an extension lane, not the core product.
+- Email-protocol bridging (SMTP/IMAP) - possible inbound migration path, but not core architecture.
 
 ## Assumptions (explicitly labeled)
 
@@ -45,7 +45,7 @@ So the implicit interview question is:
 | A1 | Qale is conversation-first, not document-first; threads + channels + DMs replace email threads. | "Replace legacy email" + "real-time AI-native communication" framing. |
 | A2 | AI features include: smart inbox triage, draft compose, thread summarization, agent actions on threads, semantic search. | Standard AI-native messaging surface; matches BlackBox agentic platform skills. |
 | A3 | Multi-tenant SaaS with workspaces (à la Slack), not consumer-only. | "Global messaging" + enterprise framing common to email replacement. |
-| A4 | Cloud-native — assume AWS as primary (most common in India SaaS); design is cloud-agnostic. | JD says "cloud-native deployments." |
+| A4 | Cloud-native - assume AWS as primary (most common in India SaaS); design is cloud-agnostic. | JD says "cloud-native deployments." |
 | A5 | Mobile clients exist (iOS/Android), but launch wedge is web (React). | JD emphasizes React. |
 | A6 | 1M+ users means ~150–250K DAU at launch, scaling. Peak concurrent WebSockets ~100–200K. | Standard 15–25% DAU/MAU ratio for messaging products. |
 | A7 | Token budget for AI is a meaningful business constraint, not infinite. | BlackBox 1B+ tokens/month experience says cost control matters at this scale. |
@@ -66,11 +66,11 @@ These are the bullets I'll lean on in the interview. Any claim about my own work
 
 ### Microsoft OpenAI / Azure ML (Senior SWE, Oct 2020 – Aug 2025)
 
-- **A-MS1:** "Co-developed TunDRA, a secure QUIC-based communication protocol in Rust powering over 1 million Compute Instances with 50% improvement in secure data transfer." → Direct experience scaling secure, low-latency transport to 1M+ endpoints — very close to Qale's WebSocket/QUIC connection plane.
+- **A-MS1:** "Co-developed TunDRA, a secure QUIC-based communication protocol in Rust powering over 1 million Compute Instances with 50% improvement in secure data transfer." → Direct experience scaling secure, low-latency transport to 1M+ endpoints - very close to Qale's WebSocket/QUIC connection plane.
 - **A-MS2:** "Led design of secure multi-tenant ML infrastructure across Kubernetes and Azure, including GPU scheduling, cost-aware resource allocation, and isolation strategies." → Multi-tenant SaaS infrastructure muscle.
 - **A-MS3:** "Co-architected and led cross-org design reviews and roadmap planning for AutoML Job evolution… supports 15M+ jobs per month… 200K+ global users." → Operating at the relevant scale; experience evolving a platform under live customer load.
 - **A-MS4:** "Mentored 8 engineers on secure protocol design; integrated CodeQL and GitHub Advanced Security into CI/CD pipelines; standardized threat modeling." → Engineering standards, secure CI/CD, the kind of bar I'd set at Qale.
-- **A-MS5:** "Led Scrum execution and 30+ architecture reviews for AI Fine-tuning and AutoML." → Cross-team architecture governance — the "Head of Engineering" coordination muscle.
+- **A-MS5:** "Led Scrum execution and 30+ architecture reviews for AI Fine-tuning and AutoML." → Cross-team architecture governance - the "Head of Engineering" coordination muscle.
 
 ### ShareChat (Team Lead, Jul 2019 – Oct 2020)
 
@@ -84,10 +84,10 @@ These are the bullets I'll lean on in the interview. Any claim about my own work
 
 ### Independent / Freelance
 
-- **A-IND1:** "ClipboardHealth — Led end-to-end migration of Clipboard Health's Payments service to microservices using NestJS, Terraform, and AWS, reducing deployment time by 34%, engineering effort by 20%." → Concrete service-decomposition + IaC + AWS pattern I'd reuse.
+- **A-IND1:** "ClipboardHealth - Led end-to-end migration of Clipboard Health's Payments service to microservices using NestJS, Terraform, and AWS, reducing deployment time by 34%, engineering effort by 20%." → Concrete service-decomposition + IaC + AWS pattern I'd reuse.
 
 ## Grounding confidence
 
-**High** — for AI plane, telemetry, real-time transport at scale, multi-tenant security posture, leadership structure: backed by ≥2 strong anchors each.
+**High** - for AI plane, telemetry, real-time transport at scale, multi-tenant security posture, leadership structure: backed by ≥2 strong anchors each.
 
-**Medium** — for React-specific implementation choices: I have full-stack experience but my deepest claims on the resume are backend-leaning. I'll be honest about that and frame how I'd partner with a strong frontend lead while still being hands-on.
+**Medium** - for React-specific implementation choices: I have full-stack experience but my deepest claims on the resume are backend-leaning. I'll be honest about that and frame how I'd partner with a strong frontend lead while still being hands-on.

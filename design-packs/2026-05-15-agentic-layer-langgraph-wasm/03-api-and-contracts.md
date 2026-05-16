@@ -1,4 +1,4 @@
-# 03 — APIs and Contracts
+# 03 - APIs and Contracts
 
 Three contract surfaces matter:
 
@@ -55,7 +55,7 @@ Idempotency: same `Idempotency-Key` within 24 hours returns the original
 
 ### GET `/v1/runs/{run_id}`
 
-Returns the current materialized state — used by the UI on reconnect.
+Returns the current materialized state - used by the UI on reconnect.
 
 ```json
 {
@@ -135,7 +135,7 @@ Top-level codes:
 
 ## 2. Internal gRPC contracts
 
-### `SandboxBroker` — between agent worker and Go sandbox plane
+### `SandboxBroker` - between agent worker and Go sandbox plane
 
 ```proto
 service SandboxBroker {
@@ -191,12 +191,12 @@ Key invariants:
 - **Envelope is signed.** Sandbox broker rejects any envelope not signed by the
   worker's per-run key, derived from the run's auth token by the dispatcher.
 - **Idempotency by envelope_id.** A retried call with the same `envelope_id`
-  returns the cached `ToolResult` without re-executing — critical for at-least-once
+  returns the cached `ToolResult` without re-executing - critical for at-least-once
   delivery from a worker that may have crashed after dispatch.
 - **Budget is mandatory.** No tool call without an explicit budget. The broker
   rejects requests whose budget exceeds the run's remaining budget.
 
-### `ModelRouter` — between agent worker and providers
+### `ModelRouter` - between agent worker and providers
 
 ```proto
 service ModelRouter {
@@ -243,7 +243,7 @@ message RoutingDecision {
 }
 ```
 
-The `RoutingDecision` chunk is **always emitted first** — the worker, telemetry
+The `RoutingDecision` chunk is **always emitted first** - the worker, telemetry
 mesh, and SSE stream all depend on knowing which model actually answered before
 output starts.
 
@@ -311,6 +311,6 @@ is required before dispatch.
 5. Worker accumulates the result, writes it to the checkpoint, advances graph.
 
 The interview-grade thing to point out: this round-trip is **the only place**
-the agent can affect the outside world. Everything else — model calls,
-memory writes, checkpoints — is observable but reversible. That property is
+the agent can affect the outside world. Everything else - model calls,
+memory writes, checkpoints - is observable but reversible. That property is
 what makes the policy gate small and the replay system possible.

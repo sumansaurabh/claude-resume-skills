@@ -1,4 +1,4 @@
-# 03 — API and Internal Contracts
+# 03 - API and Internal Contracts
 
 ## Public REST API
 
@@ -10,7 +10,7 @@ Submit a code execution request.
 
 | Header | Required | Description |
 |---|---|---|
-| `Authorization` | Yes | `Bearer <jwt>` — identifies tenant and principal |
+| `Authorization` | Yes | `Bearer <jwt>` - identifies tenant and principal |
 | `Idempotency-Key` | Recommended | Client-generated UUID; replays return the cached response without re-execution |
 | `Content-Type` | Yes | `application/json` |
 
@@ -42,7 +42,7 @@ Submit a code execution request.
 
 `network_allowed` is validated server-side. If a client sends `true`, the server returns `400 Bad Request` with error code `NETWORK_NOT_ALLOWED`. This field exists for internal staging environments only.
 
-**Response — 201 Created (async) or 200 OK (sync inline)**
+**Response - 201 Created (async) or 200 OK (sync inline)**
 
 For executions completing within a fast-path threshold (< 500ms wall time), the response is synchronous:
 
@@ -73,7 +73,7 @@ For executions exceeding the fast-path threshold, the response is async:
 
 The client polls `GET /v1/executions/{execution_id}` until `status` leaves `PENDING`.
 
-**Response — terminal states**
+**Response - terminal states**
 
 | `status` | Meaning |
 |---|---|
@@ -311,10 +311,10 @@ The orchestrator enforces a per-request deadline on the `ResultC` channel read t
 
 Every `SandboxResult` is forwarded to three sinks after the orchestrator receives it:
 
-1. **Response store** — written to Redis (TTL 24h) keyed by `exec_id` for async polling and idempotency replay.
-2. **Metrics** — Prometheus counters/histograms emitted per `status`, `language`, and `tenant_tier`. Key metrics:
+1. **Response store** - written to Redis (TTL 24h) keyed by `exec_id` for async polling and idempotency replay.
+2. **Metrics** - Prometheus counters/histograms emitted per `status`, `language`, and `tenant_tier`. Key metrics:
    - `sandbox_executions_total{status, language, tenant_tier}`
    - `sandbox_cpu_ms_used_histogram{language}`
    - `sandbox_memory_peak_bytes_histogram{language}`
-   - `sandbox_security_events_total{type, tenant_id}` — alerted on if > 0 in a 5-minute window
-3. **Audit log** — structured JSON to an append-only log sink (e.g. Kafka topic → S3 → Athena). Includes full `SecurityEvents` array. Required for SOC-2 CC7.2.
+   - `sandbox_security_events_total{type, tenant_id}` - alerted on if > 0 in a 5-minute window
+3. **Audit log** - structured JSON to an append-only log sink (e.g. Kafka topic → S3 → Athena). Includes full `SecurityEvents` array. Required for SOC-2 CC7.2.

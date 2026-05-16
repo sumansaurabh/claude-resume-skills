@@ -1,4 +1,4 @@
-# 01 — Executive Summary
+# 01 - Executive Summary
 
 ## The 60-second version
 
@@ -16,12 +16,12 @@ The four major implementations differ on **one axis: who owns the sharding**.
 
 | Framework | What it shards | How sharding happens |
 |---|---|---|
-| **`torch.distributed` (DDP)** | Nothing — full model on every GPU; only gradients are averaged | All-reduce on backward |
+| **`torch.distributed` (DDP)** | Nothing - full model on every GPU; only gradients are averaged | All-reduce on backward |
 | **PyTorch FSDP** (the native "DFT") | Parameters + grads + optimizer state, sharded inside FSDP-wrapped modules | All-gather pre-forward, reduce-scatter post-backward |
 | **DeepSpeed ZeRO-1/2/3** | Optimizer state (Z1), +grads (Z2), +params (Z3); plus offload to CPU/NVMe | Engine intercepts param access via hooks; ZeRO-3 = same theory as FSDP, different bookkeeping |
 | **Megatron-LM / DeepSeek-style** | Tensor parallel + Pipeline parallel + Expert parallel (3D / 5D parallelism) | Manual layer rewrite (`ColumnParallelLinear`, etc.) + pipeline schedule |
-| **Ray Train** | Nothing on its own — orchestrates DDP/FSDP/DeepSpeed across a Ray cluster | Distributed actor placement + Ray's internal rendezvous; reuses the above under the hood |
-| **vLLM** | Inference-only — sharding via Tensor Parallel + PagedAttention KV cache | Not a trainer at all; relevant for post-training eval and serving |
+| **Ray Train** | Nothing on its own - orchestrates DDP/FSDP/DeepSpeed across a Ray cluster | Distributed actor placement + Ray's internal rendezvous; reuses the above under the hood |
+| **vLLM** | Inference-only - sharding via Tensor Parallel + PagedAttention KV cache | Not a trainer at all; relevant for post-training eval and serving |
 
 ## How DeepSeek differs from the others
 
@@ -29,9 +29,9 @@ DeepSeek V2/V3 training is not a different "framework" so much as **a different
 parallelism + precision recipe** built on Megatron-style infra:
 
 - **MLA (Multi-head Latent Attention)** reduces KV cache size 5-10× during training.
-- **DeepSeekMoE** with 256+ routed experts uses **Expert Parallelism (EP)** — experts
+- **DeepSeekMoE** with 256+ routed experts uses **Expert Parallelism (EP)** - experts
   are partitioned across GPUs, with all-to-all replacing all-reduce on MoE layers.
-- **FP8 training** with a custom transformer-engine fork — gradients in BF16,
+- **FP8 training** with a custom transformer-engine fork - gradients in BF16,
   params/activations in FP8, with online scaling.
 - **DualPipe** pipeline parallelism that overlaps compute and all-to-all.
 
@@ -77,7 +77,7 @@ the data plane has three operating constraints that drive every design decision:
 1. **GPUs are the budget.** Every minute of idle GPU is real money. Gang scheduling
    + warm container images + lazy weight loading exist *because* of this.
 2. **Tenants must not see each other.** VNet isolation, workload identity, private
-   endpoints, namespace-per-tenant — but also: NCCL traffic lives only on the
+   endpoints, namespace-per-tenant - but also: NCCL traffic lives only on the
    tenant's pods, and checkpoints land only in the tenant's storage.
 3. **Jobs fail constantly.** At 15M jobs/month a 0.1% failure rate is 15K failures
    per month; checkpointing + idempotent retry isn't optional, it's the runtime.

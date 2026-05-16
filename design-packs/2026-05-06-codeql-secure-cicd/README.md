@@ -5,7 +5,7 @@
 **Interview question:**
 > "You integrated CodeQL and GitHub Advanced Security into CI/CD. What classes of vulnerabilities were you trying to catch?"
 
-**Resume rating:** 8/10 — strong supporting topic; connects secure protocol design mentorship to concrete engineering outcomes.
+**Resume rating:** 8/10 - strong supporting topic; connects secure protocol design mentorship to concrete engineering outcomes.
 
 ---
 
@@ -25,12 +25,12 @@
 
 ## The 6 Vulnerability Classes
 
-1. **Injection** — command injection via hyperparameter values in job spec renderer
-2. **Secrets in code** — SAS tokens, service principal credentials in training scripts
-3. **Dependency CVEs** — pip and Go module vulnerabilities in training harness and platform services
-4. **Container image CVEs** — base image OS packages with HIGH/CRITICAL findings
-5. **Weak cryptography** — MD5 in checkpoint manifests, InsecureSkipVerify in internal clients, Rust unsafe blocks
-6. **Kubernetes pod spec injection** — user input flowing into operator security context fields
+1. **Injection** - command injection via hyperparameter values in job spec renderer
+2. **Secrets in code** - SAS tokens, service principal credentials in training scripts
+3. **Dependency CVEs** - pip and Go module vulnerabilities in training harness and platform services
+4. **Container image CVEs** - base image OS packages with HIGH/CRITICAL findings
+5. **Weak cryptography** - MD5 in checkpoint manifests, InsecureSkipVerify in internal clients, Rust unsafe blocks
+6. **Kubernetes pod spec injection** - user input flowing into operator security context fields
 
 ---
 
@@ -47,7 +47,7 @@
 
 ## How to Use This Pack
 
-1. **Read `01-executive-summary.md`** — internalize the 60-second answer and the 6 classes
-2. **Read `02-vulnerability-classes.md`** — understand the platform-specific triggers for each class
-3. **Drill `05-cross-questions.md`** — the 9 questions cover the most likely attack angles
-4. **Day-of: `06-cheat-sheet.md`** — the one-page review
+1. **Read `01-executive-summary.md`** - internalize the 60-second answer and the 6 classes
+2. **Read `02-vulnerability-classes.md`** - understand the platform-specific triggers for each class
+3. **Drill `05-cross-questions.md`** - the 9 questions cover the most likely attack angles
+4. **Day-of: `06-cheat-sheet.md`** - the one-page review

@@ -1,4 +1,4 @@
-# 11 — Control Plane vs Data Plane
+# 11 - Control Plane vs Data Plane
 
 The split that lets Qale's slow, durable, audited surface (workspace settings, billing, AI policy, schemas) coexist with the hot, high-throughput surface (messages, presence, AI streams). Anchors from `00-question-and-context.md`.
 
@@ -6,7 +6,7 @@ The split that lets Qale's slow, durable, audited surface (workspace settings, b
 
 A single deployment that mixes "user is renaming a channel" and "5,000 users are receiving a fanout" is a deployment whose worst case dominates everything. The control plane and the data plane have different SLOs, different blast radii, different change cadences, different failure modes, and (often) different operators on call.
 
-Anchor: this is the same separation that ran cleanly through the **Microsoft Azure ML control vs data plane** during AutoML evolution (A-MS3) — control-plane changes (job schemas, quotas, policies) went through formal change control; data-plane code (job execution, scheduler, runtime) deployed under canary + auto-rollback.
+Anchor: this is the same separation that ran cleanly through the **Microsoft Azure ML control vs data plane** during AutoML evolution (A-MS3) - control-plane changes (job schemas, quotas, policies) went through formal change control; data-plane code (job execution, scheduler, runtime) deployed under canary + auto-rollback.
 
 The principle: **a control-plane outage must never stop in-flight data-plane traffic.**
 
@@ -52,7 +52,7 @@ Mechanism:
 - Tokens issued by the control plane are short-lived JWTs (10 min for user; 60s for service-to-service capability tokens) so revocation propagates in bounded time without round trips.
 - Emergency revocation: a per-`{wsId, userId}` "kill list" pushed via the same channel and held in-memory at the gateway; checked on every WS frame for high-value sessions.
 
-This is the same pattern Microsoft used for VNet-attached compute trust at scale (A-MS2) — policy decisions are made centrally and enforced locally with short-TTL artifacts.
+This is the same pattern Microsoft used for VNet-attached compute trust at scale (A-MS2) - policy decisions are made centrally and enforced locally with short-TTL artifacts.
 
 ## 4. Config distribution
 
@@ -74,7 +74,7 @@ Region-aware rollout: every dynamic config change rolls per-region (smallest fir
 | Control plane | Behind change control; weekly window or as needed | Approval + dry-run on staging mirror; longer canary window |
 | Data plane | Continuous deploy (CD); multiple per day | Canary 5% for 30 min → 25% for 30 min → 100%; auto-rollback on SLO burn or error-rate spike |
 
-Anchor: ran 30+ architecture reviews and Scrum execution at Microsoft (A-MS5) — this dual cadence is what kept AutoML evolving fast (data plane) without breaking compliance posture (control plane).
+Anchor: ran 30+ architecture reviews and Scrum execution at Microsoft (A-MS5) - this dual cadence is what kept AutoML evolving fast (data plane) without breaking compliance posture (control plane).
 
 ## 6. Failure containment
 
@@ -96,12 +96,12 @@ How the data plane survives without control plane:
 | Tenant existence | Local TTL cache + Postgres data plane | Until cache TTL |
 | Audit destination | Local buffer + Kafka | Until buffer fills (~ hours) |
 
-Inverse: a data-plane outage degrades chat/AI but does not block billing, admin, or compliance work — those remain functional through the control plane.
+Inverse: a data-plane outage degrades chat/AI but does not block billing, admin, or compliance work - those remain functional through the control plane.
 
 ## 7. Storage split
 
 - **Control DB:** small, slow, durable Postgres (RDS r6g.large is enough). Backed up daily with PITR. Tuned for correctness, not throughput.
-- **Data plane stores:** tuned for throughput — sharded Postgres, Redis, Kafka, OpenSearch, Qdrant, ClickHouse.
+- **Data plane stores:** tuned for throughput - sharded Postgres, Redis, Kafka, OpenSearch, Qdrant, ClickHouse.
 - **Bridge:** the control plane writes its `policy.changes` to a Kafka topic that the data plane consumes; outbox pattern guarantees at-least-once.
 
 ## 8. Where the split blurs
@@ -110,7 +110,7 @@ Three real cases where the line is fuzzy:
 
 1. **Workspace deletion.** Control-plane action with massive data-plane consequences (delete all messages, attachments, vectors, indexes). Solution: control plane writes a `tombstone` record with `delete_intent`; data-plane cleanup workers consume and execute. Customer sees workspace as deleted instantly; data is purged within 24h with audit evidence (anchor A-BB1).
 
-2. **Role revocation.** Sensitive — user must lose access immediately. Solution: short JWT TTL (10 min) bounds worst case; for instant effect, the control plane also pushes the user to the per-`(wsId, userId)` kill list.
+2. **Role revocation.** Sensitive - user must lose access immediately. Solution: short JWT TTL (10 min) bounds worst case; for instant effect, the control plane also pushes the user to the per-`(wsId, userId)` kill list.
 
 3. **AI policy change** (e.g., disable an agent tool because it was abused). Solution: pushed via `policy.changes`; data plane evaluates new policy on next AI call (≤ 60s).
 
@@ -164,4 +164,4 @@ flowchart LR
     class GW,MSG,AI,ROUT,BUD,PRES,NOT,SRCH,TEL dat
 ```
 
-The arrows between the planes are intentionally narrow — only policy down, audit up. Nothing else crosses. That's what keeps the planes independently survivable.
+The arrows between the planes are intentionally narrow - only policy down, audit up. Nothing else crosses. That's what keeps the planes independently survivable.

@@ -1,4 +1,4 @@
-# 02 — Defense-in-Depth Architecture
+# 02 - Defense-in-Depth Architecture
 
 ## Overview
 
@@ -8,7 +8,7 @@ This is the same model Suman deployed at BlackBox: a Golang orchestration layer 
 
 ---
 
-## Layer 1 — WASM Runtime Controls
+## Layer 1 - WASM Runtime Controls
 
 **Runtime:** wazero (pure-Go, no CGo) or wasmtime-go (Wasmtime via CGo bindings). wazero is preferred in a Go service because it avoids CGo and produces a single static binary with no shared library dependency.
 
@@ -19,14 +19,14 @@ WASM's memory model is a flat byte array (the "linear memory"). All pointer arit
 
 **Import allowlist**
 A WASM module can only call host functions that the host explicitly exports to it. At instantiation time the host passes a `wasm.HostFunctionBuilder` (wazero) that registers exactly the functions the module may call:
-- `fd_write` (stdout, stderr only — fd 1 and fd 2)
+- `fd_write` (stdout, stderr only - fd 1 and fd 2)
 - `clock_time_get`
 - `proc_exit`
 
-Everything else — `sock_open`, `path_open`, `fd_read` on arbitrary fds, `environ_get` — is simply not registered. Any attempt to call an unregistered import traps the module immediately with a `wasm.ErrModuleInstantiation`-class error.
+Everything else - `sock_open`, `path_open`, `fd_read` on arbitrary fds, `environ_get` - is simply not registered. Any attempt to call an unregistered import traps the module immediately with a `wasm.ErrModuleInstantiation`-class error.
 
 **Fuel metering**
-Wasmtime supports per-instruction fuel. A compile-time or instantiation-time fuel budget is set (e.g., 10 billion units ≈ ~2 CPU-seconds of compute). Each WASM instruction consumes one unit. When fuel reaches zero the runtime raises a `code_out_of_fuel` trap — the module is killed deterministically without relying on wall-clock signals.
+Wasmtime supports per-instruction fuel. A compile-time or instantiation-time fuel budget is set (e.g., 10 billion units ≈ ~2 CPU-seconds of compute). Each WASM instruction consumes one unit. When fuel reaches zero the runtime raises a `code_out_of_fuel` trap - the module is killed deterministically without relying on wall-clock signals.
 
 wazero exposes equivalent functionality via `RuntimeConfig.WithCloseOnContextDone` plus a context deadline, but dedicated fuel metering is available through the `wazero/sys` API.
 
@@ -41,7 +41,7 @@ A WASM module instance is never reused across executions. Each request compiles 
 
 ---
 
-## Layer 2 — WASI Capability Restrictions
+## Layer 2 - WASI Capability Restrictions
 
 WASI (WebAssembly System Interface) is capability-based by design. There is no ambient authority: a module can only access the resources the host explicitly hands to it.
 
@@ -59,7 +59,7 @@ After execution (success, trap, or timeout), the orchestrator deletes `/tmp/exec
 
 ---
 
-## Layer 3 — OS Isolation (Linux Namespaces + seccomp + cgroups)
+## Layer 3 - OS Isolation (Linux Namespaces + seccomp + cgroups)
 
 The Go orchestrator process that hosts WASM execution runs inside a Linux namespace bundle. On Kubernetes this is achieved by running the worker pod with a custom seccomp profile and restricted capabilities, plus an init container or a privileged sidecar that sets up namespaces if unshare is available.
 
@@ -92,14 +92,14 @@ A BPF program is loaded via `prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER)`. The al
 
 Blocked (SIGSYS / EPERM returned):
 
-- `socket`, `connect`, `bind`, `accept`, `sendto`, `recvfrom` — no network
-- `execve`, `execveat` — no child process spawning
-- `ptrace` — no debugging/introspection of other processes
-- `perf_event_open` — no side-channel timing attacks
-- `clone` with `CLONE_NEWUSER` — no privilege escalation via user namespace
-- `setuid`, `setgid`, `capset` — no privilege escalation
-- `mount`, `pivot_root` — no filesystem escapes
-- `init_module`, `finit_module` — no kernel module loading
+- `socket`, `connect`, `bind`, `accept`, `sendto`, `recvfrom` - no network
+- `execve`, `execveat` - no child process spawning
+- `ptrace` - no debugging/introspection of other processes
+- `perf_event_open` - no side-channel timing attacks
+- `clone` with `CLONE_NEWUSER` - no privilege escalation via user namespace
+- `setuid`, `setgid`, `capset` - no privilege escalation
+- `mount`, `pivot_root` - no filesystem escapes
+- `init_module`, `finit_module` - no kernel module loading
 
 **cgroup v2 limits**
 
@@ -115,7 +115,7 @@ When `memory.max` is hit, the kernel OOM-kills the cgroup. This fires even if WA
 
 ---
 
-## Layer 4 — Container and Kubernetes Layer
+## Layer 4 - Container and Kubernetes Layer
 
 Each sandbox worker is a dedicated Kubernetes pod. No two tenants share a pod. The pod spec enforces:
 
@@ -165,7 +165,7 @@ A profile named `sandbox-worker` denies `network inet`, `network inet6`, `capabi
 
 ---
 
-## Layer 5 — Multi-Tenant Isolation
+## Layer 5 - Multi-Tenant Isolation
 
 **Execution pool separation**
 Each tenant has a dedicated pool of WASM worker goroutines. The pool size is configured per tier (free, pro, enterprise). This prevents one tenant's burst from starving another's workers (noisy-neighbor CPU starvation) and ensures per-tenant queue depth visibility.
@@ -224,17 +224,17 @@ flowchart TD
 
 | Layer | Resource | Control | What it stops |
 |---|---|---|---|
-| 1 — WASM Runtime | CPU | Fuel metering | Infinite loops, compute abuse |
-| 1 — WASM Runtime | Memory | Linear memory max | Heap explosion inside WASM |
-| 1 — WASM Runtime | Network | Import allowlist (no sock_*) | Direct socket calls from WASM |
-| 1 — WASM Runtime | FS | Import allowlist (no path_open to host) | Host filesystem reads |
-| 1 — WASM Runtime | State | Fresh instantiation | Cross-execution state leakage |
-| 2 — WASI Host | FS | Pre-open + quota | Directory traversal, disk fill |
-| 2 — WASI Host | Network | Unregistered sock_* | WASI network API abuse |
-| 3 — OS | Network | Network namespace | Raw socket, IP stack abuse |
-| 3 — OS | Privilege | seccomp-bpf | execve, ptrace, privilege escalation |
-| 3 — OS | CPU/Mem | cgroup v2 | Host resource exhaustion, fork bombs |
-| 4 — Kubernetes | Network | NetworkPolicy deny-egress | Pod-to-pod lateral movement |
-| 4 — Kubernetes | Privilege | securityContext | Container breakout via capabilities |
-| 5 — Multi-tenant | State | Separate pools + dirs | Cross-tenant data leakage |
-| 5 — Multi-tenant | Compliance | Dedicated namespaces/nodes | SOC-2 tenant boundary audit |
+| 1 - WASM Runtime | CPU | Fuel metering | Infinite loops, compute abuse |
+| 1 - WASM Runtime | Memory | Linear memory max | Heap explosion inside WASM |
+| 1 - WASM Runtime | Network | Import allowlist (no sock_*) | Direct socket calls from WASM |
+| 1 - WASM Runtime | FS | Import allowlist (no path_open to host) | Host filesystem reads |
+| 1 - WASM Runtime | State | Fresh instantiation | Cross-execution state leakage |
+| 2 - WASI Host | FS | Pre-open + quota | Directory traversal, disk fill |
+| 2 - WASI Host | Network | Unregistered sock_* | WASI network API abuse |
+| 3 - OS | Network | Network namespace | Raw socket, IP stack abuse |
+| 3 - OS | Privilege | seccomp-bpf | execve, ptrace, privilege escalation |
+| 3 - OS | CPU/Mem | cgroup v2 | Host resource exhaustion, fork bombs |
+| 4 - Kubernetes | Network | NetworkPolicy deny-egress | Pod-to-pod lateral movement |
+| 4 - Kubernetes | Privilege | securityContext | Container breakout via capabilities |
+| 5 - Multi-tenant | State | Separate pools + dirs | Cross-tenant data leakage |
+| 5 - Multi-tenant | Compliance | Dedicated namespaces/nodes | SOC-2 tenant boundary audit |

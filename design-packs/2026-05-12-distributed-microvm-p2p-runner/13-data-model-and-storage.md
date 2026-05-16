@@ -1,8 +1,8 @@
-# 13 — Data Model and Storage
+# 13 - Data Model and Storage
 
 The three data substrates and exactly what lives in each.
 
-## Substrate 1 — Per-Node SQLite (current, extended)
+## Substrate 1 - Per-Node SQLite (current, extended)
 
 Owner-authoritative sandbox state. Replicas hold read-only snapshots with TTL.
 
@@ -113,7 +113,7 @@ CREATE TABLE audit_local (
 
 `seq` is the per-node monotonic sequence used by the shipper to detect gaps.
 
-## Substrate 2 — Placement Raft FSM (in-memory, snapshot to disk)
+## Substrate 2 - Placement Raft FSM (in-memory, snapshot to disk)
 
 ### State
 
@@ -180,16 +180,16 @@ Snapshot interval default 10 minutes. Snapshots retained 7 days.
 Total in-memory FSM: 100s of MB to ~3 GB at the upper end. Acceptable on a
 voter with 16 GB RAM. Above that, shard the placement Raft.
 
-## Substrate 3 — libp2p PubSub Topics (Eventually Consistent Replication)
+## Substrate 3 - libp2p PubSub Topics (Eventually Consistent Replication)
 
 Used for eventually-consistent replica sync of sandbox state.
 
 ### Topics
 
 ```
-/sandboxd/v1/sandbox/{shard_id}        — sandbox mutation events
-/sandboxd/v1/capacity                  — capacity vectors (membership delegate)
-/sandboxd/v1/audit                     — optional audit fan-out for telemetry
+/sandboxd/v1/sandbox/{shard_id}        - sandbox mutation events
+/sandboxd/v1/capacity                  - capacity vectors (membership delegate)
+/sandboxd/v1/audit                     - optional audit fan-out for telemetry
 ```
 
 `shard_id` = `hash(sandbox_id) % N_SHARDS`. Default `N_SHARDS = 64`.
@@ -221,7 +221,7 @@ A node subscribes to:
 This bounds per-node subscription bandwidth while preserving "any node can
 serve any GET" property.
 
-## Substrate 4 — Object Store (Optional, For Restartable Sandboxes)
+## Substrate 4 - Object Store (Optional, For Restartable Sandboxes)
 
 For `restartable=true` sandboxes, the owner periodically writes a
 checkpoint snapshot to a tenant-configured object store (S3-compat).
@@ -230,19 +230,19 @@ checkpoint snapshot to a tenant-configured object store (S3-compat).
 
 ```
 s3://{tenant_bucket}/sandboxd/{fabric}/{sandbox_id}/
-    checkpoint-v{N}.tar.zst        — gVisor checkpoint + writable layer
-    checkpoint-v{N}.meta.json      — { sandbox_row_snapshot, hlc_ts }
-    LATEST                         — pointer to v{N}
+    checkpoint-v{N}.tar.zst        - gVisor checkpoint + writable layer
+    checkpoint-v{N}.meta.json      - { sandbox_row_snapshot, hlc_ts }
+    LATEST                         - pointer to v{N}
 ```
 
 Snapshot interval is tenant-configurable, default 60s. Snapshots older than
 24h are GC'd. On owner failover, new owner pulls `LATEST`, restores, resumes.
 
 This integrates the BlackBox DAG checkpointing pattern (durable resumable
-agents, blackbox-experience.md #12-#15) — same checkpoint-and-resume model
+agents, blackbox-experience.md #12-#15) - same checkpoint-and-resume model
 applied to sandbox VMs.
 
-## Substrate 5 — Local Capacity Cache (in-process, gossiped)
+## Substrate 5 - Local Capacity Cache (in-process, gossiped)
 
 Each node holds an in-memory map of peer capacity vectors:
 

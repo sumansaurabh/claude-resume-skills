@@ -1,4 +1,4 @@
-# 00 — Question and Context
+# 00 - Question and Context
 
 ## Original Question
 
@@ -25,11 +25,11 @@ The following details are not publicly documented; they are stated as design cho
 
 1. **IPP = Internal Private Preview**: a staging tier where enterprise customers ran LLM fine-tuning before general availability. This was a dedicated AKS cluster with per-tenant VNet peering.
 2. **Job control plane was a custom service** (not raw Argo or Kubeflow) built on top of Kubernetes CRDs and the Volcano gang scheduler. Azure ML's own job orchestration layer was used or extended.
-3. **Training data stayed in customer storage** (ADLS Gen2 or Blob) accessed via Managed Identity delegation — no bulk copy to Microsoft-owned storage.
+3. **Training data stayed in customer storage** (ADLS Gen2 or Blob) accessed via Managed Identity delegation - no bulk copy to Microsoft-owned storage.
 4. **TunDRA (QUIC/Rust) was used for compute-to-compute and compute-to-storage communication**, not for gradient sync (NCCL handles that on the data plane).
 5. **Checkpoints went to Azure Blob** via private endpoint; MLflow was the model registry for artifact metadata.
 6. **Volcano** was used for gang scheduling; namespace-level quotas enforced per-tenant GPU budgets.
-7. **vLLM** was used in the evaluation phase (not the training phase itself) — paged attention and high-throughput token generation for eval harnesses.
+7. **vLLM** was used in the evaluation phase (not the training phase itself) - paged attention and high-throughput token generation for eval harnesses.
 
 ---
 

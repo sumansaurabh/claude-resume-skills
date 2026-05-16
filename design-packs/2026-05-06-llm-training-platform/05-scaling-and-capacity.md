@@ -1,4 +1,4 @@
-# 05 — Scaling and Capacity
+# 05 - Scaling and Capacity
 
 ## Throughput Model
 
@@ -20,7 +20,7 @@
 
 At 20B tokens/year with a weighted average of ~500M tokens/job, that's approximately **40,000 fine-tuning jobs/year** or **~110 jobs/day**.
 
-At 15M jobs/month on the broader platform, that's **~500,000 jobs/day** — the bulk are short AutoML jobs (minutes), not long LLM fine-tunes (hours to days).
+At 15M jobs/month on the broader platform, that's **~500,000 jobs/day** - the bulk are short AutoML jobs (minutes), not long LLM fine-tunes (hours to days).
 
 ---
 
@@ -107,10 +107,10 @@ Training data lives in customer ADLS Gen2, accessed via Managed Identity and pri
 - Effective token throughput per A100: ~150B tokens/hour for 7B QLoRA
 - Required data ingestion rate: ~4-5 GB/min per GPU (assuming avg 4 bytes/token for tokenized sequences)
 
-**ADLS Gen2 throughput:** up to 5 Gbps per container with private endpoint. A single 8-GPU A100 node needs ~35 GB/min = ~5 Gbps. Near the limit — use streaming with prefetch.
+**ADLS Gen2 throughput:** up to 5 Gbps per container with private endpoint. A single 8-GPU A100 node needs ~35 GB/min = ~5 Gbps. Near the limit - use streaming with prefetch.
 
 **Mitigations:**
-1. `num_workers=8` in DataLoader — async prefetch hides I/O latency
+1. `num_workers=8` in DataLoader - async prefetch hides I/O latency
 2. Local NVMe scratch disk for prefetch cache (Azure ND A100 nodes have 1.8TB NVMe)
 3. Sharded dataset across multiple ADLS containers when single-container throughput saturates
 4. Streaming datasets (HuggingFace `datasets` streaming mode) avoid full download
@@ -139,9 +139,9 @@ At 15M jobs/month (500K jobs/day):
 - After enrichment: ~500 bytes/line → 5 GB/s raw
 
 **Tiered approach:**
-1. **Hot tier (24h):** Azure Monitor Logs — full resolution, oncall queries
-2. **Warm tier (30d):** Kusto cluster — analytics, debugging, billing attribution
-3. **Cold tier (1y):** Azure Blob cold tier — compliance archival, sampled at 10%
+1. **Hot tier (24h):** Azure Monitor Logs - full resolution, oncall queries
+2. **Warm tier (30d):** Kusto cluster - analytics, debugging, billing attribution
+3. **Cold tier (1y):** Azure Blob cold tier - compliance archival, sampled at 10%
 
 Fluent Bit batches 10,000 lines or 5 seconds before flushing to Azure Monitor. Local disk buffer absorbs spikes.
 
@@ -176,7 +176,7 @@ Fluent Bit batches 10,000 lines or 5 seconds before flushing to Azure Monitor. L
 
 ## can finetuning really consume 20B tokesn pers year?
 
-Yes — **20B tokens/year for fine-tuning can be believable**, but only if you frame it correctly.
+Yes - **20B tokens/year for fine-tuning can be believable**, but only if you frame it correctly.
 
 For your resume line, the claim is:
 

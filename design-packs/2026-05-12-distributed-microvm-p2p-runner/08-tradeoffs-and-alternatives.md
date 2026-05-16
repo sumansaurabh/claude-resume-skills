@@ -1,4 +1,4 @@
-# 08 — Tradeoffs and Alternatives
+# 08 - Tradeoffs and Alternatives
 
 The big architectural choices, what was rejected, and why.
 
@@ -7,11 +7,11 @@ The big architectural choices, what was rejected, and why.
 | Option | Pros | Cons | Verdict |
 | --- | --- | --- | --- |
 | **Raft for placement only (Nomad-shaped)** | Linearizable; easy to operate; clear "who owns X"; debuggable; well-understood failure modes | Tiny but real central control plane; federates badly across ecosystems | **Chosen for v1** |
-| Raft for everything (etcd-as-store) | Simple consistency story | Log explodes when sandbox state lives in Raft; 10K nodes ⇒ 1K nodes effective | Rejected — load doesn't fit |
-| Pure CRDT over libp2p (Sentinel-shaped) | Truly leaderless; trivially federates; matches stated north star | Conflict resolution is operator-hostile; "who owns X right now" needs HLC reasoning; debugging is hard; ports need a separate mechanism | **Target for v2** — not yet |
-| Single-leader gossip (Serf-style) | Simple; fast | No quorum guarantees; placement conflicts on partition | Rejected — too weak |
-| Paxos / EPaxos | Theoretically optimal; multi-leader | No mature Go library; team-knowledge cost | Rejected — Raft wins |
-| ZooKeeper / Chubby external dependency | Battle-tested | New operational burden; another HA system to run | Rejected — embed Raft, don't add a service |
+| Raft for everything (etcd-as-store) | Simple consistency story | Log explodes when sandbox state lives in Raft; 10K nodes ⇒ 1K nodes effective | Rejected - load doesn't fit |
+| Pure CRDT over libp2p (Sentinel-shaped) | Truly leaderless; trivially federates; matches stated north star | Conflict resolution is operator-hostile; "who owns X right now" needs HLC reasoning; debugging is hard; ports need a separate mechanism | **Target for v2** - not yet |
+| Single-leader gossip (Serf-style) | Simple; fast | No quorum guarantees; placement conflicts on partition | Rejected - too weak |
+| Paxos / EPaxos | Theoretically optimal; multi-leader | No mature Go library; team-knowledge cost | Rejected - Raft wins |
+| ZooKeeper / Chubby external dependency | Battle-tested | New operational burden; another HA system to run | Rejected - embed Raft, don't add a service |
 
 **Why Raft for placement only is the right v1:** the placement payload is
 ~100 bytes, commits are rare, and the read path doesn't touch consensus. You
@@ -24,7 +24,7 @@ Nomad pattern, exactly TiKV's PD, exactly CockroachDB's meta range. Proven.
 | --- | --- | --- | --- |
 | **HashiCorp memberlist (SWIM)** | Battle-tested; great at 5K, tunable to 10K; Go-native | UDP-only; needs separate mechanism for capacity vector | **Chosen** |
 | libp2p PubSub for membership | Single transport; NAT traversal | Less mature for failure detection at scale; gossipsub overhead | Considered for v2 federation |
-| Centralized membership (heartbeat to Raft) | Strong consistency on liveness | All N nodes pinging Raft — terrible at 10K | Rejected |
+| Centralized membership (heartbeat to Raft) | Strong consistency on liveness | All N nodes pinging Raft - terrible at 10K | Rejected |
 | Hierarchical / regional gossip | Required at 50K | Premature for v1 | Future work above 10K |
 
 ## C. Port Allocation
@@ -32,16 +32,16 @@ Nomad pattern, exactly TiKV's PD, exactly CockroachDB's meta range. Proven.
 | Option | Pros | Cons | Verdict |
 | --- | --- | --- | --- |
 | **Per-node port partition assigned by Raft** | No global allocator; O(1) local allocation; simple to reason about | Some waste (each node holds unused ports); needs re-assignment for elastic node join/leave | **Chosen** |
-| One Raft group just for ports | Strongly consistent | Same control-plane concern as before; chatty | Rejected — partition is enough |
+| One Raft group just for ports | Strongly consistent | Same control-plane concern as before; chatty | Rejected - partition is enough |
 | CRDT G-Counter + optimistic claim | Leaderless; matches CRDT goal | Conflict-recover code is tricky on the host-port mutex path | v2 candidate |
-| Dynamic port via OS allocation | No coordination at all | Caddy still needs to know the port; round-trip adds Create latency | Rejected — race on Caddy update |
+| Dynamic port via OS allocation | No coordination at all | Caddy still needs to know the port; round-trip adds Create latency | Rejected - race on Caddy update |
 
 ## D. Cross-Node RPC Transport
 
 | Option | Pros | Cons | Verdict |
 | --- | --- | --- | --- |
-| **libp2p streams over QUIC + mTLS** | NAT traversal, federation-ready, mTLS-by-PeerID for free, multiplexed | New dependency; learning curve; QUIC libs Go-side maturing | **Chosen** — directly mirrors TunDRA stack |
-| gRPC over TCP+TLS | Battle-tested; mature tooling | No native NAT traversal; mTLS PKI to operate; harder federation | Rejected — federation friction |
+| **libp2p streams over QUIC + mTLS** | NAT traversal, federation-ready, mTLS-by-PeerID for free, multiplexed | New dependency; learning curve; QUIC libs Go-side maturing | **Chosen** - directly mirrors TunDRA stack |
+| gRPC over TCP+TLS | Battle-tested; mature tooling | No native NAT traversal; mTLS PKI to operate; harder federation | Rejected - federation friction |
 | Raw TCP + custom framing | Minimal | Reinventing security and multiplexing | Rejected |
 | HTTP/2 + JSON-RPC | Simplest | Worst latency; double-framing through proxy | Rejected |
 
@@ -52,7 +52,7 @@ Nomad pattern, exactly TiKV's PD, exactly CockroachDB's meta range. Proven.
 | **Owner-authoritative + lazy replica pull on read** | Low overhead; reads still distributed | Brief 404 window after a Create before replicas catch up | **Chosen** |
 | Eager replication to all peers | Always-fresh reads | O(N) bandwidth; awful at 10K | Rejected |
 | Replicate to K=3 random peers per shard | Good read availability; bounded cost | Adds owner-handoff complexity if all 3 die | Considered for "Restartable" sandboxes |
-| No replication; always read from owner | Simplest | Read availability tied to owner liveness | Rejected — too weak |
+| No replication; always read from owner | Simplest | Read availability tied to owner liveness | Rejected - too weak |
 
 ## F. Ingress Strategy
 
@@ -82,8 +82,8 @@ clustering change.
 | Option | Pros | Cons | Verdict |
 | --- | --- | --- | --- |
 | **Bridge peers + signed FabricDescriptor** | Lightweight; per-fabric autonomy preserved; opt-in cross-fabric placement | Bridge peer is a small attack surface; needs careful trust handover for key rotation | **Chosen** |
-| Merge Raft groups | Strongest cross-fabric consistency | Operationally awful; one log to dissolve | Rejected — kills the libp2p story |
-| Static peer pinning across fabrics (no bridge abstraction) | Simplest | No discovery, no policy gate | Rejected — doesn't scale operationally |
+| Merge Raft groups | Strongest cross-fabric consistency | Operationally awful; one log to dissolve | Rejected - kills the libp2p story |
+| Static peer pinning across fabrics (no bridge abstraction) | Simplest | No discovery, no policy gate | Rejected - doesn't scale operationally |
 | External directory (DHT) for cross-fabric discovery | Decentralized | Latency tax on every cross-fabric op | Future for "fully open" fabrics |
 
 ## I. Placement Algorithm
@@ -103,9 +103,9 @@ For ephemeral microVM sandboxes, power-of-two is enough.
 
 | Option | Pros | Cons | Verdict |
 | --- | --- | --- | --- |
-| **SQLite (current)** | Simple; embedded; good WAL | Single-writer; no built-in replication | **Kept** — no need to change |
-| BadgerDB | Faster writes; also embedded | New dependency; SQLite is fine | Rejected — needless churn |
-| Postgres per node | Featureful | Operational burden of running PG on each node | Rejected — wrong for embedded |
+| **SQLite (current)** | Simple; embedded; good WAL | Single-writer; no built-in replication | **Kept** - no need to change |
+| BadgerDB | Faster writes; also embedded | New dependency; SQLite is fine | Rejected - needless churn |
+| Postgres per node | Featureful | Operational burden of running PG on each node | Rejected - wrong for embedded |
 | Raft as the local store | Consistency built-in | Owner = node; per-sandbox Raft would be wrong | Rejected (already covered) |
 
 ## K. What "No Central Control Plane" Really Means In v1
@@ -123,10 +123,10 @@ Why ship it anyway:
   with CRDT later does not require rewriting `internal/service`,
   `pkg/api/v1`, or any of the runtime layers.
 - **Federation gives you the ecosystem story now.** Two Raft-coordinated
-  fabrics still mesh trivially via gossip bridges — the libp2p ethos lives
+  fabrics still mesh trivially via gossip bridges - the libp2p ethos lives
   in cross-fabric ingress and discovery, not in placement.
 
-The v2 path (CRDT placement) is real and intended. It's not vapor — it's
+The v2 path (CRDT placement) is real and intended. It's not vapor - it's
 sequenced.
 
 ## L. Why Not Just Use Nomad?

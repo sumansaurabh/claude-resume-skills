@@ -1,4 +1,4 @@
-# 03 — Internal Contracts of the Data Plane
+# 03 - Internal Contracts of the Data Plane
 
 This file is about the **wire-level contracts inside the data plane**: the env that
 the launcher hands the worker, the rendezvous protocol, the NCCL collective ABI, the
@@ -27,7 +27,7 @@ framework is wrapping the model:
 | `AZURE_CLIENT_ID` / federated token path | Workload identity | Tenant-scoped Azure AD identity |
 
 This contract is **framework-agnostic on purpose**. The same image can be launched
-by `torchrun`, `deepspeed`, or Ray Train — only the launcher binary differs.
+by `torchrun`, `deepspeed`, or Ray Train - only the launcher binary differs.
 
 ## 2. Rendezvous protocol
 
@@ -38,7 +38,7 @@ narrow to:
 
 Rank 0 runs a `TCPStore` on `MASTER_ADDR:MASTER_PORT`. Other ranks `connect()` and
 do a `barrier()`. Simple, fast, no external dependency. **Fragile** if rank 0
-crashes during init — the whole rendezvous dies. Sufficient when gang scheduling
+crashes during init - the whole rendezvous dies. Sufficient when gang scheduling
 guarantees all replicas come up together.
 
 ### 2b. etcd-v2 (`--rdzv-backend=etcd-v2`)
@@ -51,7 +51,7 @@ own HA story. In a gang-scheduled world, this is overkill.
 
 Ray's GCS (Global Control Store) acts as the rendezvous. Ray Train builds the
 NCCL process group on top, so the contract above (`RANK`, `WORLD_SIZE` etc.) is
-*also* what Ray Train hands you inside the user fn — that's why a DeepSpeed or
+*also* what Ray Train hands you inside the user fn - that's why a DeepSpeed or
 FSDP wrapper works unchanged under Ray.
 
 ### Code: framework-agnostic init
@@ -69,11 +69,11 @@ def init_dist():
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
 ```
 
-The 30-minute init timeout is not paranoia — at 70B+ params, weight loading from
+The 30-minute init timeout is not paranoia - at 70B+ params, weight loading from
 remote storage can take 5-10 minutes per node and the slowest rank gates the
 barrier.
 
-## 3. NCCL collectives — what actually moves on the wire
+## 3. NCCL collectives - what actually moves on the wire
 
 | Collective | Used by | Bytes on wire | When |
 |---|---|---|---|
@@ -154,7 +154,7 @@ with tracer.start_as_current_span("step", attributes={"step": step, "rank": rank
         optimizer.step()
 ```
 
-Metrics shipped on a periodic timer (not per-step — too noisy):
+Metrics shipped on a periodic timer (not per-step - too noisy):
 
 | Metric | Type | Notes |
 |---|---|---|
@@ -165,7 +165,7 @@ Metrics shipped on a periodic timer (not per-step — too noisy):
 | `ft.dataloader.wait_ms` | histogram | catches data-bound runs |
 | `ft.loss` | gauge | rank 0 only, replaces MLflow at higher cadence |
 
-The dataloader-wait histogram is the single most useful debugging metric — if it's
+The dataloader-wait histogram is the single most useful debugging metric - if it's
 non-zero, you're not training, you're waiting on I/O.
 
 ## 7. Model registry handoff
@@ -208,4 +208,4 @@ Three contracts that the rest of the platform depends on:
 3. **No leak across tenants**: a worker pod can only mount its tenant's storage
    (via workload identity scoped to that tenant's container), can only log to
    its tenant's MLflow namespace, and can only write to its tenant's registry.
-   These are not soft conventions — they are enforced by the token, not by code.
+   These are not soft conventions - they are enforced by the token, not by code.

@@ -1,4 +1,4 @@
-# 12 — State Machine and Workflows
+# 12 - State Machine and Workflows
 
 ## Full Job State Machine
 

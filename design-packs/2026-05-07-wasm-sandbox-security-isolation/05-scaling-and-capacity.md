@@ -1,4 +1,4 @@
-# 05 — Scaling and Capacity
+# 05 - Scaling and Capacity
 
 ## Throughput Model
 
@@ -82,7 +82,7 @@ Both limits fire independently.
 | Go worker goroutine stack | ~64 KB |
 | wasmtime runtime overhead | ~2 MB |
 | Compiled WASM module (shared, CoW across workers) | ~50 MB total (amortized ~0 per worker) |
-| WASM linear memory — pre-allocated pages | up to config.MaxMemoryPages × 64 KB |
+| WASM linear memory - pre-allocated pages | up to config.MaxMemoryPages × 64 KB |
 | Pipe buffers (stdout/stderr) | ~128 KB |
 | FsGuard tmpdir (tmpfs, not RAM unless written) | quota-bounded |
 | **Per-worker overhead (excluding linear memory)** | ~3 MB |
@@ -152,7 +152,7 @@ func (mc *ModuleCompilationCache) GetOrCompile(
     }
     mc.mu.RUnlock()
 
-    // Compile — CPU-intensive; do under write lock to avoid stampede.
+    // Compile - CPU-intensive; do under write lock to avoid stampede.
     mc.mu.Lock()
     defer mc.mu.Unlock()
     // Double-check after acquiring write lock.
@@ -231,7 +231,7 @@ func (sm *SandboxManager) Ready() bool {
 
 Throttling is enforced at two independent layers.
 
-### Layer 1: API Gateway — token bucket per tenant
+### Layer 1: API Gateway - token bucket per tenant
 
 ```
 Algorithm: token bucket
@@ -270,7 +270,7 @@ else
 end
 ```
 
-### Layer 2: SandboxManager — concurrent execution cap per tenant
+### Layer 2: SandboxManager - concurrent execution cap per tenant
 
 ```go
 type tenantSemaphore struct {
@@ -332,7 +332,7 @@ comparable across Python, JavaScript, and native WASM.
 
 **cgroup CPU accounting (host-level validation):**
 Each worker process is placed in a dedicated cgroup. `cpu.stat` is read after each execution
-for cross-validation against fuel-derived CPU-ms. Discrepancies > 20% trigger an alert —
+for cross-validation against fuel-derived CPU-ms. Discrepancies > 20% trigger an alert -
 possible fuel calibration drift after a wasmtime upgrade.
 
 ---

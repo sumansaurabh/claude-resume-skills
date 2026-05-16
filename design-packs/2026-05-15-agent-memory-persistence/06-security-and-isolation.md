@@ -1,4 +1,4 @@
-# 06 — Security and Isolation
+# 06 - Security and Isolation
 
 The platform target was **SOC-2 readiness for an enterprise No-Code AI
 product** (`blackbox-experience.md` #5). Memory is the highest-blast-radius
@@ -17,13 +17,13 @@ isolation, redaction, and audit posture has to be deliberate.
 | Denial of service | Tenant floods step writes; rerank pool exhaustion | per-tenant quotas, 429 backpressure, dedicated rerank pools per priority tier |
 | Elevation of privilege | Agent prompt convinces system to escalate (prompt injection) | PolicyEngine gates writes; long-term schema registry; HITL on `review_required` keys; tool call allowlists |
 
-## Multi-Tenant Isolation — Per Store
+## Multi-Tenant Isolation - Per Store
 
 | Store | Hard boundary | Soft boundary | What can leak if soft fails |
 | --- | --- | --- | --- |
-| Postgres | Per-tenant DEK (envelope-encrypted JSONB), RLS predicates on every query | namespace prefix in keys | nothing — RLS is enforced regardless of caller |
+| Postgres | Per-tenant DEK (envelope-encrypted JSONB), RLS predicates on every query | namespace prefix in keys | nothing - RLS is enforced regardless of caller |
 | Redis | Per-tenant key namespace + ACLs; per-cluster for largest tenants | TTL | live trace of one run; mitigated by short TTL |
-| Qdrant | **Collection per tenant** | filter on payload | one tenant's embeddings — collections are the hard boundary |
+| Qdrant | **Collection per tenant** | filter on payload | one tenant's embeddings - collections are the hard boundary |
 | S3 / Blob | Bucket-per-region + prefix-per-tenant + tenant-bound IAM | object metadata | nothing if IAM is correct |
 | Schema registry | Global, but enforced; agent authors cannot write keys outside their tenant scope | code review on PR | shape only, not data |
 | Cross-encoder pool | Stateless per call; no caching across tenants | per-request | nothing |
@@ -37,7 +37,7 @@ not rely on filters for tenant isolation, only for scope-within-tenant.
 - TLS 1.3 in transit between every service.
 - AES-256-GCM at rest for every store. **Per-tenant DEKs**, wrapped by a KMS
   CMK (Azure Key Vault / AWS KMS).
-- Vector payloads are encrypted; vectors themselves are not (they're floats —
+- Vector payloads are encrypted; vectors themselves are not (they're floats -
   but their *payload* contains the snippet text).
 - Backup data uses the same DEK chain. Key rotation rotates the wrapping key
   without rewriting data; DEKs are rotated on schedule with re-encryption
@@ -103,7 +103,7 @@ For every memory op, we record:
 - `reason` (policy id, decision id)
 - `trace_id` / `span_id` for join with ops telemetry
 
-The audit channel is **separate from the spans channel** — spans are for
+The audit channel is **separate from the spans channel** - spans are for
 ops, audits are for compliance. Audit data has its own retention class and
 its own access control list (security team only).
 
@@ -137,10 +137,10 @@ The whole flow is async with a deadline (e.g., 30 days) appropriate to GDPR
 
 ## Anchors
 
-- SOC-2 readiness driver — `blackbox-experience.md` #5,
+- SOC-2 readiness driver - `blackbox-experience.md` #5,
   `blackbox-experience.md` #7.
 - Multi-tenant + isolation requirements from BlackBox bullet 1
   (`resume.txt`).
-- Memory poisoning / cross-tenant question — `blackbox-experience.md` #22.
+- Memory poisoning / cross-tenant question - `blackbox-experience.md` #22.
 - Microsoft analog: secure multi-tenant ML, RLS-style isolation,
   threat-modeling discipline (`microsoft-experience.md` #7, #10, #18).

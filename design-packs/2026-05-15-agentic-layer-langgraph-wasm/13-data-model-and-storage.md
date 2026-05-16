@@ -1,4 +1,4 @@
-# 13 — Data Model and Storage
+# 13 - Data Model and Storage
 
 The agentic layer has five data surfaces:
 
@@ -128,7 +128,7 @@ CREATE INDEX tool_calls_args_hash ON tool_calls (tool, args_hash);
 ```
 
 `envelope_id` is the idempotency key. A duplicate insert with the same
-ID is the contract that "we already executed this" — the broker's
+ID is the contract that "we already executed this" - the broker's
 idempotency table is this table with `ON CONFLICT (envelope_id) DO NOTHING`.
 
 ### `policy_decisions`
@@ -151,7 +151,7 @@ CREATE TABLE policy_decisions (
 );
 ```
 
-This table feeds the SOC-2 evidence export — every policy gate decision
+This table feeds the SOC-2 evidence export - every policy gate decision
 is here, append-only, with the approver if any.
 
 ### `working_memory`
@@ -185,7 +185,7 @@ Working memory has hard TTLs by scope: `run` ⇒ 7 days, `session` ⇒ 24h,
 | Semantic memory | Qdrant vector store per `tenant+project` | hundreds of ms | "Have I solved this kind of problem before?" |
 | Long-term tenant memory | Compressed quarterly summaries, opt-in | seconds | Cross-project patterns |
 
-Cross-tenant isolation is structurally enforced at every tier — see
+Cross-tenant isolation is structurally enforced at every tier - see
 `06-security-and-isolation.md` for the controls.
 
 ## S3 / object storage layout
@@ -208,7 +208,7 @@ Lifecycle: prompts + observations → 90 days standard, then Glacier.
 Artifacts → 30 days standard, then user-paid extended retention.
 Checkpoint state blobs → 30 days, then deleted (replay window).
 
-## ClickHouse — telemetry mesh
+## ClickHouse - telemetry mesh
 
 The OTel collector ships spans to ClickHouse with a schema tuned for
 LLM workloads:
@@ -245,14 +245,14 @@ Warm data (8–90 days): drop non-numeric attribute bodies; keep
 Cold data (90 days–2 years): aggregated daily rollups only.
 
 At 50M spans/day and ~500 bytes/span net of attribute pruning, this is
-~25 GB/day raw, ~2.5 TB/month including hot copy and replicas — exactly
+~25 GB/day raw, ~2.5 TB/month including hot copy and replicas - exactly
 matching the resume claim.
 
 ## Idempotency tables
 
 `tool_calls.envelope_id` and `model_calls.call_id` are the idempotency
 keys. The broker has an in-memory LRU (1M entries) backed by these
-Postgres tables — a duplicate envelope misses the LRU but hits the table.
+Postgres tables - a duplicate envelope misses the LRU but hits the table.
 
 ## Cleanup and TTLs (summary)
 

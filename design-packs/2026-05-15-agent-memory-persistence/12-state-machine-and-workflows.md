@@ -1,4 +1,4 @@
-# 12 — State Machines and Workflows
+# 12 - State Machines and Workflows
 
 ## Run Lifecycle
 
@@ -34,7 +34,7 @@ stateDiagram-v2
 
 Invariants:
 
-- A `committed` event is **terminal** — never mutated, only superseded by a
+- A `committed` event is **terminal** - never mutated, only superseded by a
   next-step event with `parent_checkpoint = current`.
 - An `abandoned` event does not block retry; recovery sees no `committed`
   for `(run_id, step_id)` and the worker re-creates a draft. Idempotency is
@@ -171,7 +171,7 @@ metadata about the deletion, not the deleted content.
 
 ## Anchors
 
-- DAG checkpointing + retry semantics + memory persistence — `resume.txt`
+- DAG checkpointing + retry semantics + memory persistence - `resume.txt`
   BlackBox bullet 3, `blackbox-experience.md` #12, #13, #14.
-- Durable execution definition — `blackbox-experience.md` #15.
-- HITL gating relevance — `blackbox-experience.md` #19, #20.
+- Durable execution definition - `blackbox-experience.md` #15.
+- HITL gating relevance - `blackbox-experience.md` #19, #20.

@@ -1,4 +1,4 @@
-# 12 — State Machine and Workflows: "design a website like Slack"
+# 12 - State Machine and Workflows: "design a website like Slack"
 
 This file is the concrete walkthrough the user asked for. It treats the
 agent run as a state machine and traces every transition for the prompt
@@ -47,9 +47,9 @@ Each transition writes:
 All inside a single Postgres transaction. Then the worker emits an SSE
 event and either re-enqueues or releases.
 
-## The Slack-clone walkthrough — full trace
+## The Slack-clone walkthrough - full trace
 
-### t = 0 s — intake
+### t = 0 s - intake
 
 **Input:** `prompt = "design a website like Slack"`,
 `tenant_id = t_acme`, `project_id = prj_8f12`.
@@ -71,7 +71,7 @@ Initialize budgets from request; allocate `messages = [user_message]`.
 
 SSE event: `node_completed:intake`.
 
-### t = 1 s — retriever
+### t = 1 s - retriever
 
 **Action:** embed the user prompt + last 3 project decisions; hybrid query
 on Qdrant collection `mem-t_acme-prj_8f12`. Returns 12 candidate memories
@@ -86,7 +86,7 @@ project), this node is a no-op.
 
 SSE event: `node_completed:retriever`.
 
-### t = 3 s — planner
+### t = 3 s - planner
 
 **Action:** route call to Claude (long-context, structured output). Prompt
 includes: user prompt, archetype manual, available tools (filtered), prior
@@ -122,7 +122,7 @@ memories, schema for `Plan`.
 
 SSE events: `model_chunk` × many during streaming, then `node_completed:planner`.
 
-### t = 18 s — critic_plan
+### t = 18 s - critic_plan
 
 **Action:** call a cheaper model (Haiku-tier or Grok). Score on
 feasibility (9), completeness (8), milestone granularity (9), security
@@ -133,7 +133,7 @@ flags (10). Aggregate 9.0. Above the threshold (7) → forward.
 SSE event: `node_completed:critic_plan` with `plan_ready` event for the UI.
 The user can now *see* the plan.
 
-### t = 21 s — scaffolder
+### t = 21 s - scaffolder
 
 **Action:** open a workspace and run the scaffold command.
 
@@ -161,7 +161,7 @@ through `registry.npmjs.org`. File tree streamed back.
 
 SSE events: `tool_started`, `file_changed` × many, `tool_completed`.
 
-### t = 95 s — coder loop for m1 ("Scaffold")
+### t = 95 s - coder loop for m1 ("Scaffold")
 
 Coder runs. The scaffold tool already covered most of m1. The coder calls
 `sandbox.run(pnpm tsc --noEmit)`. Passes. Calls `sandbox.run(pnpm dev &)`
@@ -171,12 +171,12 @@ to confirm dev server starts. Sees a healthy response. Marks m1 complete.
 
 `milestone_critic` agrees → advance to m2.
 
-### t = 130 s — coder loop for m2 ("DB schema + Drizzle")
+### t = 130 s - coder loop for m2 ("DB schema + Drizzle")
 
 Coder emits a tool call `sandbox.write_files` containing
 `drizzle/schema.ts`, `drizzle/migrations/0001_init.sql`, and an updated
 `drizzle.config.ts`. Then `sandbox.run(pnpm drizzle-kit generate)`.
-Generate succeeds. Then `sandbox.run(pnpm drizzle-kit push)` — but
+Generate succeeds. Then `sandbox.run(pnpm drizzle-kit push)` - but
 Postgres isn't available in the sandbox. Observation reports
 `ECONNREFUSED localhost:5432`.
 
@@ -189,13 +189,13 @@ and re-run. Now succeeds.
 `milestone_critic` runs the new migration and a smoke `select 1`. Pass.
 Advance to m3.
 
-### t = 250 s — m3 ("Auth")
+### t = 250 s - m3 ("Auth")
 
 Standard NextAuth wiring. ~3 iterations, mostly file writes plus a
 `pnpm tsc` check. The coder's typed output schema means the model can't
-"talk around" type errors — it has to fix them. ~14K tokens.
+"talk around" type errors - it has to fix them. ~14K tokens.
 
-### t = 340 s — m4 ("Sidebar + chat view layout")
+### t = 340 s - m4 ("Sidebar + chat view layout")
 
 This is where the **vision critic** earns its keep. Coder writes a
 `(workspace)/[channel]/page.tsx` with a left sidebar of channels and a
@@ -203,14 +203,14 @@ main chat area. `sandbox.preview()` returns a URL; broker captures a
 screenshot at 1280×800 and uploads to the artifact bucket. Vision-capable
 model scores the screenshot against a "Slack reference" rubric.
 
-Score 6.2 — sidebar too narrow, message bubbles missing avatars. Coder
+Score 6.2 - sidebar too narrow, message bubbles missing avatars. Coder
 gets the structured feedback as an observation message, emits another
 patch (Tailwind width changes + avatar component), `tsc`, preview again.
 Score 8.4. Pass.
 
 **Iterations:** 5. **Tool calls:** 9. **Tokens:** ~38K.
 
-### t = 480 s — m5 ("Realtime")
+### t = 480 s - m5 ("Realtime")
 
 Coder scaffolds `pages/api/socket.ts`, writes a tiny Socket.IO server, and
 wires up `useSocket` hooks. Critical edge: Next.js App Router doesn't
@@ -224,7 +224,7 @@ explicit Socket.IO mount.
 `milestone_critic` runs a vitest that opens a socket and round-trips a
 message. Pass.
 
-### t = 700 s — m6, m7, m8
+### t = 700 s - m6, m7, m8
 
 Each ~1–2 minutes. Threads + reactions (~28K tokens), search (~22K), deploy
 preview (~15K).
@@ -233,7 +233,7 @@ The deploy-preview milestone calls `sandbox.preview()` once more,
 captures a final screenshot, and validates accessibility (one cheap audit
 tool exists in the sandbox image).
 
-### t = 950 s — finalizer
+### t = 950 s - finalizer
 
 **Action:** call `sandbox.package_artifact()`; broker returns a signed
 `tar.zst` URL plus a preview URL that stays alive for 5 minutes. Write a
@@ -298,7 +298,7 @@ Three failure injections to illustrate state-machine resilience:
 2. Broker reports `RESOURCE_EXHAUSTED` to worker.
 3. Worker exponential-backoffs once; the broker re-dispatches to a
    different node; new node has empty workspace, so worker re-runs
-   `sandbox.write_files` to restore — but the file content is in the
+   `sandbox.write_files` to restore - but the file content is in the
    checkpoint, so this is cheap.
 4. Total impact: ~20 s of wall-clock loss; cost: ~10K extra tokens for
    the file-restore prompt.

@@ -1,4 +1,4 @@
-# 04 — Low-Level Design
+# 04 - Low-Level Design
 
 ## Service Decomposition
 
@@ -46,7 +46,7 @@ flowchart TB
 | `PolicyEngine` | Tenant policy, retention, redaction, write gates | central place for SOC-2 controls |
 | `AuditEmitter` | OTel spans + audit log entries | one place to enforce audit completeness |
 
-## Data Model — Core Tables
+## Data Model - Core Tables
 
 ### Postgres: `exec_run`
 
@@ -297,7 +297,7 @@ sequenceDiagram
   API-->>U: side-by-side diff vs original outputs
 ```
 
-Replay does not actually execute tools — it re-invokes the model with the same
+Replay does not actually execute tools - it re-invokes the model with the same
 context to find where divergence started, which is what makes anomaly
 investigation tractable.
 
@@ -330,7 +330,7 @@ sequenceDiagram
 
 ## Schema Registry (long-term)
 
-A small YAML/JSON registry shipped with the platform — example:
+A small YAML/JSON registry shipped with the platform - example:
 
 ```yaml
 - key: user.preferences.code_style
@@ -356,10 +356,10 @@ shape. This is what kept long-term memory from drifting into a free-for-all.
 
 ## Anchors
 
-- LangGraph + ReAct + tool calling drives the LLD shape — `resume.txt` /
+- LangGraph + ReAct + tool calling drives the LLD shape - `resume.txt` /
   `blackbox-experience.md` #7, #9.
-- DAG checkpointing + retry semantics — `resume.txt` BlackBox bullet 3;
+- DAG checkpointing + retry semantics - `resume.txt` BlackBox bullet 3;
   `blackbox-experience.md` #12.
-- Vector store + HNSW + bm25 + cross-encoder — `resume.txt` technologies line.
-- SOC-2 + multi-tenant motivates PolicyEngine and per-tenant collections —
+- Vector store + HNSW + bm25 + cross-encoder - `resume.txt` technologies line.
+- SOC-2 + multi-tenant motivates PolicyEngine and per-tenant collections -
   `blackbox-experience.md` #5.

@@ -1,4 +1,4 @@
-# 07 — Reliability, Observability, and Failures
+# 07 - Reliability, Observability, and Failures
 
 ## Failure Taxonomy
 
@@ -71,9 +71,9 @@ slow.
 
 | Signal | Cardinality budget | Storage |
 | --- | --- | --- |
-| Logs (structured, slog) | Low — no per-sandbox keys | Local file + ship to centralized (Loki / S3) |
-| Metrics (OpenTelemetry) | Bounded — labeled by `node`, `op`, `result`, `cross_region` only | Prometheus scrape per node; remote write to long-term TSDB |
-| Spans (OpenTelemetry) | High — per-request | Sampled; ClickHouse or Tempo |
+| Logs (structured, slog) | Low - no per-sandbox keys | Local file + ship to centralized (Loki / S3) |
+| Metrics (OpenTelemetry) | Bounded - labeled by `node`, `op`, `result`, `cross_region` only | Prometheus scrape per node; remote write to long-term TSDB |
+| Spans (OpenTelemetry) | High - per-request | Sampled; ClickHouse or Tempo |
 
 This is intentionally lighter than the BlackBox 50M spans/day mesh; for the
 OSS distribution, you ship sane defaults (10% sampling, head-based) and let
@@ -109,7 +109,7 @@ prologue (W3C traceparent format).
 
 **Latency (histograms):**
 
-- `api_request_duration_seconds{op, owner_local}` — split owner-local vs forwarded
+- `api_request_duration_seconds{op, owner_local}` - split owner-local vs forwarded
 - `forward_overhead_seconds{cross_region}`
 - `raft_commit_latency_seconds`
 - `proxy_first_byte_seconds`

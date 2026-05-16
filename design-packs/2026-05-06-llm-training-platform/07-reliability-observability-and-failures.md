@@ -1,4 +1,4 @@
-# 07 — Reliability, Observability, and Failures
+# 07 - Reliability, Observability, and Failures
 
 ## Failure Taxonomy
 
@@ -62,7 +62,7 @@ def gc(job_id: str, keep_last_n: int = 3):
         delete_manifest(job_id, ckpt.step)
 ```
 
-GC runs after every successful checkpoint write and after job COMPLETED. Keeps last 3 checkpoints. Final artifact checkpoint is **never GC'd** — it's promoted to the artifact store separately.
+GC runs after every successful checkpoint write and after job COMPLETED. Keeps last 3 checkpoints. Final artifact checkpoint is **never GC'd** - it's promoted to the artifact store separately.
 
 ---
 
@@ -76,9 +76,9 @@ GC runs after every successful checkpoint write and after job COMPLETED. Keeps l
 | NCCL error | 3 | 2 min delay (let network stabilize) | Resume from last checkpoint |
 | Network partition | 3 | 5 min delay | Resume from last checkpoint |
 | Data corruption (checkpoint) | 2 | Immediate | Roll back to previous checkpoint |
-| Data corruption (input data) | 0 | — | Fail permanently; alert user |
-| Bad user code | 0 | — | Fail permanently; surface stack trace |
-| CUDA OOM | 0 | — | Fail permanently; suggest batch size reduction in error message |
+| Data corruption (input data) | 0 | - | Fail permanently; alert user |
+| Bad user code | 0 | - | Fail permanently; surface stack trace |
+| CUDA OOM | 0 | - | Fail permanently; suggest batch size reduction in error message |
 | Checkpoint write failure | 3 | Exponential: 30s, 60s, 120s | Training continues; extend checkpoint window |
 | Artifact publish failure | 5 | Exponential: 1min, 2min, 4min, 8min, 16min | Idempotent; re-run from final checkpoint URI |
 
@@ -182,7 +182,7 @@ When GPU utilization is 30% but the cluster looks healthy:
 
 5. **Check for GPU memory pressure.** If GPU memory is >95%, the GPU may be swapping or waiting for memory copies. Try reducing batch size or gradient accumulation steps.
 
-6. **Check for gradient sync stalls.** In DeepSpeed ZeRO-3, all-gather and reduce-scatter can stall if any worker is slower than others (straggler effect). Check per-rank step times — if one rank is consistently 2× slower, it may be on a slower node or have a network issue.
+6. **Check for gradient sync stalls.** In DeepSpeed ZeRO-3, all-gather and reduce-scatter can stall if any worker is slower than others (straggler effect). Check per-rank step times - if one rank is consistently 2× slower, it may be on a slower node or have a network issue.
 
 7. **Check checkpoint write I/O.** If checkpoints are synchronous and happening frequently, checkpoint write to NVMe or Blob may be blocking the training loop. Check CheckpointManager write latency metrics.
 

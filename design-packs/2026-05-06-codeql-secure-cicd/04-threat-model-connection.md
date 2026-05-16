@@ -1,4 +1,4 @@
-# 04 — Connection to Threat Modeling
+# 04 - Connection to Threat Modeling
 
 ## Why Threat Modeling and SAST Are Complementary, Not Redundant
 
@@ -118,7 +118,7 @@ The CodeQL + GitHub Advanced Security integration was part of satisfying Microso
 | **Approved crypto** | `go/weak-crypto-key`, `go/insecure-tls`, cargo-audit |
 | **Incident response** | GitHub Security Advisories for dependency CVEs; SLA tracked |
 
-SDL compliance was an external audit requirement for the IPP (Internal Private Preview) program — enterprise customers' security teams reviewed the compliance documentation. The CI/CD pipeline produced automated evidence (SARIF reports, Dependabot PR history, secret scanning logs) that reduced the audit preparation burden from weeks to days.
+SDL compliance was an external audit requirement for the IPP (Internal Private Preview) program - enterprise customers' security teams reviewed the compliance documentation. The CI/CD pipeline produced automated evidence (SARIF reports, Dependabot PR history, secret scanning logs) that reduced the audit preparation burden from weeks to days.
 
 ---
 
@@ -138,4 +138,4 @@ The tooling is easy to set up. The hard part is the culture: making engineers th
 
 4. **The recurring vulnerability classes actually stopped recurring.** The two classes that triggered the investment (hardcoded secrets, command injection in hyperparameter rendering) had zero new instances in the 12 months after rollout.
 
-The measure of success for the mentoring program was not "engineers passed the security training module" — it was the absence of the vulnerability classes that previously recurred.
+The measure of success for the mentoring program was not "engineers passed the security training module" - it was the absence of the vulnerability classes that previously recurred.

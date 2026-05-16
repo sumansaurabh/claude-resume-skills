@@ -6,7 +6,7 @@
   "question": "Design Qale, the real-time AI-native communication platform from Turium AI: end-to-end architecture across frontend, backend, and infrastructure; real-time WebSocket layer; event-driven backbone; React at scale; AI integration; scale from Alpha to 1M+ users; and the Head of Engineering hiring and execution plan.",
   "questionHash": "sha256:1ad7c50b53fec455dff05be343529f2631406df5e21c29e363a6b72be5ef3476",
   "company": "Turium AI",
-  "role": "Head of Engineering — Qale",
+  "role": "Head of Engineering - Qale",
   "primarySkill": "/analyze-my-resume",
   "sourceFiles": [
     "resume.txt",

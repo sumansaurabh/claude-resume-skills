@@ -1,4 +1,4 @@
-# 02 — Data-Plane Architecture
+# 02 - Data-Plane Architecture
 
 ## What "data plane" means in this answer
 
@@ -95,7 +95,7 @@ sequenceDiagram
 | Component | Role | Where it runs |
 |---|---|---|
 | **Container image** | Pinned PyTorch + CUDA + NCCL + DeepSpeed + Transformers + bitsandbytes + vLLM + MLflow client + OTEL SDK | Built by platform; loaded onto every worker pod |
-| **Launcher** | `torchrun`, `deepspeed`, or `ray train` — sets RANK/WORLD_SIZE, spawns per-GPU processes | PID 1 inside the pod |
+| **Launcher** | `torchrun`, `deepspeed`, or `ray train` - sets RANK/WORLD_SIZE, spawns per-GPU processes | PID 1 inside the pod |
 | **Rendezvous backend** | C10d TCPStore (default), etcd-v2, or Ray GCS | Rank 0 hosts; others connect |
 | **NCCL communicator** | Collective ops over NVLink + IB; one comm per process group | Each process owns one (or more) |
 | **Distributed wrapper** | `FSDP`, `DeepSpeedEngine`, `Megatron parallel state`, `ray.train.torch.prepare_model` | Per-process Python object |
@@ -115,7 +115,7 @@ def main():
     cfg = parse_config()                  # JSON/YAML mounted as ConfigMap
     setup_otel_and_mlflow(cfg)            # 2. obs wired before anything heavy
     model = build_or_load_base_model(cfg) # 3. weights in via streaming load
-    model = wrap_for_parallelism(model, cfg)  # 4. FSDP / DS / Megatron — see 04-low-level-design
+    model = wrap_for_parallelism(model, cfg)  # 4. FSDP / DS / Megatron - see 04-low-level-design
     train_ds, eval_ds = build_datasets(cfg)
     optimizer = build_optimizer(model, cfg)
     scheduler = build_scheduler(optimizer, cfg)
@@ -134,18 +134,18 @@ def main():
 Each of these eight steps is the topic of one section in `04-low-level-design.md`,
 expressed in PyTorch-native, DeepSpeed, Ray Train, and Megatron/DeepSeek style.
 
-## Why this layout — anchored to the resume
+## Why this layout - anchored to the resume
 
 - The platform was a **founding investment in AI Fine-tuning on IPP** (`resume.txt`
   L73-74). That means it had to land working at the *runtime* level on day one. The
   worker contract above is intentionally minimal so the same image can host
   DeepSpeed, FSDP, or Megatron without re-imaging.
 - The tech list (`resume.txt` L100-101) names **DeepSpeed, PyTorch, vLLM, Ray Train,
-  MLflow** explicitly — every one of them sits at a defined layer in this topology:
+  MLflow** explicitly - every one of them sits at a defined layer in this topology:
   `DeepSpeed/PyTorch/Ray Train` at the *wrapper* layer, `vLLM` at the post-training
   eval/serving layer, `MLflow` at the artifact and metric layer.
 - **Gang scheduling** (`resume.txt` L88-89) is what makes the topology above *legal*
-  at all — you cannot start NCCL with a half-scheduled communicator.
+  at all - you cannot start NCCL with a half-scheduled communicator.
 - **Multi-tenant isolation** (`microsoft-experience.md` #7) is why every external
   arrow (Blob, MLflow, Registry, OTEL) is per-tenant routed through that tenant's
   private endpoint + workload identity, never through a shared egress.
@@ -158,7 +158,7 @@ expressed in PyTorch-native, DeepSpeed, Ray Train, and Megatron/DeepSeek style.
    make rank 0 redundant; it's to make **resume-from-checkpoint cheap and atomic**.
 2. **The data plane never talks back to the control plane synchronously.** Status
    updates land in a queue (or via Kubernetes status subresource updates from a
-   sidecar). The trainer keeps running even if the control plane is briefly down —
+   sidecar). The trainer keeps running even if the control plane is briefly down -
    it just buffers updates. This is the same separation logic that we used in the
    wider AutoML platform (`resume.txt` L91-92): the orchestrator's outage budget is
    not the trainer's outage budget.

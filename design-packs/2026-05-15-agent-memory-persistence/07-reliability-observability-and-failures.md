@@ -1,4 +1,4 @@
-# 07 — Reliability, Observability, and Failures
+# 07 - Reliability, Observability, and Failures
 
 ## SLOs
 
@@ -69,7 +69,7 @@ Replay procedure:
   stored output.
 - For model calls in **rerun mode**, call the provider with the same prompt
   and diff outputs. Useful for "the same prompt now produces different
-  output — is the model drifting?"
+  output - is the model drifting?"
 - For tool calls in **inspect mode**, show the stored result. **Never**
   re-execute side-effect tools.
 
@@ -102,15 +102,15 @@ workflow engine uses for the run.
 
 ### Dashboards (the ones that earned their keep)
 
-- **Per-tenant memory pressure** — STM hot keys, episodic backlog, vector
+- **Per-tenant memory pressure** - STM hot keys, episodic backlog, vector
   query latency. Catches noisy-neighbor early.
-- **Tier degradation rate** — % of context builds with `degraded != none`.
+- **Tier degradation rate** - % of context builds with `degraded != none`.
   When this rises, retrieval quality is dropping before users notice.
-- **Replay divergence** — % of replays whose model output differs from the
+- **Replay divergence** - % of replays whose model output differs from the
   stored output. A spike means model drift or a non-deterministic tool.
-- **Schema-rejection rate** — long-term writes denied by the registry. A
+- **Schema-rejection rate** - long-term writes denied by the registry. A
   spike means an agent author shipped a key that doesn't exist.
-- **Cross-tenant assertion firings** — must always be zero. A non-zero is a
+- **Cross-tenant assertion firings** - must always be zero. A non-zero is a
   P0 page.
 
 ### Logs vs Spans vs Audit (kept separate)
@@ -127,7 +127,7 @@ storage or weakens retention guarantees on audit.
 ## Debugging Playbook (the one a real on-call uses)
 
 1. Open the run in the trace viewer; find the failing step.
-2. Look at the step's manifest — was retrieval degraded?
+2. Look at the step's manifest - was retrieval degraded?
 3. Replay the step in **inspect mode** to see exact prompt and stored
    output.
 4. If output looks wrong: re-run in **rerun mode** to test for model drift.
@@ -142,8 +142,8 @@ storage or weakens retention guarantees on audit.
 
 ## Anchors
 
-- DAG checkpointing + retry semantics — `resume.txt` BlackBox bullet 3,
+- DAG checkpointing + retry semantics - `resume.txt` BlackBox bullet 3,
   `blackbox-experience.md` #12, #13.
-- Deterministic replay + 60% MTTR reduction + 50M spans/day — `resume.txt`
+- Deterministic replay + 60% MTTR reduction + 50M spans/day - `resume.txt`
   BlackBox bullet 5, `blackbox-experience.md` #20.
-- Durable execution definition — `blackbox-experience.md` #15.
+- Durable execution definition - `blackbox-experience.md` #15.

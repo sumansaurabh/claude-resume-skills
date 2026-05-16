@@ -1,9 +1,9 @@
-# 00 — Question and Context
+# 00 - Question and Context
 
 ## Original Prompt
 
 > Understand the architecture of my current microVM runner and tell me how to make
-> this distributed — like a Sentinel where multiple devices can connect together and
+> this distributed - like a Sentinel where multiple devices can connect together and
 > form a consensus. I do **not** want a central control plane like Daytona, more
 > libp2p so that multiple ecosystems can start talking to each other.
 >
@@ -20,8 +20,8 @@
 2. The minimum set of architectural changes to turn it into a peer-to-peer fabric.
 3. A three-plane decomposition: membership/gossip, sandbox metadata, placement +
    ports.
-4. Two viable consistency stories — Raft-for-placement (Nomad-shaped) and
-   CRDT-over-libp2p (Sentinel/IPFS-shaped) — with explicit tradeoffs.
+4. Two viable consistency stories - Raft-for-placement (Nomad-shaped) and
+   CRDT-over-libp2p (Sentinel/IPFS-shaped) - with explicit tradeoffs.
 5. A 10K-node scaling analysis: where each layer breaks and what to do about it.
 6. A federation model so independent ecosystems can mesh into one fabric without
    merging logs.
@@ -38,9 +38,9 @@ In scope:
 
 Out of scope (explicitly):
 
-- Replacing gVisor with Firecracker — orthogonal, mentioned only where the runtime
+- Replacing gVisor with Firecracker - orthogonal, mentioned only where the runtime
   choice changes the design.
-- Scheduling with GPU/accelerator constraints — covered by reference to the
+- Scheduling with GPU/accelerator constraints - covered by reference to the
   Microsoft AML gang-scheduling/bin-packing experience but not designed here.
 - A workflow/agent layer on top of the runner.
 
@@ -60,8 +60,8 @@ Out of scope (explicitly):
 | Anchor | Where | How it grounds the design |
 | --- | --- | --- |
 | Golang WASM sandbox plane, 1M+ daily zero-shot code executions, SOC-2 isolation | resume.txt; blackbox-experience.md #3-#5 | Direct: same domain, same shape of system. Sets the runtime/isolation/scale credibility. |
-| GPU scheduling, gang scheduling, bin-packing, multi-tenant isolation, 15M+ jobs/month, 200K+ users via AutoML | resume.txt | Direct: placement, admission, quotas, multi-tenant ergonomics — all reused here. |
-| TunDRA — Rust QUIC secure protocol, 1M+ Compute Instances | resume.txt | Direct: secure peer-to-peer transport with NAT traversal characteristics maps straight to libp2p+QUIC + mTLS. |
+| GPU scheduling, gang scheduling, bin-packing, multi-tenant isolation, 15M+ jobs/month, 200K+ users via AutoML | resume.txt | Direct: placement, admission, quotas, multi-tenant ergonomics - all reused here. |
+| TunDRA - Rust QUIC secure protocol, 1M+ Compute Instances | resume.txt | Direct: secure peer-to-peer transport with NAT traversal characteristics maps straight to libp2p+QUIC + mTLS. |
 | Durable DAG workflow engine, checkpointing, retry, fault-tolerant execution across distributed environments | resume.txt; blackbox-experience.md #12-#15 | Supports owner-failover semantics and sandbox lifecycle reconciliation. |
 | LLMOps telemetry mesh, 50M spans/day, deterministic replay | resume.txt | Supports the observability section: spans for sandbox lifecycle + cross-node forwarding traces. |
 | Skills: Kubernetes, Volcano, Nomad | resume.txt | Direct: Nomad is the closest production analogue; Volcano is the gang-scheduling reference. |
@@ -72,6 +72,6 @@ Out of scope (explicitly):
 consistent and matches public open-source patterns; the distributed design here is
 a synthesis of well-known prior art (Nomad, Service Fabric, TiKV PD, libp2p,
 Sentinel, IPFS) applied to that codebase. The author's resume directly supports
-sandbox runtime, placement, secure transport, and observability — the four spine
+sandbox runtime, placement, secure transport, and observability - the four spine
 topics. Federation and CRDT-placement are the most extrapolated parts and are
 labeled inline.

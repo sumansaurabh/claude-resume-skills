@@ -1,4 +1,4 @@
-# 13 — Data Model and Storage
+# 13 - Data Model and Storage
 
 The persistent surface of Qale: what we store, where, why, and how it survives growth, deletion, and restore. Anchors from `00-question-and-context.md`.
 
@@ -8,15 +8,15 @@ The persistent surface of Qale: what we store, where, why, and how it survives g
 | --- | --- | --- | --- | --- | --- |
 | Postgres (data plane, sharded by `workspaceId`) | Messages, threads, members, AI runs, read receipts | ~2.5 TB hot | 5 min | 30 min | A-BB1 (Postgres + RLS at scale) |
 | Postgres (control plane) | Workspaces, billing, policy, audit | ~50 GB | 5 min | 30 min | A-MS3 |
-| Redis (cluster) | Presence, delivery cursors, rate-limit counters, token budget atomic counters | ~80 GB | n/a (rebuildable) | minutes | — |
+| Redis (cluster) | Presence, delivery cursors, rate-limit counters, token budget atomic counters | ~80 GB | n/a (rebuildable) | minutes | - |
 | Kafka | Event backbone (`message.events`, `policy.changes`, `audit.events`, AI streams) | 7-day retention; ~6 TB | minutes | minutes | A-BB3 |
 | S3 (attachments + cold tier) | Files, exports, audit log archives, message Parquet >90d | grows linearly; $$ predictable | 0 (versioned) | minutes | A-BB1 |
 | Qdrant | Vector index (thread memory, semantic search) | ~600 GB at 1M users | 1h (rebuildable) | 4h | A-BB2 |
-| OpenSearch | Lexical + hybrid search index | ~400 GB | 1h (rebuildable) | 2h | — |
+| OpenSearch | Lexical + hybrid search index | ~400 GB | 1h (rebuildable) | 2h | - |
 | ClickHouse | Telemetry, LLM spans, replay logs | ~6 TB rolling | 1h | 4h | A-BB5 |
-| Object store (model artifacts, embeddings cache) | Embedding cache, prompt templates | ~50 GB | 24h | 4h | — |
+| Object store (model artifacts, embeddings cache) | Embedding cache, prompt templates | ~50 GB | 24h | 4h | - |
 
-## 2. Postgres DDL — core tables
+## 2. Postgres DDL - core tables
 
 All data-plane tables enforce **row-level security keyed by `workspace_id`** (anchor A-BB1). Every query carries `SET app.workspace_id = $ws` set by the gateway after authn.
 
@@ -215,7 +215,7 @@ s3://qale-prod-{region}/
   models/embeddings/{model}/{sha256}.bin           (cache)
 ```
 
-Per-workspace KMS key on attachments + cold tier (anchor: tenant isolation invariant). Bucket policies block cross-tenant reads at the IAM layer too — defense in depth.
+Per-workspace KMS key on attachments + cold tier (anchor: tenant isolation invariant). Bucket policies block cross-tenant reads at the IAM layer too - defense in depth.
 
 ## 4. Redis usage
 
@@ -228,9 +228,9 @@ Per-workspace KMS key on attachments + cold tier (anchor: tenant isolation invar
 | `gateway:{userId}` (set of pod IDs) | 30s sliding | Sticky routing fallback |
 | `dedup:{client_msg_id}` | 10 min | Cross-pod idempotency hint (Postgres still authoritative) |
 
-Redis is **rebuildable from Postgres** for everything except presence — losing Redis costs 60s of stale presence and a brief recompute storm, not data.
+Redis is **rebuildable from Postgres** for everything except presence - losing Redis costs 60s of stale presence and a brief recompute storm, not data.
 
-## 5. Qdrant — vector schema
+## 5. Qdrant - vector schema
 
 Per-workspace collection: `ws_{wsId}_threads`. Avoids cross-tenant noisy-neighbor at the index level (anchor A-BB1).
 
@@ -247,9 +247,9 @@ payload:
   acl_tag: text  -- redundant in-collection ACL check
 ```
 
-Sharding: ~50 collections per Qdrant node; once a tenant exceeds 5M vectors, promote to a dedicated node (anchor A-BB1 — tenant-aware sharding).
+Sharding: ~50 collections per Qdrant node; once a tenant exceeds 5M vectors, promote to a dedicated node (anchor A-BB1 - tenant-aware sharding).
 
-## 6. OpenSearch — hybrid search
+## 6. OpenSearch - hybrid search
 
 Index per workspace: `ws-{wsId}-messages`. Doc:
 
@@ -267,7 +267,7 @@ Index per workspace: `ws-{wsId}-messages`. Doc:
 
 Hybrid retrieval: BM25 from OpenSearch + cosine top-k from Qdrant → reranker (cross-encoder, batched) → top-N for the AI agent.
 
-## 7. ClickHouse — telemetry tier
+## 7. ClickHouse - telemetry tier
 
 Anchor A-BB5 (telemetry mesh). Schemas:
 
@@ -310,7 +310,7 @@ CREATE TABLE llm_spans (
   TTL ts + INTERVAL 90 DAY DELETE;
 ```
 
-Replay corpus retained 90 days (anchor A-BB5 — deterministic replay of agent runs).
+Replay corpus retained 90 days (anchor A-BB5 - deterministic replay of agent runs).
 
 ## 8. Sharding and growth path
 
@@ -323,7 +323,7 @@ Replay corpus retained 90 days (anchor A-BB5 — deterministic replay of agent r
 
 **Why Citus over Vitess:** Postgres is already the source of truth and we use Postgres-only features (RLS, JSONB, partial indexes). Citus extends Postgres in place; Vitess would force MySQL semantics. Tradeoff TR-7.
 
-Re-sharding plan: dual-write + backfill + cut over (anchor A-BB1 — done at BlackBox for tenant-aware sharding).
+Re-sharding plan: dual-write + backfill + cut over (anchor A-BB1 - done at BlackBox for tenant-aware sharding).
 
 ## 9. RPO / RTO and restore drills
 
@@ -338,7 +338,7 @@ Re-sharding plan: dual-write + backfill + cut over (anchor A-BB1 — done at Bla
 | OpenSearch | 1h | 2h | Snapshot to S3 every 6h |
 | ClickHouse | 1h | 4h | Replicated-MergeTree, 2 replicas |
 
-**Quarterly restore drill** required (anchor A-MS1 — Microsoft compliance posture): pick a random shard, restore to a sandbox cluster, replay 1h of Kafka, verify message counts match.
+**Quarterly restore drill** required (anchor A-MS1 - Microsoft compliance posture): pick a random shard, restore to a sandbox cluster, replay 1h of Kafka, verify message counts match.
 
 ## 10. Workspace hard-delete cascade (anchor A-BB1)
 
@@ -359,12 +359,12 @@ Workspace deletion is a control-plane intent that fans out across every store. S
 | OpenSearch | `DELETE index ws-{wsId}-messages` |
 | ClickHouse | `ALTER TABLE ... DELETE WHERE workspace_id = $ws` (lazy) |
 | Embeddings cache | Drop by prefix |
-| Audit log | **Retained** in S3 Object Lock per compliance — keyed but unlinkable from live data |
+| Audit log | **Retained** in S3 Object Lock per compliance - keyed but unlinkable from live data |
 
 4. **T+24h:** verifier job runs queries against each store; if any returns rows for that `workspace_id`, page on-call and re-execute the failed worker.
 5. **T+30d:** `workspaces.status='purged'`; any leftover audit references hashed.
 
-Same shape as BlackBox tenant-aware Postgres + RLS lifecycle (anchor A-BB1) — the lesson there was *the cascade only works if every store has a delete worker that watches the same topic; one-off scripts rot*.
+Same shape as BlackBox tenant-aware Postgres + RLS lifecycle (anchor A-BB1) - the lesson there was *the cascade only works if every store has a delete worker that watches the same topic; one-off scripts rot*.
 
 ## 11. PII inventory
 

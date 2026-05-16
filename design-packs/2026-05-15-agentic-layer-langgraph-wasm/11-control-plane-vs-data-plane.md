@@ -1,9 +1,9 @@
-# 11 — Control Plane vs Data Plane
+# 11 - Control Plane vs Data Plane
 
 ## Why this distinction matters at the agent layer
 
 The temptation in agentic systems is to fuse "deciding what to do" and
-"doing it" into one process — call a model, look at the output, exec a
+"doing it" into one process - call a model, look at the output, exec a
 shell command, repeat. That works for a demo. It fails for the same
 reasons monolithic queue workers fail at scale: failure domains share,
 deployments share, audit boundaries blur.
@@ -13,13 +13,13 @@ The agentic layer at BlackBox splits cleanly along this seam:
 - **Control plane** decides *what* the agent should do, *who* it is, *what*
   it's allowed to do, and *what's been recorded*. It owns identity, policy,
   graph state, checkpoints, and audit.
-- **Data plane** runs *the AI-generated workload* — the WASM sandbox that
+- **Data plane** runs *the AI-generated workload* - the WASM sandbox that
   executes code patches, runs builds, serves preview URLs. It's stateless
   with respect to agent intent.
 
 ```mermaid
 flowchart TB
-  subgraph CP[Control Plane — Python + Postgres]
+  subgraph CP[Control Plane - Python + Postgres]
     GW[API Gateway]
     DISP[Dispatcher]
     W[Agent Workers<br/>LangGraph]
@@ -29,7 +29,7 @@ flowchart TB
     OBS[OTel + ClickHouse]
   end
 
-  subgraph DP[Data Plane — Golang + WASM]
+  subgraph DP[Data Plane - Golang + WASM]
     BROKER[Sandbox Broker]
     SCHED[Scheduler]
     NODES[WASM Runner Nodes]
@@ -69,8 +69,8 @@ agent worker's per-run key, is logged by the broker, and is bounded by the
 envelope's budget. Inside the data plane, AI-generated code runs in a
 WASM sandbox with no access back to the control plane.
 
-That property — *only signed envelopes cross the boundary, nothing else*
-— is what makes the SOC-2 evidence story tractable. We don't have to
+That property - *only signed envelopes cross the boundary, nothing else*
+- is what makes the SOC-2 evidence story tractable. We don't have to
 audit "every line of AI code"; we audit envelopes.
 
 ## Why this split is load-bearing for reliability
@@ -93,9 +93,9 @@ whole point.
 
 Six engineers across these planes split cleanly:
 
-- Control plane work is Python + Postgres + LangGraph — strong fit for the
+- Control plane work is Python + Postgres + LangGraph - strong fit for the
   team's existing skills.
-- Data plane is Golang + WASM + Linux ops — a smaller, more specialized
+- Data plane is Golang + WASM + Linux ops - a smaller, more specialized
   team owns it.
 - The contract between them is the gRPC schema in
   `03-api-and-contracts.md`. Versioned, additive-only, with capability
@@ -105,7 +105,7 @@ Six engineers across these planes split cleanly:
 
 - Control plane deploys multiple times per day. Stateless agent workers
   can rollover with zero downtime because state is externalized.
-- Data plane deploys cautiously — sandbox broker version is mTLS-bound to
+- Data plane deploys cautiously - sandbox broker version is mTLS-bound to
   agent worker, so we use blue/green with a router shift. WASM runtime
   upgrades are even more cautious; we shadow-test against historical
   envelopes before cutover.

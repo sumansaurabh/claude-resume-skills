@@ -1,4 +1,4 @@
-# 08 — Tradeoffs and Alternatives
+# 08 - Tradeoffs and Alternatives
 
 The user's question explicitly asks how DeepSpeed, FSDP/PyTorch Distributed, Ray
 Train, vLLM, and DeepSeek-style infra differ. This file is the **decision matrix**.
@@ -15,8 +15,8 @@ There is one axis that explains 90% of the framework choice:
   (manual TP/PP layers)                       (auto wrap)   (JSON config)   (orchestration)
 ```
 
-The further left you go, the more flexible — you can do MoE, FP8, custom pipeline
-schedules. The further right, the easier — you can start a 70B fine-tune in 50
+The further left you go, the more flexible - you can do MoE, FP8, custom pipeline
+schedules. The further right, the easier - you can start a 70B fine-tune in 50
 lines of Python.
 
 ## Decision matrix
@@ -69,7 +69,7 @@ decision**.
 | Ray Train + FSDP | ~40 | ScalingConfig |
 
 The DeepSpeed line count is shortest, but **the design decisions just moved into
-the JSON** — that JSON is the system, not boilerplate.
+the JSON** - that JSON is the system, not boilerplate.
 
 ## DeepSeek vs everything else
 
@@ -107,12 +107,12 @@ careful about what's actually being asked:
 | Goal | minimize loss | minimize TTFT + maximize tok/s |
 | Memory layout | params + grads + opt state | params (frozen) + KV cache (active) |
 | Parallelism | DP + TP + PP + EP + SP | TP only (PP rare in inference) |
-| KV cache mgmt | n/a (recomputed each step) | **PagedAttention** — central feature |
+| KV cache mgmt | n/a (recomputed each step) | **PagedAttention** - central feature |
 | Continuous batching | n/a | central feature |
 | Where it shows up in the fine-tuning data plane | n/a | post-training eval + serving the registered model |
 
 **Why the resume mentions vLLM in the same line as DeepSpeed:** because the
-fine-tuning platform offers an end-to-end loop — train (DeepSpeed/FSDP), eval
+fine-tuning platform offers an end-to-end loop - train (DeepSpeed/FSDP), eval
 (vLLM), publish (MLflow), serve (vLLM). The trainer and the inference engine
 are co-resident in the data plane spec, hence both appear in the tech list.
 
@@ -147,7 +147,7 @@ the platform offered profiles, not a single choice. The defaults:
 | "I want to evaluate the model with my custom suite" | vLLM eval sidecar | High throughput on the eval set |
 
 The platform did **not** offer a Megatron/DeepSeek-style profile to external
-customers — that level of complexity is reserved for internal teams training
+customers - that level of complexity is reserved for internal teams training
 frontier models. Customers got the abstractions; the gnarly knobs stayed
 internal.
 

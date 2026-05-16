@@ -16,10 +16,10 @@ Defense-in-depth for AI-generated code execution: WASM runtime controls, WASI ca
 | File | Contents |
 |------|----------|
 | `00-question-and-context.md` | Original question, scope, assumptions, resume anchors |
-| `01-executive-summary.md` | Seven-layer defense stack — principal-engineer one-screen answer |
+| `01-executive-summary.md` | Seven-layer defense stack - principal-engineer one-screen answer |
 | `02-architecture.md` | End-to-end defense-in-depth architecture with Mermaid diagrams |
 | `03-api-and-contracts.md` | Execution API, SandboxConfig struct, SandboxResult, SecurityEvent contracts |
-| `04-low-level-design.md` | SandboxManager, WASMInstance, ResourceEnforcer, SeccompFilter, FsGuard, SecurityEventCollector — state machine |
+| `04-low-level-design.md` | SandboxManager, WASMInstance, ResourceEnforcer, SeccompFilter, FsGuard, SecurityEventCollector - state machine |
 | `05-scaling-and-capacity.md` | Throughput model, fleet sizing, fuel calibration, AOT compilation cache, per-tier quotas |
 | `06-security-and-isolation.md` | Full threat model table (10 threats), trust boundaries, identity/access, SOC-2 control mapping |
 | `07-reliability-observability-and-failures.md` | Failure taxonomy, OTel span schema, metrics/alerts, incident runbooks |
@@ -29,4 +29,4 @@ Defense-in-depth for AI-generated code execution: WASM runtime controls, WASI ca
 
 ## Related Pack
 
-`2026-05-06-wasm-sandbox-platform/` — full end-to-end WASM sandbox architecture (request intake, scheduling, execution, logging, streaming, cleanup). This pack focuses specifically on the security and isolation enforcement mechanisms.
+`2026-05-06-wasm-sandbox-platform/` - full end-to-end WASM sandbox architecture (request intake, scheduling, execution, logging, streaming, cleanup). This pack focuses specifically on the security and isolation enforcement mechanisms.

@@ -1,4 +1,4 @@
-# 14 — Leadership and Business Framing
+# 14 - Leadership and Business Framing
 
 The half of the role that the JD is *most* explicit about: hands-on builder leadership, hire and grow the Hyderabad team, set engineering standards, ship Qale Alpha → Public Launch → 1M users.
 
@@ -6,15 +6,15 @@ Anchor codes from `00-question-and-context.md`.
 
 ## 1. The leadership thesis
 
-> I am a Principal Engineer who is now ready to lead — not a manager who used to code.
+> I am a Principal Engineer who is now ready to lead - not a manager who used to code.
 
 The difference matters. A manager-who-used-to-code optimizes for process, headcount, and meeting throughput. A Principal-who-leads optimizes for shipped systems, architectural clarity, and the engineering bar. Qale at Alpha needs the second.
 
 What I have already done at the function level:
-- **6+ engineers led** at BlackBox on the agentic AI platform — architecture, code review, technical direction, sprint cadence (A-BB2).
+- **6+ engineers led** at BlackBox on the agentic AI platform - architecture, code review, technical direction, sprint cadence (A-BB2).
 - **8 engineers mentored** at Microsoft on secure protocol design; **30+ architecture reviews** run across AI Fine-tuning + AutoML (A-MS4, A-MS5).
-- **ShareChat ad team built from scratch** to $20M revenue in a year (A-SC2) — same shape as Qale's Alpha → Public-Launch motion.
-- **Cross-org design reviews** for AutoML evolution at Microsoft (A-MS3) — the coordination muscle for working with PMs, security, infra, and SDK teams.
+- **ShareChat ad team built from scratch** to $20M revenue in a year (A-SC2) - same shape as Qale's Alpha → Public-Launch motion.
+- **Cross-org design reviews** for AutoML evolution at Microsoft (A-MS3) - the coordination muscle for working with PMs, security, infra, and SDK teams.
 
 The JD says *"this is not a purely managerial role…we are looking for someone who is deeply technical, execution-focused, and comfortable building under pressure."* That is the role I am applying for.
 
@@ -22,7 +22,7 @@ The JD says *"this is not a purely managerial role…we are looking for someone 
 
 The plan is concrete deliverables, not themes. Each item has a named output an interviewer or founder can later check.
 
-### Days 0–30 — Land and audit
+### Days 0–30 - Land and audit
 
 | Output | What it is |
 | --- | --- |
@@ -35,7 +35,7 @@ The plan is concrete deliverables, not themes. Each item has a named output an i
 | **1:1 with every engineer** | 30 min each, listening more than talking |
 | **Founder alignment doc** | What I heard about product vision, what I propose for the next 90 days, where we agree/disagree |
 
-### Days 31–60 — Alpha hardening
+### Days 31–60 - Alpha hardening
 
 | Output | What it is |
 | --- | --- |
@@ -47,7 +47,7 @@ The plan is concrete deliverables, not themes. Each item has a named output an i
 | **Threat model per surface** | Auth, message bus, AI plane, attachments, admin (anchor A-MS4) |
 | **Runbook starter set** | Top-5 incident runbooks documented and drilled |
 
-### Days 61–90 — Public-launch readiness
+### Days 61–90 - Public-launch readiness
 
 | Output | What it is |
 | --- | --- |
@@ -68,34 +68,34 @@ The team grows from ~5 (today, assumption) to ~25–30 by 1M users. Three pods.
 | Milestone | Headcount | Pod structure |
 | --- | --- | --- |
 | Today (assumption) | ~5 | One pod, all-rounder |
-| Day 90 | ~10 | Real-Time pod (4) + AI pod (3) + Frontend & Growth (3) — me playing tech-lead in two until leads land |
+| Day 90 | ~10 | Real-Time pod (4) + AI pod (3) + Frontend & Growth (3) - me playing tech-lead in two until leads land |
 | Public Launch (~6 mo) | ~15 | Three pods with named tech leads, one SRE, one security/compliance |
 | 1M users | ~25–30 | Three pods (5–6 each) + SRE (3) + Security (2) + Data/AI ops (2) |
 
 ### Pods
 
-**Real-Time Plane pod** — connection gateway, message service, fanout, presence, notifications, transport evolution. Owns the message-send SLO.
+**Real-Time Plane pod** - connection gateway, message service, fanout, presence, notifications, transport evolution. Owns the message-send SLO.
 
-**AI Plane pod** — model router, agent runtime, RAG, embeddings, AI ops, eval harness. Owns AI quality + cost.
+**AI Plane pod** - model router, agent runtime, RAG, embeddings, AI ops, eval harness. Owns AI quality + cost.
 
-**Frontend & Growth pod** — React app shell, mobile (PWA → native later), onboarding, retention surfaces, design-system. Owns user-perceived latency.
+**Frontend & Growth pod** - React app shell, mobile (PWA → native later), onboarding, retention surfaces, design-system. Owns user-perceived latency.
 
-**SRE / Platform** — Kubernetes, IaC, observability, on-call tooling. Embedded liaison in each pod.
+**SRE / Platform** - Kubernetes, IaC, observability, on-call tooling. Embedded liaison in each pod.
 
-**Security & Compliance** — threat models, SOC-2, audit, incident response. Cross-cuts.
+**Security & Compliance** - threat models, SOC-2, audit, incident response. Cross-cuts.
 
 ### Roles to hire in priority order (next 6 months)
 
-1. **Senior Backend Engineer (Real-Time)** — Go, distributed systems, WS/Kafka. Must have shipped sub-second-latency systems.
-2. **Senior Frontend Engineer (React at scale)** — virtualized lists, optimistic UI, WebSocket clients, performance budgets. Likely a tech lead candidate for FE pod.
-3. **Senior AI Engineer** — LLM systems, RAG, eval, prompt engineering. Bonus: agent runtimes.
-4. **SRE Lead** — EKS at scale, observability, IaC. The first systematic operator.
-5. **Backend Engineer (Storage)** — Postgres at scale, sharding, search.
-6. **Frontend Engineer (Mid)** — React, design-system, accessibility.
-7. **Backend Engineer (AI plane)** — orchestrator, durable execution.
-8. **Security Engineer** — threat modeling, SOC-2 evidence.
-9. **Platform Engineer (Bus)** — Kafka, schema registry, replay tooling.
-10. **AI Ops Engineer** — eval, telemetry analysis, cost ops.
+1. **Senior Backend Engineer (Real-Time)** - Go, distributed systems, WS/Kafka. Must have shipped sub-second-latency systems.
+2. **Senior Frontend Engineer (React at scale)** - virtualized lists, optimistic UI, WebSocket clients, performance budgets. Likely a tech lead candidate for FE pod.
+3. **Senior AI Engineer** - LLM systems, RAG, eval, prompt engineering. Bonus: agent runtimes.
+4. **SRE Lead** - EKS at scale, observability, IaC. The first systematic operator.
+5. **Backend Engineer (Storage)** - Postgres at scale, sharding, search.
+6. **Frontend Engineer (Mid)** - React, design-system, accessibility.
+7. **Backend Engineer (AI plane)** - orchestrator, durable execution.
+8. **Security Engineer** - threat modeling, SOC-2 evidence.
+9. **Platform Engineer (Bus)** - Kafka, schema registry, replay tooling.
+10. **AI Ops Engineer** - eval, telemetry analysis, cost ops.
 
 ### Sourcing strategy
 
@@ -122,7 +122,7 @@ The team grows from ~5 (today, assumption) to ~25–30 by 1M users. Three pods.
 
 **Comp:** top of market for Hyderabad senior. Equity-heavy with 4-yr vest, 1-yr cliff, accelerator on change-of-control.
 
-**Diversity & seniority mix:** target 30% women in eng by year 1 (intentional sourcing pipelines). Seniority mix: ~40% senior, ~50% mid, ~10% junior at Public Launch — too senior-heavy slows velocity, too junior-heavy slows quality.
+**Diversity & seniority mix:** target 30% women in eng by year 1 (intentional sourcing pipelines). Seniority mix: ~40% senior, ~50% mid, ~10% junior at Public Launch - too senior-heavy slows velocity, too junior-heavy slows quality.
 
 ## 4. Engineering standards (set in week 1)
 
@@ -177,7 +177,7 @@ The day I can't pull a PR for the connection gateway is the day Qale has the wro
 **Concrete commitments:**
 - Merge code at least 1x / week.
 - Take a primary on-call slot at least 1 week / quarter.
-- Never be the only person who knows a system — bus-factor of 1 is a bug.
+- Never be the only person who knows a system - bus-factor of 1 is a bug.
 - Run the load test myself before every major release.
 
 ## 7. Decision-making model
@@ -247,7 +247,7 @@ The day I can't pull a PR for the connection gateway is the day Qale has the wro
 
 **Levels:** E3 (mid), E4 (senior), E5 (staff), E6 (principal), E7 (distinguished). Promotion bar is delivery + scope + impact, not tenure. Calibration committee per cycle (twice a year).
 
-**PIP policy:** clear performance plan after sustained miss against expectations, weekly check-ins, 30–60 day window with explicit success criteria. If they hit, we celebrate publicly. If not, we part respectfully. PIPs are not "managed-out" code words — they are a real chance.
+**PIP policy:** clear performance plan after sustained miss against expectations, weekly check-ins, 30–60 day window with explicit success criteria. If they hit, we celebrate publicly. If not, we part respectfully. PIPs are not "managed-out" code words - they are a real chance.
 
 **Conduct:** harassment, dishonesty, security violations are immediate.
 
@@ -272,16 +272,16 @@ Written principles (one page, in repo, every new hire reads):
 
 **Learning budget:** $1500/yr per engineer for books, courses, conferences. Conference travel sponsored at 1/yr senior + occasional speaker slot. Internal paper club bi-weekly.
 
-## 12. Business framing — engineering choices → business outcomes
+## 12. Business framing - engineering choices → business outcomes
 
 The engineering decisions in this pack ladder up to specific business outcomes. This matters because the JD is "Head of Engineering," and engineering at this level *is* a business function.
 
 | Engineering choice | Business outcome |
 | --- | --- |
-| Capability-aware AI router (anchor A-BB4) | AI cost / DAU < $0.05 — protects gross margin |
-| Per-workspace token budget enforcer | Eliminates "$5K-overnight" AI cost incidents — protects runway |
+| Capability-aware AI router (anchor A-BB4) | AI cost / DAU < $0.05 - protects gross margin |
+| Per-workspace token budget enforcer | Eliminates "$5K-overnight" AI cost incidents - protects runway |
 | Sub-250ms message-send p99 | Retention; users feel Qale faster than Slack |
-| LLMOps telemetry mesh + replay (anchor A-BB5) | -60% MTTR — fewer outage hours, larger SLA credits avoided |
+| LLMOps telemetry mesh + replay (anchor A-BB5) | -60% MTTR - fewer outage hours, larger SLA credits avoided |
 | SOC-2 Type II by Public Launch +6mo (anchor A-BB1) | Unlocks enterprise tier (8x deal size assumption) |
 | Multi-tenant isolation discipline (anchor A-MS2) | Required for any enterprise sale |
 | Region-pinning for data residency | EU + India enterprise customers buy |
@@ -301,13 +301,13 @@ Anchors that ground the financial framing: ShareChat ad team grew to **$20M reve
 
 Stated explicitly so it's a deal point, not a surprise:
 
-1. **Capex envelope for AI tokens** — pre-approved monthly ceiling that scales with users; no scrambling to justify the bill in a board meeting.
+1. **Capex envelope for AI tokens** - pre-approved monthly ceiling that scales with users; no scrambling to justify the bill in a board meeting.
 2. **Permission to push the launch date** if SLO gates aren't met. A bad launch is worse than a delayed one.
-3. **Final say on architecture** — I'll bring debates to the table, but the architecture call is mine after RFC and discussion.
-4. **Hiring bar ownership** — the bar is mine. Founders can challenge it, but the loop is mine to run.
-5. **Two trusted senior engineers as my first hires** — not negotiable. Day-1 trust matters more than perfect rubric fit.
-6. **Direct line to the security and compliance person we hire** — not routed through anyone else, given SOC-2 timeline.
-7. **Quarterly board engineering update** — I present, not a relay through the CEO.
+3. **Final say on architecture** - I'll bring debates to the table, but the architecture call is mine after RFC and discussion.
+4. **Hiring bar ownership** - the bar is mine. Founders can challenge it, but the loop is mine to run.
+5. **Two trusted senior engineers as my first hires** - not negotiable. Day-1 trust matters more than perfect rubric fit.
+6. **Direct line to the security and compliance person we hire** - not routed through anyone else, given SOC-2 timeline.
+7. **Quarterly board engineering update** - I present, not a relay through the CEO.
 
 In return: I commit to delivery, the SLOs, the cost envelope, and the team I build.
 
@@ -325,4 +325,4 @@ Concrete:
 
 If we hit the first six, the company is positioned to do the next round at a meaningfully higher valuation, and the team is set up to sustain past 1M.
 
-If we miss two of those six, I'd expect a hard conversation with the founders — and I'd want to be the one initiating it, not waiting for it.
+If we miss two of those six, I'd expect a hard conversation with the founders - and I'd want to be the one initiating it, not waiting for it.

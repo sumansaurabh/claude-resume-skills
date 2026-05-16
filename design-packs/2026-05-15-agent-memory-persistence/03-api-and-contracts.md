@@ -1,4 +1,4 @@
-# 03 — API and Contracts
+# 03 - API and Contracts
 
 The Memory Manager exposes a small, opinionated gRPC + REST surface. The agent
 runtime never touches the underlying stores directly. All APIs are
@@ -16,7 +16,7 @@ Every memory operation carries:
 | `run_id` | One DAG execution. Multiple per session. |
 | `step_id` | One node execution inside the DAG. **Idempotency key.** |
 | `checkpoint_version` | Monotonic per `run_id`; lets replay pin a moment. |
-| `actor` | `agent`, `tool`, `user`, `system` — for audit + replay. |
+| `actor` | `agent`, `tool`, `user`, `system` - for audit + replay. |
 | `trace_id` / `span_id` | OTel; flow into Clickhouse. |
 
 ## Top-Level APIs
@@ -77,7 +77,7 @@ at-least-once delivery from the workflow engine.
 | HTTP | Code | Meaning |
 | --- | --- | --- |
 | 400 | `INVALID_PARENT_CHECKPOINT` | parent doesn't match current run head |
-| 409 | `STEP_ID_CONTENT_MISMATCH` | same `step_id`, different `inputs_hash` — replay attack or bug |
+| 409 | `STEP_ID_CONTENT_MISMATCH` | same `step_id`, different `inputs_hash` - replay attack or bug |
 | 412 | `CHECKPOINT_STALE` | optimistic concurrency lost; retry from latest |
 | 422 | `TENANT_QUOTA_EXCEEDED` | per-tenant write rate hit |
 | 503 | `STORE_DEGRADED` | Postgres replica lag > threshold; backoff and retry |
@@ -90,7 +90,7 @@ PATCH  /v1/stm/runs/{run_id}/trace          # append working note
 DELETE /v1/stm/runs/{run_id}                # explicit purge (run end)
 ```
 
-`trace` is the agent's working scratchpad — list of `{role, content, tool, ts}`
+`trace` is the agent's working scratchpad - list of `{role, content, tool, ts}`
 items. Reads are served from Redis, with a Postgres fallback if the Redis key
 is gone (e.g., after a node failover). Write-through to Postgres happens at
 checkpoint commit, not on every `PATCH`, to keep the hot path fast.
@@ -133,7 +133,7 @@ GET    /v1/ltm/{scope}/{owner_id}/keys?prefix=
 ```
 
 `scope` ∈ `user`, `org`, `tenant`. Values are typed (declared in a registry,
-see `04-low-level-design.md`). Unknown keys are rejected — no free-form writes.
+see `04-low-level-design.md`). Unknown keys are rejected - no free-form writes.
 
 Write payload:
 
@@ -254,6 +254,6 @@ its current checkpoint without losing progress.
 - Direct vector writes from agent code. Vector is a **derived index**; writes
   flow through episodic / long-term first. This was a 2-week-of-debugging
   lesson early in the platform.
-- Cross-tenant queries — no API, no flag, no admin override. Cross-tenant
+- Cross-tenant queries - no API, no flag, no admin override. Cross-tenant
   reads only happen through a separate offline analytics pipeline with audited
   access.

@@ -1,8 +1,8 @@
-# 06 — Cheat Sheet
+# 06 - Cheat Sheet
 
 ## The 30-Second Answer
 
-> "We were targeting six classes: injection (command/path) in the job spec pipeline, secrets committed to code (SAS tokens, service principal creds), dependency CVEs in Python and Go, container image vulnerabilities, weak cryptography in the Rust protocol layer, and Kubernetes pod spec injection via the operator. The trigger was two recurring findings — hardcoded storage tokens and command injection in hyperparameter rendering — that kept appearing in code reviews until we automated the checks."
+> "We were targeting six classes: injection (command/path) in the job spec pipeline, secrets committed to code (SAS tokens, service principal creds), dependency CVEs in Python and Go, container image vulnerabilities, weak cryptography in the Rust protocol layer, and Kubernetes pod spec injection via the operator. The trigger was two recurring findings - hardcoded storage tokens and command injection in hyperparameter rendering - that kept appearing in code reviews until we automated the checks."
 
 ---
 
@@ -51,8 +51,8 @@
 
 | Trap | Best answer |
 |---|---|
-| "Did you actually write those queries?" | Yes — pod spec injection and tenant ID propagation queries. One engineer I mentored wrote the dataset URI query for their component. |
+| "Did you actually write those queries?" | Yes - pod spec injection and tenant ID propagation queries. One engineer I mentored wrote the dataset URI query for their component. |
 | "Semgrep is easier" | Used golangci-lint for simple patterns; CodeQL for multi-hop taint flows where data-flow analysis matters |
 | "How do you avoid false positive fatigue?" | Track suppression-to-finding ratio; disable or refine queries with >3 suppressions per real finding |
-| "Is secret scanning enough?" | No — also pre-commit hooks, Key Vault CLI for local dev, Managed Identity for production (nothing to commit) |
+| "Is secret scanning enough?" | No - also pre-commit hooks, Key Vault CLI for local dev, Managed Identity for production (nothing to commit) |
 | "How did you justify cost?" | 11 secrets blocked × 4-8h rotation effort = ROI in first quarter; plus compliance certification risk for regulated-industry contracts |

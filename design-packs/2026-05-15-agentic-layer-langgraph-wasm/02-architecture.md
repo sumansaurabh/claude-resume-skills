@@ -1,4 +1,4 @@
-# 02 — Architecture
+# 02 - Architecture
 
 ## Component map
 
@@ -21,7 +21,7 @@ flowchart LR
     BLOB[(S3 object store<br/>artifacts + blobs)]
   end
 
-  subgraph AgentPlane[Agent Plane — Python]
+  subgraph AgentPlane[Agent Plane - Python]
     DISP[Dispatcher]
     W1[Agent Worker 1<br/>LangGraph runtime]
     W2[Agent Worker 2]
@@ -35,7 +35,7 @@ flowchart LR
     X[Grok]
   end
 
-  subgraph DataPlane[Data Plane — Golang WASM Sandbox]
+  subgraph DataPlane[Data Plane - Golang WASM Sandbox]
     BROKER[Sandbox Broker<br/>gRPC]
     SCHED[Sandbox Scheduler<br/>bin-pack + quota]
     N1[Sandbox Node 1<br/>WASM runners]
@@ -110,14 +110,14 @@ a run and render the stream:
 - an iframe to the sandbox preview URL,
 - a token-and-cost meter wired to the model router span stream.
 
-### 2. Edge — FastAPI gateway
+### 2. Edge - FastAPI gateway
 
 Owns auth (OIDC), tenant scoping, rate limits, request validation, and the
 SSE/WebSocket hub. Crucially **does not** call into LangGraph synchronously.
 It writes the `Run` row, enqueues a job, and returns. The agent plane is
 fully async.
 
-### 3. Control plane — Postgres + Redis + Tool Registry
+### 3. Control plane - Postgres + Redis + Tool Registry
 
 - **Postgres** holds `runs`, `checkpoints`, `tool_calls`, `model_calls`,
   `policy_decisions`, `tenants`, `projects`, `working_memory`. The
@@ -130,7 +130,7 @@ fully async.
 - **Vector store** (Qdrant or pgvector) backs semantic memory and the
   retrieval node.
 
-### 4. Agent plane — Python workers running LangGraph
+### 4. Agent plane - Python workers running LangGraph
 
 The most important detail: **agent workers are stateless**. They take a
 `run_id`, hydrate the `RunState` from Postgres, execute the next pending
@@ -138,7 +138,7 @@ node, persist the new state, ack the lease, and either re-enqueue or release.
 This is what gives us crash-safe long runs.
 
 - Each worker is a Kubernetes pod with a pinned LangGraph + LangChain version.
-- Concurrency per pod is bounded — typically 4 in-flight runs per pod, tuned
+- Concurrency per pod is bounded - typically 4 in-flight runs per pod, tuned
   to LLM call wait time, not CPU.
 - The pod hosts the **tool client** that talks gRPC to the sandbox broker and
   the **router client** that talks to the model router.
@@ -158,7 +158,7 @@ Failover is structured: if the chosen model 429s or times out, the router
 retries the next-best candidate **but propagates a `degraded=true` flag** so
 the caller can decide whether to accept different output shape.
 
-### 6. Data plane — Golang sandbox
+### 6. Data plane - Golang sandbox
 
 - **Sandbox broker** is the gRPC ingress. It authenticates the envelope (signed
   by the agent worker's per-run token), checks tenant quota, and dispatches.
@@ -179,7 +179,7 @@ runtime design lives in `design-packs/2026-05-06-wasm-sandbox-platform/`.
 - ClickHouse for span storage and replay queries.
 - Langfuse for the LLM-specific UX (prompt diffs, eval, scoring).
 
-## Request flow — *"design a website like Slack"*
+## Request flow - *"design a website like Slack"*
 
 ```mermaid
 sequenceDiagram
@@ -226,7 +226,7 @@ sequenceDiagram
   W->>SSE: event "done"
 ```
 
-## Boundaries — what each component owns
+## Boundaries - what each component owns
 
 | Component | Owns | Does not own |
 | - | - | - |

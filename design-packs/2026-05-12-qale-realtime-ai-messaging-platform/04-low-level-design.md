@@ -1,4 +1,4 @@
-# 04 — Low-Level Design
+# 04 - Low-Level Design
 
 This file is the per-service, per-module breakdown of how I would actually build Qale. The executive summary (`01`) and architecture (`02`) describe the topology; this file is what each box contains, which interfaces it exposes, and how the bytes move on the inside.
 
@@ -8,7 +8,7 @@ I am opinionated here. If a choice is a Qale-specific guess (because Turium AI h
 
 ## 1. Service inventory
 
-The system is decomposed into six first-class services on the message + AI plane, plus three platform services (auth, billing, admin) that are out of scope for this document. The decomposition is deliberately small — six services that any 6-engineer pod can hold in their head, not twenty.
+The system is decomposed into six first-class services on the message + AI plane, plus three platform services (auth, billing, admin) that are out of scope for this document. The decomposition is deliberately small - six services that any 6-engineer pod can hold in their head, not twenty.
 
 | Service | Language | Primary store | Scale unit | Owner pod | Why this language |
 | --- | --- | --- | --- | --- | --- |
@@ -26,7 +26,7 @@ The system is decomposed into six first-class services on the message + AI plane
 
 ## 2. Module breakdown per service
 
-Each service is a small set of internal packages. I list the package, the central type/interface in it, and the one-line responsibility. The naming convention is `<verb>er` for active components and `<noun>Store` / `<noun>Registry` for state holders — Go idiom, deliberately repeated in Python for cross-language symmetry.
+Each service is a small set of internal packages. I list the package, the central type/interface in it, and the one-line responsibility. The naming convention is `<verb>er` for active components and `<noun>Store` / `<noun>Registry` for state holders - Go idiom, deliberately repeated in Python for cross-language symmetry.
 
 ### 2.1 Connection Gateway (Go)
 
@@ -36,7 +36,7 @@ Each service is a small set of internal packages. I list the package, the centra
 | `gateway/auth` | `AuthBroker` | Validates JWT / session cookie against Auth Service; caches claim sets for socket lifetime. |
 | `gateway/session` | `SessionManager` | Owns per-connection state: userId, workspaceIds, deviceId, resume token, last-acked event seq. |
 | `gateway/registry` | `ConnectionRegistry` | In-process map of `connId → SessionManager`; exposes lookup-by-userId via a sharded `sync.Map`. |
-| `gateway/codec` | `FrameCodec` | Frames intent / event JSON (or CBOR for binary builds — **assumption**); enforces 1 MiB max frame. |
+| `gateway/codec` | `FrameCodec` | Frames intent / event JSON (or CBOR for binary builds - **assumption**); enforces 1 MiB max frame. |
 | `gateway/sub` | `SubscriptionTable` | Per-connection set of (workspaceId, threadId, channelId) topics; drives fanout filtering. |
 | `gateway/fanout` | `FanoutSubscriber` | Single Kafka consumer per pod for the workspace shard; routes events into per-connection channels. |
 | `gateway/backpressure` | `BackpressureController` | Per-connection bounded send queue; drops or coalesces typing/presence events under pressure, never drops messages. |
@@ -103,7 +103,7 @@ Each service is a small set of internal packages. I list the package, the centra
 
 ---
 
-## 3. Connection Gateway internals — deep dive
+## 3. Connection Gateway internals - deep dive
 
 The gateway is the most performance-sensitive piece in the system. If it is wrong, every product story breaks at the same time. I'd write this myself in Year 1 rather than delegate.
 
@@ -197,7 +197,7 @@ type FrameCodec interface {
 }
 ```
 
-JSON by default. CBOR is a build-flag for the mobile clients where bytes-on-wire matters more than browser tooling. **Assumption** — I'd only enable CBOR after a measured win on p99 mobile latency.
+JSON by default. CBOR is a build-flag for the mobile clients where bytes-on-wire matters more than browser tooling. **Assumption** - I'd only enable CBOR after a measured win on p99 mobile latency.
 
 ### 3.5 SubscriptionTable
 
@@ -290,13 +290,13 @@ type SendHandler interface {
 
 Send flow:
 
-1. `IdempotencyCache.GetOrReserve(senderId, clientMsgId)` — returns existing messageId or reserves a slot atomically (Redis `SET NX EX 86400`).
+1. `IdempotencyCache.GetOrReserve(senderId, clientMsgId)` - returns existing messageId or reserves a slot atomically (Redis `SET NX EX 86400`).
 2. If reserved, run permission check via Thread Service.
 3. Open Postgres tx: insert into `messages`, insert into `outbox` with the same tx. Per-thread sequence allocated via `nextval('thread_seq_<thread_hash>')` or, at scale, via a dedicated `thread_sequence` table updated with `UPDATE ... RETURNING`.
 4. Commit tx.
 5. Return `SendResponse` synchronously to the gateway. The gateway can ack the client immediately; downstream fanout is the outbox relay's job.
 
-Duplicate response is critical — the client must be able to tell "you already sent this" from "we sent it twice."
+Duplicate response is critical - the client must be able to tell "you already sent this" from "we sent it twice."
 
 ### 4.2 ThreadStore
 
@@ -322,7 +322,7 @@ Implementation:
 - For each row, publish to Kafka topic `qale.events.{workspace_shard}` with the event envelope.
 - On successful Kafka ack, delete the row (or move to `outbox_done` table for audit).
 
-Why this and not "just write to Kafka in the handler"? Because dual-write is the bug that kills every messaging system. Either the message is in the DB and the event is on the bus, or neither — guaranteed by the tx + relay pattern. Anchor: ShareChat RTB (A-SC2) — the RTB system used the same pattern for bid logs.
+Why this and not "just write to Kafka in the handler"? Because dual-write is the bug that kills every messaging system. Either the message is in the DB and the event is on the bus, or neither - guaranteed by the tx + relay pattern. Anchor: ShareChat RTB (A-SC2) - the RTB system used the same pattern for bid logs.
 
 ### 4.5 FanoutPublisher
 
@@ -345,7 +345,7 @@ CloudEvents 1.0 envelope; schema registry holds the `data` schemas. Backward-com
 
 ### 4.6 EditTombstoneManager
 
-Edits are insert-only into `message_edits` with a pointer back to the parent message. Deletes are tombstones — a row in `messages` with `deleted_at` set, body cleared, plus a `message_edits` row capturing who deleted. Hard-delete only happens when the workspace is deleted (see `13-data-model-and-storage.md` §10).
+Edits are insert-only into `message_edits` with a pointer back to the parent message. Deletes are tombstones - a row in `messages` with `deleted_at` set, body cleared, plus a `message_edits` row capturing who deleted. Hard-delete only happens when the workspace is deleted (see `13-data-model-and-storage.md` §10).
 
 ---
 
@@ -377,8 +377,8 @@ class RunCoordinator:
 
 Admission steps:
 
-1. `TokenBudgeter.reserve(workspace_id, est_tokens)` — fail fast if over budget.
-2. `SafetyGuard.pre_admit(prompt)` — PII scan, prompt-injection heuristic, refuse early.
+1. `TokenBudgeter.reserve(workspace_id, est_tokens)` - fail fast if over budget.
+2. `SafetyGuard.pre_admit(prompt)` - PII scan, prompt-injection heuristic, refuse early.
 3. Persist `ai_runs` row with `state=queued`.
 4. Push to internal queue keyed by `run_id`; a free DAG worker picks it up.
 
@@ -399,15 +399,15 @@ class ContextBuilder:
 
 Pipeline:
 
-1. **Recent thread window** — last N messages verbatim (default N=20).
-2. **Older thread summary** — pulled from `thread_summaries` table; recomputed by background worker when a thread grows past a threshold.
-3. **Vector retrieval** — query Qdrant with the question embedding, scoped to `workspace_id`; top-k = 8 chunks, MMR re-rank for diversity.
-4. **User memory** — pinned facts ("user prefers concise replies").
-5. **System prompt** — capability-aware; includes tool registry digest.
+1. **Recent thread window** - last N messages verbatim (default N=20).
+2. **Older thread summary** - pulled from `thread_summaries` table; recomputed by background worker when a thread grows past a threshold.
+3. **Vector retrieval** - query Qdrant with the question embedding, scoped to `workspace_id`; top-k = 8 chunks, MMR re-rank for diversity.
+4. **User memory** - pinned facts ("user prefers concise replies").
+5. **System prompt** - capability-aware; includes tool registry digest.
 
 If the bundle exceeds budget, the order of compression is: drop low-relevance retrievals → summarize older window → drop tool digest detail → fail with `context_too_large` (never silently truncate the user's actual question).
 
-### 5.3 ModelRouter — capability-aware (anchor A-BB4)
+### 5.3 ModelRouter - capability-aware (anchor A-BB4)
 
 ```python
 class ModelRouter:
@@ -428,11 +428,11 @@ class ModelRouter:
 
 Selection signals (in priority order):
 
-1. **Hard capability** — does the model support the required tool-call format? If the run requires JSON-mode + parallel tool calls, models that can't are excluded.
-2. **Context length fit** — context_size ≤ model's effective context.
-3. **Tier policy** — workspace plan determines allowed tier (e.g., free workspaces get small models for triage, paid get GPT-class for compose).
-4. **Cost** — predicted $ per call from a moving average; route to cheaper model if tied on capability.
-5. **Live health** — circuit breaker per `(provider, model)` keeps failing endpoints out of rotation.
+1. **Hard capability** - does the model support the required tool-call format? If the run requires JSON-mode + parallel tool calls, models that can't are excluded.
+2. **Context length fit** - context_size ≤ model's effective context.
+3. **Tier policy** - workspace plan determines allowed tier (e.g., free workspaces get small models for triage, paid get GPT-class for compose).
+4. **Cost** - predicted $ per call from a moving average; route to cheaper model if tied on capability.
+5. **Live health** - circuit breaker per `(provider, model)` keeps failing endpoints out of rotation.
 
 The router is the single chokepoint for cost. Without it, AI cost grows linearly (or worse) with users; with it, it grows sub-linearly because cheap models pick up the bulk of low-difficulty triage. Anchor: 1B+ tokens/month at BlackBox (A-BB4).
 
@@ -447,7 +447,7 @@ class TokenBudgeter:
 
 Scopes: `(workspace_id)`, `(workspace_id, user_id)`, `(workspace_id, feature)`. Backed by Redis token-bucket per scope; refill rate set by the workspace plan. A run that can't reserve is queued with TTL or rejected with `429 budget_exhausted`.
 
-### 5.5 ToolDispatcher (tool-calling — anchor A-BB2)
+### 5.5 ToolDispatcher (tool-calling - anchor A-BB2)
 
 ```python
 class ToolDispatcher:
@@ -461,11 +461,11 @@ class ToolDispatcher:
         """Idempotent. Same idem_key returns the same result without re-running."""
 ```
 
-Idempotency key is `f"{run_id}:{node_id}:{attempt}"` — every retry of the same node sees the same key. The dispatcher persists `(idem_key) → result` in Postgres `ai_tool_invocations` so a crashed worker that restarts mid-tool-call gets the cached result instead of re-charging the user / re-sending the email / re-scheduling the meeting.
+Idempotency key is `f"{run_id}:{node_id}:{attempt}"` - every retry of the same node sees the same key. The dispatcher persists `(idem_key) → result` in Postgres `ai_tool_invocations` so a crashed worker that restarts mid-tool-call gets the cached result instead of re-charging the user / re-sending the email / re-scheduling the meeting.
 
 Tools are typed; the registry holds a JSON Schema per tool, and the dispatcher validates input + output against it before and after the call.
 
-### 5.6 DurableExecutor (DAG checkpointing — anchor A-BB3)
+### 5.6 DurableExecutor (DAG checkpointing - anchor A-BB3)
 
 ```python
 class DurableExecutor:
@@ -494,9 +494,9 @@ Anchor: this is the same engine I designed at BlackBox (A-BB3). The naming will 
 
 Three hooks:
 
-1. **`pre_admit(prompt)`** — block obvious abuse + PII before tokens are spent.
-2. **`pre_tool(call)`** — policy gate before high-risk tools (send email externally, delete workspace data); may require `human_approval` node insertion.
-3. **`post_response(text)`** — output filter; redact remaining PII, flag policy violations for review.
+1. **`pre_admit(prompt)`** - block obvious abuse + PII before tokens are spent.
+2. **`pre_tool(call)`** - policy gate before high-risk tools (send email externally, delete workspace data); may require `human_approval` node insertion.
+3. **`post_response(text)`** - output filter; redact remaining PII, flag policy violations for review.
 
 ### 5.8 StreamMultiplexer
 
@@ -546,7 +546,7 @@ sequenceDiagram
     G2-->>C2: push frame {message.created}
 ```
 
-Read this carefully — the client gets the ack from step 6, *not* from fanout. That keeps perceived send latency at single-digit ms even when Kafka or fanout has lag. The cost is that the sender's own *other devices* see the message via fanout, with the same eventual delivery as everyone else; this is the right tradeoff because the sending device shows it optimistically.
+Read this carefully - the client gets the ack from step 6, *not* from fanout. That keeps perceived send latency at single-digit ms even when Kafka or fanout has lag. The cost is that the sender's own *other devices* see the message via fanout, with the same eventual delivery as everyone else; this is the right tradeoff because the sending device shows it optimistically.
 
 ### 6.2 AI run with tool call back into Qale
 
@@ -630,7 +630,7 @@ The model differs by tier; pasted below as a single table because the rules are 
 | Connection Gateway, per connection | 3 goroutines: reader, writer, timer; plus `sendCh` bounded chan(256). | No shared mutable state across goroutines; cleanup is "close the channel and they all exit." Anchor: TunDRA QUIC lessons (A-MS1). |
 | Connection Gateway, registry | 256 sharded maps + per-shard RWMutex. | Lock-free hot path for `LookupByUser`; mutex contention bounded by shard count. |
 | Message Service, write path | Per-thread serialization via Postgres row lock on `threads(id) FOR UPDATE` during sequence allocation. | The write path is not a concurrency problem; it's a per-thread queue. |
-| Message Service, read path | Lock-free; reads can race writes because monotonic per-thread `seq` resolves ordering at the client. | Eventual ordering on the read path — cheaper than a global lock. |
+| Message Service, read path | Lock-free; reads can race writes because monotonic per-thread `seq` resolves ordering at the client. | Eventual ordering on the read path - cheaper than a global lock. |
 | AI Orchestrator, per run | Sharded by `runId mod N` across DAG worker pods. | Each runId is owned by exactly one worker at a time, enforced by Redis lock with TTL refresh. |
 | AI Orchestrator, ContextBuilder | `asyncio.gather` for retrieval + summarization. | I/O-bound; concurrency wins are real. |
 | Notification Service | One goroutine per provider channel; channels backed by per-target rate limiters. | Slow APNs/SES never blocks fast ones. |
@@ -641,7 +641,7 @@ The model differs by tier; pasted below as a single table because the rules are 
 
 ## 8. Frontend (React) LLD
 
-This is the lane where I would partner closely with a strong frontend lead (the one I'd hire week one — see `14-leadership-and-business-framing.md`). My grounding here is full-stack but my deepest claims are backend; I'll be honest in interview about that. The architecture below is what I would *propose* and then refine with the lead.
+This is the lane where I would partner closely with a strong frontend lead (the one I'd hire week one - see `14-leadership-and-business-framing.md`). My grounding here is full-stack but my deepest claims are backend; I'll be honest in interview about that. The architecture below is what I would *propose* and then refine with the lead.
 
 ### 8.1 App shell
 
@@ -663,12 +663,12 @@ This is the lane where I would partner closely with a strong frontend lead (the 
 `react-window`'s `VariableSizeList` with a sticky day separator. Item heights are estimated by content length and corrected on first measure. Crucially:
 
 - Render window = visible + 10 above + 10 below.
-- Off-screen items render to **placeholder skeletons**, not full markdown — keeps DOM nodes under 2K even on long threads.
+- Off-screen items render to **placeholder skeletons**, not full markdown - keeps DOM nodes under 2K even on long threads.
 - Scroll-to-bottom uses `scrollToItem` with `align=end`; "new message while scrolled up" pins a "↓ N new" pill instead of yanking the user.
 
 ### 8.4 Optimistic message store
 
-**Zustand** (slim, Redux Toolkit is an option if the team is RTK-fluent — **assumption** on team preference). Store shape:
+**Zustand** (slim, Redux Toolkit is an option if the team is RTK-fluent - **assumption** on team preference). Store shape:
 
 ```ts
 type MessageStoreState = {
@@ -764,7 +764,7 @@ This is a lift from how I ran event contracts at Azure ML (A-MS3, A-MS5). The si
 This is the "where I plant my flag" section. These aren't preferences, these are scars.
 
 1. **Shared mutable state across goroutines without channels or explicit locks.** Documented at the gateway layer; enforced via `go vet -race` in CI.
-2. **ORMs in the hot send path.** `pgx` raw queries with prepared statements only. ORMs are great for admin and CRUD; they hide enough cost in the hot path that you can't reason about p99. (Caveat: I'd let the AI Orchestrator use SQLAlchemy for its CRUD-ish run-state queries — Python ergonomics matter and that path isn't hot.)
+2. **ORMs in the hot send path.** `pgx` raw queries with prepared statements only. ORMs are great for admin and CRUD; they hide enough cost in the hot path that you can't reason about p99. (Caveat: I'd let the AI Orchestrator use SQLAlchemy for its CRUD-ish run-state queries - Python ergonomics matter and that path isn't hot.)
 3. **Blocking I/O in the React render path.** Lint rule: any synchronous IO call in a component is a CI failure. IndexedDB and `localStorage` reads must be wrapped.
 4. **Dual-write to DB and Kafka in one handler.** Always transactional outbox + relay. The pattern is annoying; the alternative is permanent message-loss bugs.
 5. **Custom retry logic per service.** One shared `retry` library with policies named after their use cases (`RetryRPCBudget`, `RetryToolIdempotent`, `RetryFanoutBackpressure`). Hand-rolled retries are how we paged at 3 AM at ShareChat.
@@ -778,11 +778,11 @@ This is the "where I plant my flag" section. These aren't preferences, these are
 
 ## Anchors used in this file
 
-- **A-BB2** — agentic platform / 6+ engineers (`AI Orchestrator` decomposition; tool calling).
-- **A-BB3** — DAG checkpointing / durable execution (`DurableExecutor`, sequence 6.2).
-- **A-BB4** — model router / 1B+ tokens (`ModelRouter` design).
-- **A-BB5** — telemetry mesh (`MetricsEmitter`; deterministic replay reasoning).
-- **A-MS1** — TunDRA QUIC at 1M+ Compute Instances (gateway concurrency model + transport choice).
-- **A-MS3** / **A-MS5** — cross-org schema/contract governance (cross-service contracts §9).
-- **A-SC2** / **A-SC3** — RTB pipeline + PubSub stack (outbox pattern, per-shard topics).
-- **A-IND1** — ClipboardHealth NestJS migration (refusal note on premature service decomposition).
+- **A-BB2** - agentic platform / 6+ engineers (`AI Orchestrator` decomposition; tool calling).
+- **A-BB3** - DAG checkpointing / durable execution (`DurableExecutor`, sequence 6.2).
+- **A-BB4** - model router / 1B+ tokens (`ModelRouter` design).
+- **A-BB5** - telemetry mesh (`MetricsEmitter`; deterministic replay reasoning).
+- **A-MS1** - TunDRA QUIC at 1M+ Compute Instances (gateway concurrency model + transport choice).
+- **A-MS3** / **A-MS5** - cross-org schema/contract governance (cross-service contracts §9).
+- **A-SC2** / **A-SC3** - RTB pipeline + PubSub stack (outbox pattern, per-shard topics).
+- **A-IND1** - ClipboardHealth NestJS migration (refusal note on premature service decomposition).

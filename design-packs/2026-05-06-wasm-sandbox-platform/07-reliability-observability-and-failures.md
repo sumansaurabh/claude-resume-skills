@@ -1,4 +1,4 @@
-# 07 — Reliability, Observability, and Failures
+# 07 - Reliability, Observability, and Failures
 
 ## Failure Taxonomy
 
@@ -18,7 +18,7 @@
 
 ## Worker Crash Handling
 
-Worker crash is the most operationally significant failure — it must be transparent to the user.
+Worker crash is the most operationally significant failure - it must be transparent to the user.
 
 **Detection:**
 - Each worker runs a goroutine that sends a heartbeat every 1s to the Pool Manager via a channel.
@@ -29,7 +29,7 @@ Worker crash is the most operationally significant failure — it must be transp
 2. Any execution dispatched to the crashed worker that had not yet completed is retried automatically on a new worker.
 3. The retry is transparent: the SSE stream for the client shows a brief pause (re-dispatch + re-execution), then continues.
 
-**Retry safety:** WASM executions are idempotent (given the same code and stdin, same output — unless code reads a clock or uses randomness). For executions that use `random` or `datetime.now()`, a retry produces different output — but this is acceptable for the zero-shot use case. Users are not promised deterministic retry behavior.
+**Retry safety:** WASM executions are idempotent (given the same code and stdin, same output - unless code reads a clock or uses randomness). For executions that use `random` or `datetime.now()`, a retry produces different output - but this is acceptable for the zero-shot use case. Users are not promised deterministic retry behavior.
 
 **Goroutine panic recovery:**
 ```go
@@ -78,9 +78,9 @@ Every execution emits one parent span with the full execution lifecycle:
 ```
 
 Child spans:
-- `wasm.dispatch` — time from API receipt to worker dispatch
-- `wasm.module_instantiate` — time to create a new module instance
-- `wasm.run` — actual execution time inside WASM
+- `wasm.dispatch` - time from API receipt to worker dispatch
+- `wasm.module_instantiate` - time to create a new module instance
+- `wasm.run` - actual execution time inside WASM
 
 ### Key Metrics (Prometheus)
 
@@ -89,12 +89,12 @@ Child spans:
 | `wasm_execution_duration_ms` | Histogram | language, exit_code, timed_out | p99 > 5000ms |
 | `wasm_pool_warm_workers` | Gauge | language | warm < 10% of target |
 | `wasm_pool_busy_workers` | Gauge | language | busy > 90% of total |
-| `wasm_execution_rate` | Counter | language, tenant | — (for billing, not alerting) |
+| `wasm_execution_rate` | Counter | language, tenant | - (for billing, not alerting) |
 | `wasm_cold_start_rate` | Counter | language | > 5% of executions |
 | `wasm_timeout_rate` | Counter | language | > 1% of executions |
 | `wasm_worker_panics_total` | Counter | worker_id | Any panic in 5 min |
-| `wasm_queue_depth` | Gauge | — | > 100 queued |
-| `wasm_stream_subscribers` | Gauge | — | for capacity planning |
+| `wasm_queue_depth` | Gauge | - | > 100 queued |
+| `wasm_stream_subscribers` | Gauge | - | for capacity planning |
 
 ### Oncall Dashboard
 
@@ -119,7 +119,7 @@ When p99 execution latency spikes to >2s:
 
 3. **Check worker crash rate.** `wasm_worker_panics_total` elevated? Workers crashing faster than respawning → pool draining. Investigate worker logs for panic type.
 
-4. **Check for long-running executions blocking pool.** `wasm_pool_busy_workers` high but execution rate normal? Some executions are running near their timeout. Check `wasm_execution_duration_ms{quantile="0.99"}` by tenant — one tenant may be monopolizing workers with slow code.
+4. **Check for long-running executions blocking pool.** `wasm_pool_busy_workers` high but execution rate normal? Some executions are running near their timeout. Check `wasm_execution_duration_ms{quantile="0.99"}` by tenant - one tenant may be monopolizing workers with slow code.
 
 5. **Check Redis health.** Rate limiter and queue use Redis. If Redis latency spikes, dispatch latency spikes. Check Redis `INFO latency` metrics.
 

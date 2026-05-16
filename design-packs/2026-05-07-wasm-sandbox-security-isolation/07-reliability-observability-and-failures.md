@@ -1,4 +1,4 @@
-# 07 — Reliability, Observability, and Failures
+# 07 - Reliability, Observability, and Failures
 
 > Resume anchor: *"50M+ spans/day telemetry mesh"* and *"1M+ daily zero-shot code executions."*
 
@@ -8,12 +8,12 @@
 
 | Failure Class | Detection Signal | Immediate Action | Error Returned to Client | Recovery Path | Orphan Risk |
 |---|---|---|---|---|---|
-| **Execution timeout** | `context.WithDeadline` fires; Go context cancelled | `module.Close(ctx)` interrupts WASM execution synchronously; worker goroutine unblocks | `EXECUTION_TIMEOUT` | Worker returns to pool; no instance reuse; new execution dispatched fresh | None — context cancel is synchronous; no goroutine leak |
-| **OOM (memory bomb)** | cgroup `memory.events` fd listener detects `max` event; host reads fd in separate goroutine | Host process sends `SIGKILL` to itself via `runtime.Goexit()` on the worker goroutine *or* cgroup OOM killer fires SIGKILL from kernel | `OOM_KILLED` | Worker goroutine exits; pool manager detects heartbeat miss; spawns replacement worker | None — WASM linear memory is in worker goroutine; SIGKILL is clean |
-| **CPU quota throttled** | cgroup `cpu.max` throttles worker's CPU time (does not kill) | cgroup throttling is passive — worker runs slower but does not die. Wasmtime fuel depletion is the *kill* mechanism; fuel fires first | `EXECUTION_TIMEOUT` (via fuel) | Fuel-based kill returns execution to pool normally; worker healthy | None — fuel kill is deterministic and fires before cgroup throttling becomes a problem at normal limits |
-| **Sandbox escape attempt** | seccomp-bpf issues `SIGSYS` to worker process on blocked syscall | Go runtime's signal handler catches `SIGSYS`; execution is flagged as `security_event=true`; `module.Close()` called; worker removed from pool | `INTERNAL_SANDBOX_ERROR` (sanitized; no leak of attack detail to client) | SecurityEvent record written to Clickhouse; PagerDuty alert fires; worker node cordoned in Kubernetes; ops team investigates | Low — SIGSYS kills the offending thread; cgroup provides fallback SIGKILL |
-| **WASM engine crash / panic** | `recover()` in Go defer catches panic from wazero internal | `defer` block catches panic; logs stack trace; marks worker unhealthy; closes module | `INTERNAL_SANDBOX_ERROR` | Pool manager detects worker unhealthy flag; removes from pool; spawns replacement; panicked instance never reused | None — defer/recover is synchronous; Go panic does not leak goroutines |
-| **Worker node failure** | Kubernetes liveness probe fails; pod evicted or node NotReady | In-flight executions on that node fail (execution goroutine context cancelled by pod shutdown) | `INTERNAL_SANDBOX_ERROR` (client retries) | Client retries with same `idempotency_key`; new worker on a healthy node picks up execution; idempotency key prevents duplicate side effects | None — WASM executions are stateless; no side effects to undo |
+| **Execution timeout** | `context.WithDeadline` fires; Go context cancelled | `module.Close(ctx)` interrupts WASM execution synchronously; worker goroutine unblocks | `EXECUTION_TIMEOUT` | Worker returns to pool; no instance reuse; new execution dispatched fresh | None - context cancel is synchronous; no goroutine leak |
+| **OOM (memory bomb)** | cgroup `memory.events` fd listener detects `max` event; host reads fd in separate goroutine | Host process sends `SIGKILL` to itself via `runtime.Goexit()` on the worker goroutine *or* cgroup OOM killer fires SIGKILL from kernel | `OOM_KILLED` | Worker goroutine exits; pool manager detects heartbeat miss; spawns replacement worker | None - WASM linear memory is in worker goroutine; SIGKILL is clean |
+| **CPU quota throttled** | cgroup `cpu.max` throttles worker's CPU time (does not kill) | cgroup throttling is passive - worker runs slower but does not die. Wasmtime fuel depletion is the *kill* mechanism; fuel fires first | `EXECUTION_TIMEOUT` (via fuel) | Fuel-based kill returns execution to pool normally; worker healthy | None - fuel kill is deterministic and fires before cgroup throttling becomes a problem at normal limits |
+| **Sandbox escape attempt** | seccomp-bpf issues `SIGSYS` to worker process on blocked syscall | Go runtime's signal handler catches `SIGSYS`; execution is flagged as `security_event=true`; `module.Close()` called; worker removed from pool | `INTERNAL_SANDBOX_ERROR` (sanitized; no leak of attack detail to client) | SecurityEvent record written to Clickhouse; PagerDuty alert fires; worker node cordoned in Kubernetes; ops team investigates | Low - SIGSYS kills the offending thread; cgroup provides fallback SIGKILL |
+| **WASM engine crash / panic** | `recover()` in Go defer catches panic from wazero internal | `defer` block catches panic; logs stack trace; marks worker unhealthy; closes module | `INTERNAL_SANDBOX_ERROR` | Pool manager detects worker unhealthy flag; removes from pool; spawns replacement; panicked instance never reused | None - defer/recover is synchronous; Go panic does not leak goroutines |
+| **Worker node failure** | Kubernetes liveness probe fails; pod evicted or node NotReady | In-flight executions on that node fail (execution goroutine context cancelled by pod shutdown) | `INTERNAL_SANDBOX_ERROR` (client retries) | Client retries with same `idempotency_key`; new worker on a healthy node picks up execution; idempotency key prevents duplicate side effects | None - WASM executions are stateless; no side effects to undo |
 
 ---
 
@@ -21,14 +21,14 @@
 
 A common interview trap: "Won't cgroup `cpu.max` kill infinite loops?"
 
-No. `cpu.max` *throttles* — it reduces the CPU time slice the process is allocated but does not send any signal. A tight loop will run indefinitely at reduced speed. Fuel is the correct kill mechanism:
+No. `cpu.max` *throttles* - it reduces the CPU time slice the process is allocated but does not send any signal. A tight loop will run indefinitely at reduced speed. Fuel is the correct kill mechanism:
 
 ```go
-// At store creation time, not per-execution — set once
+// At store creation time, not per-execution - set once
 store := wasmtime.NewStore(engine)
 store.AddFuel(5_000_000)  // 5M instructions ≈ ~50ms of Python compute at typical throughput
 
-// At execution time — fuel is consumed by every WASM instruction
+// At execution time - fuel is consumed by every WASM instruction
 // When fuel hits zero, wasmtime traps with "all fuel consumed"
 _, err := instance.Call("_start")
 if wasmtime.IsTrap(err) && strings.Contains(err.Error(), "all fuel consumed") {
@@ -49,7 +49,7 @@ func watchCgroupMemoryEvents(cgroupPath string, kill func()) {
     fd, _ := os.Open(eventsPath)
     defer fd.Close()
 
-    // inotify on the cgroup events file — kernel notifies on every counter increment
+    // inotify on the cgroup events file - kernel notifies on every counter increment
     watcher, _ := fsnotify.NewWatcher()
     watcher.Add(eventsPath)
 
@@ -58,7 +58,7 @@ func watchCgroupMemoryEvents(cgroupPath string, kill func()) {
         fd.Seek(0, io.SeekStart)
         counts := parseCgroupMemoryEvents(content)
         if counts["max"] > 0 || counts["oom"] > 0 {
-            // Memory limit hit — kill worker goroutine immediately
+            // Memory limit hit - kill worker goroutine immediately
             kill()
             return
         }
@@ -80,8 +80,8 @@ When seccomp-bpf fires `SIGSYS` indicating a blocked syscall from within a WASM 
 4. High-priority OTel span emitted with `security_event=true`, `security_event_type="SECCOMP_TRAP"`.
 5. Span triggers PagerDuty alert within 30 seconds (OTel → Prometheus alertmanager → PagerDuty).
 6. On-call engineer runs the **node isolation runbook**:
-   - `kubectl cordon <node>` — prevents new pod scheduling on the node.
-   - `kubectl drain <node> --ignore-daemonsets` — evicts all pods to healthy nodes.
+   - `kubectl cordon <node>` - prevents new pod scheduling on the node.
+   - `kubectl drain <node> --ignore-daemonsets` - evicts all pods to healthy nodes.
    - Node is quarantined for forensics; worker pod logs and cgroup audit logs preserved.
 7. If the CVE is confirmed in the WASM engine: blue-green worker rollout with pinned updated engine version (see CC8.1 runbook below).
 
@@ -157,12 +157,12 @@ This span has `security_event=true` as an OTel attribute. The OTel collector rou
 
 | Metric | Type | Labels | Alert Threshold | Alert Routing |
 |---|---|---|---|---|
-| `wasm_execution_total` | Counter | `language`, `exit_code`, `error_code` | — | — |
+| `wasm_execution_total` | Counter | `language`, `exit_code`, `error_code` | - | - |
 | `wasm_execution_error_rate` | Gauge (derived) | `error_type` | > 5% in 5-min window → SLO breach | PagerDuty P2 |
 | `wasm_security_event_total` | Counter | `event_type` | Any event in 60s window | PagerDuty P0 |
 | `wasm_execution_duration_ms` | Histogram | `language`, `was_cold_start` | p99 > 500ms | PagerDuty P2 |
-| `wasm_cpu_ms_used` | Histogram | `language` | — | Capacity planning |
-| `wasm_memory_peak_mb` | Histogram | `language` | — | Capacity planning |
+| `wasm_cpu_ms_used` | Histogram | `language` | - | Capacity planning |
+| `wasm_memory_peak_mb` | Histogram | `language` | - | Capacity planning |
 | `wasm_oom_rate` | Gauge (derived) | `language` | > 1% in 5-min window | PagerDuty P2 (capacity alert) |
 | `wasm_pool_utilization` | Gauge | `language` | > 90% | PagerDuty P3 |
 | `wasm_cold_start_rate` | Gauge (derived) | `language` | > 5% | PagerDuty P3 |

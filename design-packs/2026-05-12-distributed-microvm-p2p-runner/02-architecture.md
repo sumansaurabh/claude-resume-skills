@@ -1,4 +1,4 @@
-# 02 — Architecture
+# 02 - Architecture
 
 ## Current Single-Node Architecture (Baseline)
 
@@ -57,7 +57,7 @@ These five assumptions are the surgical targets.
     vector)
 ```
 
-### Plane 1 — Membership and Capacity Gossip
+### Plane 1 - Membership and Capacity Gossip
 
 **Substrate:** SWIM via HashiCorp `memberlist`, or libp2p PubSub. Memberlist is
 battle-tested (Consul, Nomad, Serf); libp2p PubSub is the more "ecosystem mesh"
@@ -93,7 +93,7 @@ eliminates O(N²) broadcast and is provably ~optimal load.
 re-elect ownership of any sandboxes it was hosting (or, with A1, simply mark
 them lost).
 
-### Plane 2 — Sandbox Metadata (Owner-Authoritative)
+### Plane 2 - Sandbox Metadata (Owner-Authoritative)
 
 Each sandbox row has exactly one owner: the node where the container actually
 runs. **Mutations to that sandbox's row only happen on the owner.** Reads can
@@ -110,15 +110,15 @@ local SQLite. Last-writer-wins on `(owner, version)`. Non-owner writes are
 rejected at the source.
 
 **Why per-shard topics:** a single global topic at 10K nodes × ~100 events/s
-sustained = 1M msg/s of fan-out. Sharded topics let you scope subscription —
+sustained = 1M msg/s of fan-out. Sharded topics let you scope subscription -
 each node subscribes to only the shards it cares about (sandboxes it currently
 holds + a small random sample for resilience).
 
-### Plane 3 — Placement and Port Allocation (The Only Consensus)
+### Plane 3 - Placement and Port Allocation (The Only Consensus)
 
 **This is the only place strict ordering is required.** Two viable substrates:
 
-**Option A — Raft (recommended for v1):**
+**Option A - Raft (recommended for v1):**
 
 - 5 voters elected from the fleet (see [11-control-plane-vs-data-plane.md](11-control-plane-vs-data-plane.md)).
 - All other nodes are non-voting learners.
@@ -130,24 +130,24 @@ holds + a small random sample for resilience).
 - Commits are tiny (~80-150 bytes). Throughput easily 10K/sec on modest
   leader hardware.
 
-**Option B — CRDT (target for v2):**
+**Option B - CRDT (target for v2):**
 
 - Per-sandbox LWW register over libp2p PubSub: `(sandbox_id, owner_node_id,
   hlc_timestamp)`.
 - Conflict resolution: highest HLC wins. Loser node sees a "you don't own this
   anymore" event and tears its container down.
 - Port allocation: per-node port partitions assigned via gossip with a CRDT
-  G-Set claim — no global allocator at all.
+  G-Set claim - no global allocator at all.
 
 **Why ship Raft first:** debugging "who really owns sandbox X right now" is
 ~10x easier with a Raft log than with HLC traces. CRDT conflicts in placement
 are rare in practice (each node only proposes when it received the create
-request — N-way races require simultaneous identical create requests at K
+request - N-way races require simultaneous identical create requests at K
 nodes), but when they happen they are subtle and operator-hostile.
 
 ## End-To-End Request Flows
 
-### Flow 1 — `POST /v1/sandboxes` (Create Sandbox)
+### Flow 1 - `POST /v1/sandboxes` (Create Sandbox)
 
 ```
 Client → Node A (any node)
@@ -186,7 +186,7 @@ Latency budget for a typical Create: A→Raft 3-8ms, A→B forward 1-3ms intra-D
 B local work 50-200ms (container start dominates). The Raft hop is ~5% of the
 total, which is the right price.
 
-### Flow 2 — `GET /v1/sandboxes/{id}/proxy/...` (Hot path: HTTP into sandbox)
+### Flow 2 - `GET /v1/sandboxes/{id}/proxy/...` (Hot path: HTTP into sandbox)
 
 ```
 Client → Node A (any node)
@@ -207,7 +207,7 @@ If A's cache is stale (S has been re-placed to D since), B replies with
 `NotOwner(actual=D, version=2)`. A updates its cache and redials D. One extra
 hop in the stale case, no Raft round-trip.
 
-### Flow 3 — Owner Failure and Re-Placement
+### Flow 3 - Owner Failure and Re-Placement
 
 ```
 Membership plane (SWIM) detects node B dead (suspicion → confirmed: ~15s)
@@ -247,7 +247,7 @@ peer is equally valid. The network just routes.
 
 ## Federation Across Ecosystems
 
-Two independent fabrics (say, Org X and Org Y) want to mesh — Org X clients
+Two independent fabrics (say, Org X and Org Y) want to mesh - Org X clients
 should be able to reach sandboxes running on Org Y nodes, with ownership and
 placement semantics intact.
 
@@ -257,7 +257,7 @@ dissolve and replaying on the other. Operationally a nightmare.
 **The right way:** **gossip bridge peers.** Each fabric exposes a small set
 (say, 3) of bridge peers that subscribe to the *other* fabric's membership
 topic. Capacity vectors and placement events flow across the bridge.
-Cross-fabric placements work via owner forwarding — Org X cannot place into
+Cross-fabric placements work via owner forwarding - Org X cannot place into
 Org Y without Org Y's consent (each fabric's placement Raft remains
 authoritative for its own nodes).
 
@@ -287,5 +287,5 @@ This is the libp2p-mesh story: trivial federation, zero log merging.
 
 The **vertical slice to prototype first** is the toolbox proxy forwarder. It
 exercises membership, the placement cache, libp2p streams, and end-to-end
-hot-path correctness in one PR — without changing how sandboxes get *created*.
+hot-path correctness in one PR - without changing how sandboxes get *created*.
 That stays single-node until the next slice.

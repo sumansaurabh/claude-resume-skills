@@ -1,6 +1,6 @@
 # Distributed Fine-Tuning Data Plane Internals
 
-Pack covering the **inside** of the fine-tuning data plane — what happens after the control
+Pack covering the **inside** of the fine-tuning data plane - what happens after the control
 plane has placed a job on a GPU pod. The control plane (gang scheduling, quotas, VNet
 isolation, idempotency, artifact registry) is treated as a given here; the focus is on
 how the *worker processes themselves* load the model, shard parameters, run the optimizer

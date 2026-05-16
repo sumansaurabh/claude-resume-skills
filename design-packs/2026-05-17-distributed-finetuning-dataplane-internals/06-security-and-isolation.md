@@ -1,4 +1,4 @@
-# 06 — Security and Isolation Inside the Data Plane
+# 06 - Security and Isolation Inside the Data Plane
 
 The control plane has already put us in a tenant-scoped namespace, with a private
 endpoint, behind a VNet. This file is about what isolation looks like *inside the
@@ -70,7 +70,7 @@ Three properties matter:
 2. **Token audience scoping.** A blob token can't be replayed against MLflow,
    and vice versa.
 3. **No tenant data on the platform's identity.** The platform never reads
-   tenant data with its own identity — it always swaps to the tenant's scoped
+   tenant data with its own identity - it always swaps to the tenant's scoped
    identity for that operation.
 
 ## Secrets in user-supplied code
@@ -89,7 +89,7 @@ hosted fine-tuning, common in BYOM). Three rules:
 ## Network policy: what the trainer can reach
 
 ```yaml
-# NetworkPolicy excerpt — tenant-7 namespace
+# NetworkPolicy excerpt - tenant-7 namespace
 egress:
   # Allow NCCL to other workers in the same job (gang member pods)
   - to: [{ podSelector: { matchLabels: { job-id: <job-id> }}}]
@@ -120,12 +120,12 @@ The training image is the largest attack surface. Two controls:
 1. **Image signing**: every image pushed to ACR is Cosign-signed by the platform
    CI. Kubelet (via Notation / OPA-Gatekeeper) refuses to start a pod whose image
    isn't signed by a trusted key.
-2. **SBOM + CodeQL**: anchored to **resume.txt L93-94** — CodeQL and GitHub
+2. **SBOM + CodeQL**: anchored to **resume.txt L93-94** - CodeQL and GitHub
    Advanced Security caught a class of issues in the image build pipeline
    (insecure deserialization, command injection in entrypoint scripts). The CI
    gate blocks merges that introduce these.
 
-## NCCL on the wire — is it encrypted?
+## NCCL on the wire - is it encrypted?
 
 By default, **NCCL traffic is not encrypted**. In a single-tenant cluster on a
 private fabric, that's acceptable. For multi-tenant: NCCL traffic only ever
@@ -135,7 +135,7 @@ SR-IOV slicing isolates the fabric, (b) the NetworkPolicy refuses ingress, and
 (c) NCCL ports are dynamic and only known to job members.
 
 For paranoid scenarios (government, healthcare), the option is to wrap NCCL
-sockets in TLS or use a privacy-preserving transport — **this is exactly the
+sockets in TLS or use a privacy-preserving transport - **this is exactly the
 problem TunDRA solved** (`resume.txt` L97-98): a QUIC-based, mTLS-authenticated
 secure transport for high-throughput compute traffic. The fine-tuning data
 plane is one of its consumers.
@@ -155,7 +155,7 @@ plane is one of its consumers.
 
 ## Why a TunDRA-shaped QUIC layer matters here
 
-(Anchor: `resume.txt` L97-98 — TunDRA, QUIC in Rust, 1M+ Compute Instances, 50%
+(Anchor: `resume.txt` L97-98 - TunDRA, QUIC in Rust, 1M+ Compute Instances, 50%
 improvement in secure data transfer.)
 
 For most fine-tuning, NCCL on a private fabric is fine. But the same data plane

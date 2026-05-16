@@ -1,4 +1,4 @@
-# 03 — API and Contracts
+# 03 - API and Contracts
 
 ## External REST API (Unchanged Surface)
 
@@ -24,7 +24,7 @@ Sandbox
   exposed_ports []ExposedPort
   mounts       []Mount
   status       enum           // "Pending" | "Created" | "Running" | "Stopped" | "Destroyed" | "Lost"
-  owner_node   string         // libp2p PeerID — read-only, returned by API
+  owner_node   string         // libp2p PeerID - read-only, returned by API
   fabric_id    string         // for federation
   created_at   timestamp
   updated_at   timestamp
@@ -41,7 +41,7 @@ Sandbox
 | `POST`   | `/v1/sandboxes/{id}/start` | Start (owner-only operation, transparently forwarded) |
 | `POST`   | `/v1/sandboxes/{id}/stop` | Stop (forwarded if needed) |
 | `DELETE` | `/v1/sandboxes/{id}` | Destroy (forwarded if needed) |
-| `ANY`    | `/v1/sandboxes/{id}/proxy/*` | Toolbox proxy — HTTP into the sandbox (forwarded over libp2p if needed) |
+| `ANY`    | `/v1/sandboxes/{id}/proxy/*` | Toolbox proxy - HTTP into the sandbox (forwarded over libp2p if needed) |
 | `GET`    | `/v1/cluster/members` | Membership view (cluster-wide) |
 | `GET`    | `/v1/cluster/placement/{id}` | Authoritative placement lookup (consults Raft if cache miss) |
 
@@ -57,21 +57,21 @@ header (UUID). Semantics:
 - If the same key is presented with different request bodies, return
   `409 IdempotencyKeyConflict` with the original body in the response.
 
-This matches the AML AutoML idempotency model the author worked on — same
+This matches the AML AutoML idempotency model the author worked on - same
 problem, different domain.
 
 ### New Headers and Error Codes
 
 **Response headers:**
 
-- `X-Sandbox-Owner: <peer_id>` — informational; lets clients pin to the owner
+- `X-Sandbox-Owner: <peer_id>` - informational; lets clients pin to the owner
   on subsequent calls if they want to skip the forward hop.
-- `X-Placement-Version: <int64>` — the version the response was computed
+- `X-Placement-Version: <int64>` - the version the response was computed
   against. Lets clients detect stale reads.
 
 **New error code:**
 
-- `409 OwnerMoved { actual_owner, version }` — returned when a write op (start,
+- `409 OwnerMoved { actual_owner, version }` - returned when a write op (start,
   stop, destroy) arrives at the wrong node *and* the receiver chooses not to
   transparently forward (e.g., proxy-forwarding disabled by op flag). Default
   is to forward; this error is a debugging aid, not a normal client signal.
@@ -86,7 +86,7 @@ These are the protocols spoken between `sandboxd` peers.
 - **QUIC** as the underlying transport (mTLS via libp2p-TLS, NAT traversal
   via libp2p-relay-v2 + libp2p-hole-punch).
 - This mirrors the secure-transport posture from TunDRA (QUIC + Rust at
-  Microsoft, 1M+ Compute Instances) — same idea, off-the-shelf libraries.
+  Microsoft, 1M+ Compute Instances) - same idea, off-the-shelf libraries.
 
 ### Protocol IDs (libp2p stream multiplexing)
 
@@ -170,10 +170,10 @@ The Raft state machine exposes one read API (`Lookup`) and three write APIs
 (`Place`, `Move`, `Release`).
 
 ```go
-// Read — served from any voter or learner with a watch-replicated state copy.
+// Read - served from any voter or learner with a watch-replicated state copy.
 func Lookup(sandboxID string) (PlacementEntry, error)
 
-// Writes — must go through the Raft leader.
+// Writes - must go through the Raft leader.
 func Place(sandboxID string, ownerNodeID string, placementVersion int64) error
 func Move (sandboxID string, fromNodeID, toNodeID string, expectedVersion int64) error
 func Release(sandboxID string, expectedVersion int64) error  // owner→nil; sandbox tombstoned
@@ -269,7 +269,7 @@ descriptor; revocation is per-fabric.
 
 | HTTP | Meaning | Distributed-system cause |
 | --- | --- | --- |
-| 200/201 | OK | — |
+| 200/201 | OK | - |
 | 202 | Accepted | Create accepted; placement decided; container starting (owner-async) |
 | 400 | Bad request | Validation; not distributed-related |
 | 401/403 | Auth | PAT invalid; tenant mismatch |

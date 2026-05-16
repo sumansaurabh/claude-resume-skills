@@ -1,4 +1,4 @@
-# 05 — Scaling and Capacity
+# 05 - Scaling and Capacity
 
 ## Throughput Model
 
@@ -25,7 +25,7 @@ Peak multiplier (traffic follows Copilot usage patterns: 9am-6pm workdays):
 | Fast (math, string ops) | 60% | 200ms | ~10 concurrent |
 | Medium (data processing) | 30% | 2s | ~50 concurrent |
 | Long (heavy computation) | 10% | 15s | ~120 concurrent |
-| **Total concurrent at peak** | 100% | — | **~180 concurrent** |
+| **Total concurrent at peak** | 100% | - | **~180 concurrent** |
 
 **Worker pool sizing:**
 Target: 200 workers minimum (covers 180 concurrent peak with 10% headroom).
@@ -97,7 +97,7 @@ Inject code + run:                            <50ms
 Total pre-warmed start:                       <50ms
 ```
 
-The pre-warm pool is what delivers sub-50ms p99 for the steady-state case. Cold starts (new worker spawn) show up as ~1s latency spikes — visible to users as the progress indicator being slow to start.
+The pre-warm pool is what delivers sub-50ms p99 for the steady-state case. Cold starts (new worker spawn) show up as ~1s latency spikes - visible to users as the progress indicator being slow to start.
 
 **Mitigation for cold start spikes:** Over-provision warm pool by 20% beyond predicted peak. The autoscaler pre-emptively spawns workers when `warm_count / total_workers < 0.3` for 30 seconds (before the pool actually drains).
 
@@ -139,7 +139,7 @@ Scale-down is conservative (drain max 20/cycle every 5s) to avoid thrashing. Sca
 | Redis (rate limits + execution state) | Standard 4GB | ~$100/month |
 | Clickhouse (audit log, 1M rows/day) | 2-node cluster, 500GB | ~$200/month |
 | Object storage (WASM bytecode cache) | <1GB | ~$5/month |
-| **Total execution plane** | — | **~$600-800/month** |
+| **Total execution plane** | - | **~$600-800/month** |
 
 At 1M executions/day, that's ~$0.00002-0.00003 per execution (2-3 hundredths of a cent). The cost is dominated by the always-on worker pool, not per-execution resources.
 

@@ -1,4 +1,4 @@
-# 10 — Interview Cheat Sheet
+# 10 - Interview Cheat Sheet
 
 Compressed talking points for a 30-45 minute principal interview that lands on
 this topic. Memorize the diagram, the one-sentence-per-framework table, and the
@@ -9,9 +9,9 @@ this topic. Memorize the diagram, the one-sentence-per-framework table, and the
 > "The data plane starts the moment a job is gang-scheduled. From that point on,
 > a fixed contract runs in every worker process: NCCL rendezvous, shard the
 > model, train loop with periodic checkpointing, publish artifact to MLflow and
-> the model registry. The frameworks — DDP, FSDP, DeepSpeed, Ray Train, Megatron
-> — differ only in **how the model is sharded** and **where the configuration
-> lives**. vLLM is not in this comparison — it's the inference engine that runs
+> the model registry. The frameworks - DDP, FSDP, DeepSpeed, Ray Train, Megatron
+> - differ only in **how the model is sharded** and **where the configuration
+> lives**. vLLM is not in this comparison - it's the inference engine that runs
 > alongside for eval and serving."
 
 Draw three boxes: **Launcher → Rendezvous → NCCL** on one line; underneath, the
@@ -25,7 +25,7 @@ the side: **MLflow, OTEL, Registry**.
 | **DDP** | Full model on every GPU; only gradients all-reduced. Baseline. |
 | **FSDP** | PyTorch's native ZeRO-3: shards params + grads + opt state inside wrapped modules. |
 | **DeepSpeed Z3** | Same idea as FSDP but with NVMe offload and JSON config; mature for 70B class. |
-| **Megatron / DeepSeek** | Manual TP + PP + EP — required when one layer's weights exceed one GPU. |
+| **Megatron / DeepSeek** | Manual TP + PP + EP - required when one layer's weights exceed one GPU. |
 | **Ray Train** | Orchestration layer above the others; doesn't shard models itself. |
 | **vLLM** | Inference engine with PagedAttention + continuous batching; not a trainer. |
 
@@ -45,7 +45,7 @@ the side: **MLflow, OTEL, Registry**.
 
 ## The DeepSeek angle (memorize for the specific question)
 
-> "DeepSeek is not a new framework — it's a Megatron-style 3D-parallel codebase
+> "DeepSeek is not a new framework - it's a Megatron-style 3D-parallel codebase
 > with four additions that matter: MLA attention (5-10× smaller KV cache), many
 > small experts with aux-loss-free routing, FP8 training with online scaling, and
 > DualPipe to overlap MoE all-to-all with compute. The fundamental shift is from
@@ -76,9 +76,9 @@ The four important facts:
 | "Why gang scheduling?" | NCCL needs all ranks to start atomically. Partial scheduling is a deadlock. |
 | "30% MFU, where to look?" | Dataloader wait first, then slowest-rank NCCL, then optimizer step, then activation memory. |
 | "Spot instances?" | Ray Train + aggressive checkpointing; emergency-checkpoint hook on preemption signal. |
-| "vLLM in fine-tuning?" | Eval sidecar + post-training serving — not a trainer. |
+| "vLLM in fine-tuning?" | Eval sidecar + post-training serving - not a trainer. |
 | "DeepSeek vs DeepSpeed?" | DeepSeek-class infra is MoE-first and all-to-all-bound; DeepSpeed/FSDP is dense-first and all-reduce-bound. Different problem regime. |
-| "How does Microsoft scale this?" | Profile system (tiny-lora, medium-full, large-full, frontier) — same SDK surface, different stack per profile. |
+| "How does Microsoft scale this?" | Profile system (tiny-lora, medium-full, large-full, frontier) - same SDK surface, different stack per profile. |
 
 ## Resume anchors to drop into conversation
 
@@ -90,11 +90,11 @@ The four important facts:
 
 ## Things to AVOID saying
 
-- "We used DeepSpeed because it's better" — it's not better generally; it's better in specific regimes.
-- "vLLM does training" — category error.
-- "DeepSeek built their own framework" — they built on Megatron, added MLA/MoE/FP8 recipes.
-- "All-reduce is the only NCCL op that matters" — FSDP and ZeRO-3 are `all_gather` + `reduce_scatter`, not `all_reduce`.
-- "MLflow goes down → training stops" — MLflow is tracking, not training.
+- "We used DeepSpeed because it's better" - it's not better generally; it's better in specific regimes.
+- "vLLM does training" - category error.
+- "DeepSeek built their own framework" - they built on Megatron, added MLA/MoE/FP8 recipes.
+- "All-reduce is the only NCCL op that matters" - FSDP and ZeRO-3 are `all_gather` + `reduce_scatter`, not `all_reduce`.
+- "MLflow goes down → training stops" - MLflow is tracking, not training.
 
 ## Last 90 seconds
 

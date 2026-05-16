@@ -1,4 +1,4 @@
-# 09 — Cross-Questions and Rebuttals
+# 09 - Cross-Questions and Rebuttals
 
 Pushback questions an interviewer will fire after the main answer, with
 crisp Principal-level rebuttals. Each rebuttal is the kind of thing you
@@ -6,15 +6,15 @@ should be ready to say in 90 seconds.
 
 ---
 
-## Q1. "LangGraph is just a wrapper — what does it actually buy you that you couldn't write in two weeks?"
+## Q1. "LangGraph is just a wrapper - what does it actually buy you that you couldn't write in two weeks?"
 
 **Rebuttal.** LangGraph gives three things I'd otherwise build: (a) a typed
 state model with named reducers, (b) a compiled graph definition with
 checkpointer hooks, and (c) a community that's actively patching the
 LangChain ecosystem we already depend on. Yes, I could rewrite all of that
-— I'd build the same primitives. The reason I don't is opportunity cost.
+- I'd build the same primitives. The reason I don't is opportunity cost.
 At 10K runs/day, the bottleneck is the *policy*, *replay*, *cost*, and
-*sandbox* surfaces — not the graph runtime. LangGraph carries its weight
+*sandbox* surfaces - not the graph runtime. LangGraph carries its weight
 because it lets a team of 6 ship in months instead of writing a graph
 runtime from scratch.
 
@@ -28,12 +28,12 @@ ergonomic library, replace the parts that need to scale.
 
 ## Q2. "Why not Temporal? It already has durable execution, retries, and replay."
 
-**Rebuttal.** Temporal is excellent for *workflows* — imperative code that
+**Rebuttal.** Temporal is excellent for *workflows* - imperative code that
 orchestrates services. It's a poor fit for *agent reasoning loops*. Three
 specific frictions: (1) ReAct's reasoning trace isn't a workflow, it's a
 graph with re-entry on critic feedback, which is awkward in Temporal's
 activity model. (2) Temporal's history-based replay is great for
-deterministic activities but our activities — model calls — are inherently
+deterministic activities but our activities - model calls - are inherently
 non-deterministic; we need our own caching layer on top, which negates the
 benefit. (3) Operating a Temporal cluster is a real ongoing cost; LangGraph
 runs in our existing Kubernetes fleet.
@@ -49,7 +49,7 @@ reasoning loop, it isn't.
 **Rebuttal.** Two parts to this answer.
 
 First, the threat model: WASM's *strong* isolation is at the memory and
-syscall boundary — no shared linear memory between instances, no syscalls
+syscall boundary - no shared linear memory between instances, no syscalls
 without a host import. That's exactly what we want for AI-generated code,
 which is most likely to *try* to read process memory, write the host
 filesystem, or invoke `exec`. WASM denies all three at the runtime level.
@@ -57,7 +57,7 @@ filesystem, or invoke `exec`. WASM denies all three at the runtime level.
 Second, defense in depth. WASM is the innermost layer. Outside it: Seccomp
 on the host runner, gVisor for the syscall surface, brokered HTTP egress
 through an allowlisted proxy, ephemeral workspaces, signed envelopes.
-SOC-2 doesn't ask "is one technology unbreakable" — it asks "are there
+SOC-2 doesn't ask "is one technology unbreakable" - it asks "are there
 documented compensating controls." The audit trail at the agent layer
 (policy decisions, signed envelopes, egress proxy logs) is what
 unblocks the certification, not WASM in isolation.
@@ -77,7 +77,7 @@ unblocks the certification, not WASM in isolation.
 5. The dedup observation message: when a coder is about to call the same
    tool with the same args again, we short-circuit and inject a system
    message telling the model the call was already made.
-6. A critic node after every milestone — a milestone that doesn't
+6. A critic node after every milestone - a milestone that doesn't
    make progress in N iterations is escalated to a stronger model once,
    then failed.
 
@@ -88,7 +88,7 @@ minutes. With them, the worst-case run cost is bounded and predictable.
 
 ## Q5. "How do you make a non-deterministic agent reproducible?"
 
-**Rebuttal.** Reproducible isn't a single property — there are levels:
+**Rebuttal.** Reproducible isn't a single property - there are levels:
 
 - **Replay reproducibility**: any past run can be re-executed with cached
   model and tool observations. This is what we have. The system stores
@@ -99,7 +99,7 @@ minutes. With them, the worst-case run cost is bounded and predictable.
   bit-stable across calls even at temperature=0; we approximate it with
   pinned model snapshots and seed where the provider supports it.
 - **Re-roll reproducibility**: same prompt, different model. We *want*
-  divergence here — it's how we evaluate the router.
+  divergence here - it's how we evaluate the router.
 
 The MTTR claim in the resume relies on the first level. An incident
 investigator pulls a past run from the trace store, replays through the
@@ -112,7 +112,7 @@ the code. That's deterministic enough to debug.
 
 **Rebuttal.** Three reasons:
 
-1. **Failover and capability routing are global concerns** — the worker
+1. **Failover and capability routing are global concerns** - the worker
    shouldn't know that GPT is currently 429'ing across the fleet. The
    router has a fleet-wide view of provider health.
 2. **API keys are scarce.** Sharing them across many workers, with a
@@ -123,7 +123,7 @@ the code. That's deterministic enough to debug.
    per-tenant billing all live there. Letting workers call providers
    directly would scatter that logic.
 
-The cost is one extra hop (~1 ms locally) — negligible compared to LLM
+The cost is one extra hop (~1 ms locally) - negligible compared to LLM
 latency.
 
 ---
@@ -132,7 +132,7 @@ latency.
 
 **Rebuttal.** Two mechanisms cooperate.
 
-First, `side_effect_class`. `DESTRUCTIVE` is the highest class — the policy
+First, `side_effect_class`. `DESTRUCTIVE` is the highest class - the policy
 gate requires human approval. So the destructive call doesn't fire without
 explicit consent.
 
@@ -155,7 +155,7 @@ failed, sent it again, now the customer got two emails" failure mode.
 **Rebuttal.** Three structural controls.
 
 1. Vector collections are *named* per tenant + project: `mem-{tenant}-{project}`.
-   The retriever client can't pass an arbitrary collection name — it passes
+   The retriever client can't pass an arbitrary collection name - it passes
    `project_id`, and the resolution happens server-side after auth.
 2. Postgres rows for working memory carry `tenant_id` with row-level
    security. A worker that picks up a run whose state's `tenant_id` doesn't
@@ -165,7 +165,7 @@ failed, sent it again, now the customer got two emails" failure mode.
    with a typed placeholder before storage. We don't want to learn that
    a tenant's API key got memorized into our vector store.
 
-The thing that *isn't* a control — model embedding similarity — could in
+The thing that *isn't* a control - model embedding similarity - could in
 theory bring up content from another collection if we made a routing
 mistake. The structural namespacing in (1) makes that mistake impossible
 at the API level.
@@ -216,7 +216,7 @@ path.
 
 ---
 
-## Q11. "Six engineers on this platform — what's the actual decomposition?"
+## Q11. "Six engineers on this platform - what's the actual decomposition?"
 
 **Rebuttal.** Roughly:
 
@@ -239,8 +239,8 @@ pair talks over either gRPC or a small Postgres-table contract.
 **Rebuttal.** Honestly, **idempotency for tool calls with side effects when
 the worker can die between dispatch and observation**.
 
-The naive thing — retry on lease loss — duplicates the side effect. The
-opposite — never retry — fails the run on every transient hiccup. The
+The naive thing - retry on lease loss - duplicates the side effect. The
+opposite - never retry - fails the run on every transient hiccup. The
 solution is a content-addressed envelope (`envelope_id` is a ULID computed
 deterministically from `run_id + node_seq + tool + args_hash + attempt`),
 with the broker maintaining an idempotency table keyed by envelope_id. A
@@ -252,7 +252,7 @@ not when the worker simply lost its lease. Lease-loss retries reuse the
 exact same envelope ID, so the side effect is deduped.
 
 This is the kind of detail that distinguishes a Principal-level answer
-from a senior one — knowing exactly where the determinism boundary sits.
+from a senior one - knowing exactly where the determinism boundary sits.
 
 ---
 
@@ -262,7 +262,7 @@ from a senior one — knowing exactly where the determinism boundary sits.
 hobbyist scale*. It falls apart on three dimensions BlackBox cared about:
 
 1. **Vendor lock-in.** Assistants ties you to OpenAI. Our resume
-   explicitly says we span Claude, GPT, and Grok — that's not possible on
+   explicitly says we span Claude, GPT, and Grok - that's not possible on
    Assistants.
 2. **SOC-2.** OpenAI's Code Interpreter runs on OpenAI infrastructure;
    the audit boundary is OpenAI's, not ours. Enterprise customers want
@@ -270,7 +270,7 @@ hobbyist scale*. It falls apart on three dimensions BlackBox cared about:
    our VPC.
 3. **Cost control and replay.** Assistants doesn't expose enough trace
    data to do real cost attribution or deterministic replay at our scale.
-   The MTTR claim — 60% reduction — depends on owning every span.
+   The MTTR claim - 60% reduction - depends on owning every span.
 
 If we were a 3-person startup, Assistants would be the right starting
 point. At enterprise scale with SOC-2 and multi-model needs, we'd build

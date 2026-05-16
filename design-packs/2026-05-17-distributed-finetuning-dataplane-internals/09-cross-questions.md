@@ -1,4 +1,4 @@
-# 09 — Cross-Questions (Interviewer Pushback)
+# 09 - Cross-Questions (Interviewer Pushback)
 
 Compact list of likely follow-ups, with short, defensible answers.
 
@@ -10,7 +10,7 @@ DeepSpeed still has three differentiators: NVMe offload (ZeRO-Infinity), mature
 MoE support, and built-in pipeline parallel. For pure ZeRO-3 SFT, FSDP is now
 fine; for offload-heavy, MoE, or pipeline jobs, DeepSpeed is still the cleaner
 path. Also, JSON-driven configs are easier to expose through an SDK than Python
-constructor args — that matters when the platform abstracts the framework from
+constructor args - that matters when the platform abstracts the framework from
 end users.
 
 **Q2: Why expose multiple frameworks instead of standardizing on one?**
@@ -23,7 +23,7 @@ wrong profile.
 
 **Q3: How does FSDP differ from DDP in the backward pass?**
 
-DDP: full grads on each rank, all-reduce per bucket. FSDP: grads are sharded —
+DDP: full grads on each rank, all-reduce per bucket. FSDP: grads are sharded -
 each rank computes its local grad partition and `reduce_scatter` sends each shard
 to its owner. The owner runs the optimizer step on its shard only. Net comm
 volume is the same, but memory is divided by world size.
@@ -40,7 +40,7 @@ rendezvous is a deadlock. The price is queue latency, which is acceptable.
 **Q5: Why not just use Kubernetes priority classes instead of gang?**
 
 Priority handles preemption order but doesn't handle atomic start. A high-priority
-distributed job that gets 30 of 32 pods scheduled is in a deadlock — the other 2
+distributed job that gets 30 of 32 pods scheduled is in a deadlock - the other 2
 GPUs are held elsewhere, the 30 running pods are wasting GPU time. Gang scheduling
 ensures the 30 don't start until the other 2 are available.
 
@@ -48,7 +48,7 @@ ensures the 30 don't start until the other 2 are available.
 
 **Q6: We're at 30% MFU on 70B. Where do we look first?**
 
-In order: (1) dataloader wait (most common — fix with parquet + prefetch),
+In order: (1) dataloader wait (most common - fix with parquet + prefetch),
 (2) NCCL collectives (look for one slow rank → IB/cabling), (3) optimizer step
 (use FusedAdam / 8-bit), (4) activation memory pressure forcing tiny batches
 (turn on activation checkpointing more aggressively), (5) kernel launch overhead
@@ -66,7 +66,7 @@ size first.
 
 Recompute activations during backward instead of saving them. Saves ~30-70% of
 activation memory at a ~25-30% step-time cost. Almost always worth it for large
-models — without it, you can't fit big enough microbatch.
+models - without it, you can't fit big enough microbatch.
 
 ## On checkpoint and artifact handling
 
@@ -97,7 +97,7 @@ dependency, not a training dependency**.
 
 In theory yes (tag values are user-controlled). Mitigations: tag values are
 size-capped, scanned for known secret patterns (regex for tokens, AWS keys,
-RSA blocks), and the MLflow store is in the tenant's blob — exfiltration to
+RSA blocks), and the MLflow store is in the tenant's blob - exfiltration to
 *outside* the tenant requires breaking the network policy, not MLflow.
 
 **Q13: How do you handle a malicious training script?**
@@ -113,15 +113,15 @@ correctness; for security, the network policy is the hard boundary.
 
 It buys you (i) inability to read another tenant's data over the cluster network
 even if a network policy is misconfigured, because the tenant's PE is in a
-different VNet entirely; (ii) no internet egress by default — a compromised
-container cannot beacon out; (iii) compliance — explicit traffic flow that
+different VNet entirely; (ii) no internet egress by default - a compromised
+container cannot beacon out; (iii) compliance - explicit traffic flow that
 auditors can attest.
 
 ## On scale
 
-**Q15: 15M jobs/month — where does the platform actually struggle?**
+**Q15: 15M jobs/month - where does the platform actually struggle?**
 
-Not in the trainer — most jobs are small. The strain shows up in: container
+Not in the trainer - most jobs are small. The strain shows up in: container
 image pull at burst (solved by P2P pull), MLflow tracking server (solved by
 sharding), GPU quota fragmentation (solved by bin-packing + preemption), and
 metadata DB writes (solved by partitioning).
@@ -130,7 +130,7 @@ metadata DB writes (solved by partitioning).
 
 Quota refuses it at admission. If somehow accepted, the gang-scheduler waits
 forever for capacity that doesn't exist and eventually queue-timeouts. No
-other tenants are impacted — that's the whole point of quota and gang.
+other tenants are impacted - that's the whole point of quota and gang.
 
 ## On product
 
@@ -142,7 +142,7 @@ debugging distributed code, writing checkpoint/resume logic, integrating eval.
 The platform's profile system lets the user say "fine-tune Llama-3-70B on this
 data, optimize for these eval metrics" and get a working run in minutes.
 
-**Q18: The same SDK / AI Studio surface — how do you keep the UX consistent
+**Q18: The same SDK / AI Studio surface - how do you keep the UX consistent
 across all these frameworks?**
 
 The user-facing API exposes a `JobSpec`, not a framework. Internally the spec
@@ -157,7 +157,7 @@ because the platform's wrappers normalize them.
 training?**
 
 Two reasons. (1) Customer workloads are usually fine-tunes of dense models that
-DeepSpeed/FSDP handles natively — adding FP8/MoE infra without customer demand
+DeepSpeed/FSDP handles natively - adding FP8/MoE infra without customer demand
 is engineering for a curve that doesn't exist. (2) MoE training is much harder
 to make robust: routing instabilities, expert imbalance, all-to-all topology
 sensitivity. The complexity ceiling for "managed fine-tuning service" sits
@@ -177,10 +177,10 @@ to MLflow + registry, so the loop is identical from outside.
 **Q21: If you could rebuild the data plane from scratch today, what would you
 do differently?**
 
-Three things: (1) **DTensor + FSDP2 first**, not DeepSpeed — the upstream PyTorch
+Three things: (1) **DTensor + FSDP2 first**, not DeepSpeed - the upstream PyTorch
 APIs have caught up and the operational simplicity is large; (2) **bake the
 checkpoint contract harder** so framework-internal formats never leak out of the
-worker — the Safetensors-sharded + `_SUCCESS` format would be enforced via an
+worker - the Safetensors-sharded + `_SUCCESS` format would be enforced via an
 adapter every framework has to implement; (3) **collapse the inference and
 training images** into one, so the same artifact works in both contexts without
 re-sharding. The 80GB image cost is solvable with hardlinks and layer dedup.

@@ -1,4 +1,4 @@
-# 05 — Scaling and Capacity
+# 05 - Scaling and Capacity
 
 The capacity model that gets Qale from Alpha → Public Launch → 1M+ users. Anchor codes defined in `00-question-and-context.md`.
 
@@ -17,7 +17,7 @@ The capacity model that gets Qale from Alpha → Public Launch → 1M+ users. An
 | Attachment upload (50MB) | 3s | 8s | 20s | 99.9% |
 | Notification push | 500ms | 2s | 5s | 99.5% |
 
-Error budget: each SLO maps to a monthly burn budget; > 25% burn in 6h pages on-call; > 50% halts non-critical deploys (Microsoft AutoML had the same gate — A-MS3, A-MS5).
+Error budget: each SLO maps to a monthly burn budget; > 25% burn in 6h pages on-call; > 50% halts non-critical deploys (Microsoft AutoML had the same gate - A-MS3, A-MS5).
 
 ## 2. Capacity model
 
@@ -59,7 +59,7 @@ Derive from 1M MAU. Conservative assumptions (A6 in `00`):
 | Pods at peak | ⌈180,000 / 75,000⌉ = 3 | Plus 100% headroom = 6 |
 | Pods provisioned baseline | 8 | Surge + zone failure |
 
-Why 75K/pod and not 200K: GC tail latency on a Go process holding 200K idle WS connections starts producing visible p99 spikes during fanout; 75K is the empirical sweet spot. **Anchor:** TunDRA scaled to 1M+ Compute Instances (A-MS1) — the lesson there was that per-connection memory dominates and you size by pod-level GC, not by connection arithmetic.
+Why 75K/pod and not 200K: GC tail latency on a Go process holding 200K idle WS connections starts producing visible p99 spikes during fanout; 75K is the empirical sweet spot. **Anchor:** TunDRA scaled to 1M+ Compute Instances (A-MS1) - the lesson there was that per-connection memory dominates and you size by pod-level GC, not by connection arithmetic.
 
 **Surge handling:** after a global notification (e.g., "new release! check it out"), reconnect storms can 3–5x peak briefly. Mitigations:
 - Client-side jittered reconnect (random 0–10s).
@@ -94,7 +94,7 @@ Why 75K/pod and not 200K: GC tail latency on a Go process holding 200K idle WS c
 | `ai_run_steps` | 1.5M | 600 B | ~80 GB | |
 | `audit_log` | ~500K | 400 B | ~10 GB | high index |
 
-Total hot Postgres ≈ 2–4 TB at 1M users + indexes. Single-instance ceiling is `db.r6g.16xlarge` ≈ 8 TB practical. Plan for **logical sharding by workspaceId hash → 4 shards** before crossing 5 TB. Anchor: Microsoft AutoML metadata store evolved through the same growth — split before forced (A-MS3).
+Total hot Postgres ≈ 2–4 TB at 1M users + indexes. Single-instance ceiling is `db.r6g.16xlarge` ≈ 8 TB practical. Plan for **logical sharding by workspaceId hash → 4 shards** before crossing 5 TB. Anchor: Microsoft AutoML metadata store evolved through the same growth - split before forced (A-MS3).
 
 **Cold tier (Parquet on S3):** rolled-off `messages` after 90d → `s3://qale/cold/ws=.../year=.../month=.../`. Estimated ~30–60 TB / yr at 1M users. Queried via Athena/Trino for compliance pulls and search re-index.
 
@@ -130,14 +130,14 @@ This is the line item that dominates infra spend at scale and where my BlackBox 
 At 1M users: ~3–5x → **$110K–$180K/mo** AI provider envelope.
 
 **Levers (all proven at BlackBox A-BB4):**
-1. **Capability-aware routing** — saves 40–60% vs always-large. Route by required context length, tool support, structured-output need, latency budget.
-2. **Prompt caching** — cache system prompts and large repeated context (provider-side prompt cache where supported). Saves 30–50% input tokens on repeat-context flows.
-3. **Context summarization** — summarize old messages instead of including verbatim; 90d of thread history in 200 tokens of summary.
-4. **Per-workspace token budget with hard cap** — denial before the call leaves the queue. Stops the "runaway agent burned $5K overnight" failure mode.
-5. **Embedding cache** — never re-embed unchanged content.
-6. **Speculative cancellation** — if user navigates away, cancel in-flight run.
+1. **Capability-aware routing** - saves 40–60% vs always-large. Route by required context length, tool support, structured-output need, latency budget.
+2. **Prompt caching** - cache system prompts and large repeated context (provider-side prompt cache where supported). Saves 30–50% input tokens on repeat-context flows.
+3. **Context summarization** - summarize old messages instead of including verbatim; 90d of thread history in 200 tokens of summary.
+4. **Per-workspace token budget with hard cap** - denial before the call leaves the queue. Stops the "runaway agent burned $5K overnight" failure mode.
+5. **Embedding cache** - never re-embed unchanged content.
+6. **Speculative cancellation** - if user navigates away, cancel in-flight run.
 
-**Anchor:** at BlackBox the router served 1B+ tokens/month with capability-aware routing — same playbook applies here, just with messaging-shaped workloads instead of agentic-coding ones (A-BB4).
+**Anchor:** at BlackBox the router served 1B+ tokens/month with capability-aware routing - same playbook applies here, just with messaging-shaped workloads instead of agentic-coding ones (A-BB4).
 
 ## 7. Backpressure and degradation ladder
 
@@ -154,7 +154,7 @@ When the system is hot, we degrade in a stable order rather than collapsing:
 | 7 | 503 + Retry-After on new connections | Existing sessions preserved |
 | 8 | Read-only mode | Last resort |
 
-Anchor: ShareChat ads (A-SC2) had a similar shed ladder for RTB — the SLA there was even tighter (sub-100ms) and the principle of "shed cosmetic before functional" came from that environment.
+Anchor: ShareChat ads (A-SC2) had a similar shed ladder for RTB - the SLA there was even tighter (sub-100ms) and the principle of "shed cosmetic before functional" came from that environment.
 
 ## 8. Top 8 bottlenecks
 
@@ -180,7 +180,7 @@ Anchor: ShareChat ads (A-SC2) had a similar shed ladder for RTB — the SLA ther
 | 1M | Multi-region read; primary still single region | Latency complaints from non-IN customers |
 | 2M+ | Multi-region active-active for chosen tenants | Enterprise demand or DR posture |
 
-Mark as **assumption** — exact triggers depend on workload mix; the principle (shard before forced, never during incident) is from Microsoft AutoML A-MS3.
+Mark as **assumption** - exact triggers depend on workload mix; the principle (shard before forced, never during incident) is from Microsoft AutoML A-MS3.
 
 ## 10. Multi-region topology
 
@@ -190,7 +190,7 @@ Mark as **assumption** — exact triggers depend on workload mix; the principle 
 
 **v3 (toward 1M):** workspace-pinned region. New enterprise workspaces choose region at creation; pinning is sticky. Same data residency story we had to support at Microsoft for VNet workloads (A-MS2).
 
-**Honest caveat:** active-active multi-master messaging across regions is hard (clock skew, ordering). I would not promise it at v3 — workspace-pinning gets you 95% of the value at 20% of the complexity.
+**Honest caveat:** active-active multi-master messaging across regions is hard (clock skew, ordering). I would not promise it at v3 - workspace-pinning gets you 95% of the value at 20% of the complexity.
 
 ## 11. Cost envelope at three milestones
 
@@ -211,7 +211,7 @@ Rough monthly $ (assumptions, AWS, ap-south-1 baseline). Real bill will surprise
 | Observability vendors (Sentry, etc.) | $0.5K | $3K | $12K |
 | **Total** | **~$15K/mo** | **~$103K/mo** | **~$490K/mo** |
 
-Anchor: cost-aware allocation discipline from Microsoft secure ML infra (A-MS2) — every line above has an owner who is asked monthly "why is this number what it is."
+Anchor: cost-aware allocation discipline from Microsoft secure ML infra (A-MS2) - every line above has an owner who is asked monthly "why is this number what it is."
 
 ## 12. Load testing strategy
 

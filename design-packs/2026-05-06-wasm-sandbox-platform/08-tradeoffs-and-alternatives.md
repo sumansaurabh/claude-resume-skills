@@ -1,4 +1,4 @@
-# 08 — Tradeoffs and Alternatives
+# 08 - Tradeoffs and Alternatives
 
 ## Sandbox Technology Alternatives
 
@@ -11,7 +11,7 @@
 | **subprocess / Python exec()** | <10ms | Weak (same OS, same filesystem) | Highest | Unacceptable (no isolation) | Rejected (failed SOC-2 audit pre-WASM) |
 | **V8 Isolates (Cloudflare Workers model)** | <1ms | Strong (V8 sandbox) | Highest | Good | Viable alternative for JS-only; doesn't support Python |
 
-**Why WASM over Docker:** For interactive use inside an agent loop, 500ms+ container cold starts are too slow — users see the Copilot "thinking" pause extend noticeably. WASM's 50ms warm start with pre-pooling fits naturally in the <200ms agent loop budget.
+**Why WASM over Docker:** For interactive use inside an agent loop, 500ms+ container cold starts are too slow - users see the Copilot "thinking" pause extend noticeably. WASM's 50ms warm start with pre-pooling fits naturally in the <200ms agent loop budget.
 
 **Why WASM over subprocess:** The previous implementation used Python subprocess in a restricted user account. This failed SOC-2 because: (1) a jailbreak in the Python interpreter could still access the host filesystem, (2) environment variables were visible via `/proc/self/environ`, (3) no enforceable memory limits without cgroup setup complexity.
 
@@ -71,8 +71,8 @@ In-process Go channels were chosen for dispatch because the scheduler and worker
 
 **Worker language affinity.**
 
-Today, each worker is pre-loaded with a single language runtime (Python or JavaScript). A Python worker cannot execute a JavaScript request without reloading the module — a ~200ms overhead. This creates scheduling inflexibility: if Python workers are busy but JS workers are idle, JS workers can't help.
+Today, each worker is pre-loaded with a single language runtime (Python or JavaScript). A Python worker cannot execute a JavaScript request without reloading the module - a ~200ms overhead. This creates scheduling inflexibility: if Python workers are busy but JS workers are idle, JS workers can't help.
 
 **What I'd design instead:** Universal workers that can switch languages. The `ModuleCache` is already shared across workers (it's a shared `CompiledModule`). A worker could call `InstantiateModule` with a different language's compiled module on each execution. The ~200ms cost is only for module instantiation, not recompilation. This would allow the pool to be language-agnostic and eliminate the need for language-specific sizing.
 
-**Why we didn't do it initially:** The pre-warm optimization requires the module to be fully instantiated with a running Python/QuickJS interpreter between executions. If a worker switches languages, it needs to re-initialize the interpreter on every switch — losing the pre-warm benefit. The language-affinity model kept the warm path fast. In hindsight, the right design is a two-tier pool: a small "language-agnostic" overflow pool that handles bursts when the primary pool saturates, and a large pre-warmed primary pool with language affinity.
+**Why we didn't do it initially:** The pre-warm optimization requires the module to be fully instantiated with a running Python/QuickJS interpreter between executions. If a worker switches languages, it needs to re-initialize the interpreter on every switch - losing the pre-warm benefit. The language-affinity model kept the warm path fast. In hindsight, the right design is a two-tier pool: a small "language-agnostic" overflow pool that handles bursts when the primary pool saturates, and a large pre-warmed primary pool with language affinity.

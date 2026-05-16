@@ -1,16 +1,16 @@
-# 00 — Question and Context
+# 00 - Question and Context
 
 ## Original Question
 
 > "You integrated CodeQL and GitHub Advanced Security into CI/CD. What classes of vulnerabilities were you trying to catch?"
 
-**Resume rating:** 8/10 — important supporting topic, not the centerpiece claim but a strong differentiator.
+**Resume rating:** 8/10 - important supporting topic, not the centerpiece claim but a strong differentiator.
 
 ---
 
 ## Scope
 
-This is a **secure engineering depth question**. The interviewer is not testing whether you know what CodeQL is — they're testing whether you:
+This is a **secure engineering depth question**. The interviewer is not testing whether you know what CodeQL is - they're testing whether you:
 
 1. Can reason about the specific vulnerability classes relevant to your platform
 2. Used these tools intentionally (not just checked a compliance box)
@@ -27,7 +27,7 @@ This is a **secure engineering depth question**. The interviewer is not testing 
 | Standardized threat modeling to ensure Microsoft compliance | Microsoft experience bullet 4 |
 | Eliminated recurring vulnerabilities | Microsoft experience bullet 4 |
 | Mentored 8 engineers on secure protocol design | Microsoft experience bullet 4 |
-| Secure multi-tenant ML infrastructure — isolation strategies | Microsoft experience bullet 2 |
+| Secure multi-tenant ML infrastructure - isolation strategies | Microsoft experience bullet 2 |
 | Co-developed TunDRA: QUIC-based protocol in Rust | Microsoft experience bullet 6 |
 | Technologies: Go, Python, Rust, Kubernetes, Azure | Resume skills section |
 

@@ -1,8 +1,8 @@
-# 03 — API and Contracts
+# 03 - API and Contracts
 
 ## Public REST API
 
-### POST /v1/execute — Submit Code Execution
+### POST /v1/execute - Submit Code Execution
 
 **Request:**
 ```http
@@ -32,7 +32,7 @@ Idempotency-Key: ex-550e8400-e29b-41d4-a716-446655440000
 
 | Field | Type | Max | Default | Notes |
 |---|---|---|---|---|
-| `language` | enum | — | required | `python`, `javascript`, `typescript`, `bash` |
+| `language` | enum | - | required | `python`, `javascript`, `typescript`, `bash` |
 | `code` | string | 100KB | required | UTF-8; binary rejected |
 | `stdin` | string | 10KB | `""` | Passed to WASM stdin pipe |
 | `timeout_ms` | int | 30000 (enterprise), 5000 (free) | 10000 | Hard cap enforced by runtime |
@@ -81,7 +81,7 @@ data: {"event":"error","execution_id":"ex-...","code":"RUNTIME_ERROR","message":
 
 ---
 
-### GET /v1/executions/{execution_id} — Retrieve Stored Result
+### GET /v1/executions/{execution_id} - Retrieve Stored Result
 
 For cases where the SSE connection dropped mid-execution, the result is stored in Redis for 24h.
 
@@ -101,11 +101,11 @@ For cases where the SSE connection dropped mid-execution, the result is stored i
 }
 ```
 
-Note: `code` is NOT returned in the result — the code is one-way input; storing it in the result creates unnecessary data retention risk for SOC-2.
+Note: `code` is NOT returned in the result - the code is one-way input; storing it in the result creates unnecessary data retention risk for SOC-2.
 
 ---
 
-### GET /v1/execute/stream/{execution_id} — Reconnect to Existing SSE Stream
+### GET /v1/execute/stream/{execution_id} - Reconnect to Existing SSE Stream
 
 If a client loses the SSE connection while execution is in progress, it can reconnect and receive events from the last delivered `seq` number.
 
@@ -130,7 +130,7 @@ The `Idempotency-Key` header is a client-generated UUID. If the same key is subm
 
 ## Internal Contracts: Scheduler → Worker
 
-The Scheduler dispatches to workers via a Go channel (not an external queue — all within the same process for low latency):
+The Scheduler dispatches to workers via a Go channel (not an external queue - all within the same process for low latency):
 
 ```go
 type ExecutionRequest struct {
@@ -188,7 +188,7 @@ class ExecutionResult(BaseModel):
     timed_out: bool
 ```
 
-The tool's docstring is part of the prompt — the "Do NOT use for: network requests" constraint informs the LLM what the sandbox cannot do, preventing it from generating code that will fail with confusing errors.
+The tool's docstring is part of the prompt - the "Do NOT use for: network requests" constraint informs the LLM what the sandbox cannot do, preventing it from generating code that will fail with confusing errors.
 
 ---
 

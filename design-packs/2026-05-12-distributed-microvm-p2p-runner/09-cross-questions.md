@@ -1,4 +1,4 @@
-# 09 — Cross Questions
+# 09 - Cross Questions
 
 The skeptical interviewer set. Each question is the one a senior reviewer
 would actually ask, with the strongest available rebuttal.
@@ -10,8 +10,8 @@ group for placement. That's a control plane.**
 
 Yes. The honest answer: v1 has an embedded, HA control plane that holds
 ~100 bytes per sandbox. It's not central in the "single point of failure"
-sense and it's not central in the "external service" sense — voters are
-elected from the fleet — but it is logically central. The libp2p framing is
+sense and it's not central in the "external service" sense - voters are
+elected from the fleet - but it is logically central. The libp2p framing is
 satisfied at three levels: cross-fabric federation does not merge logs; the
 data plane is fully sharded; and the v2 design replaces the placement Raft
 with CRDT once conflict patterns are well-understood. Shipping CRDT first
@@ -21,7 +21,7 @@ edge cases instead of building the runtime.
 **Q2. Why not just use etcd?**
 
 Two reasons. First, etcd's data model encourages putting everything in there
-— at 10K sandboxes' worth of `Status`, `ExposedPorts`, `Mounts`, the etcd
+- at 10K sandboxes' worth of `Status`, `ExposedPorts`, `Mounts`, the etcd
 data set goes from 1 MB to 10 GB and write throughput collapses. The
 discipline of "Raft holds only the pointer" is easier to enforce in a
 purpose-built FSM than in a generic KV. Second, etcd is a separate process
@@ -37,7 +37,7 @@ sandboxes and a constraint path for GPU/affinity workloads. The constraint
 path consults a small registry of "available shapes per node" gossiped
 hourly, runs a local SAT solver on K=10 candidates, and falls back to
 queuing if no candidate fits. This mirrors the AML scheduler experience
-(Volcano + custom plugins for GPU shape) — gang-scheduling is a known cost
+(Volcano + custom plugins for GPU shape) - gang-scheduling is a known cost
 that doesn't go away just because the rest of the system is gossip-based.
 
 **Q4. You assume sandbox ephemerality. What if a tenant runs a sandbox for
@@ -106,7 +106,7 @@ explicitly allowed. Even when allowed, the receiving fabric's admission can
 throttle, charge to a federation budget, or mark the remote fabric
 suspicious. Misbehaving bridges are detected by anomaly scoring (sudden
 capacity-vector drift, mismatched signatures) and de-trusted by the
-admission policy. This is policy enforcement, not protocol enforcement —
+admission policy. This is policy enforcement, not protocol enforcement -
 exactly like cross-org Kubernetes federation.
 
 **Q10. What happens when a fabric's trust anchor is compromised?**
@@ -152,8 +152,8 @@ for a busy node. Remove (hard): SWIM detects death, placement re-elects.
 **Q14. How do you debug "this sandbox is unreachable from the API" at 3 AM?**
 
 Three checks in order:
-1. `GET /v1/cluster/placement/{id}` — what does authoritative placement say?
-2. `GET /v1/cluster/members?node={owner}` — is the owner alive in gossip?
+1. `GET /v1/cluster/placement/{id}` - what does authoritative placement say?
+2. `GET /v1/cluster/members?node={owner}` - is the owner alive in gossip?
 3. SSH to the owner; check local sandboxd status, container status, Caddy
    admin API.
 
@@ -176,7 +176,7 @@ It doesn't. Sustained 10K creates/sec on placement Raft would saturate the
 leader. Mitigations: batched placements (one Raft commit places 100
 sandboxes), or sharded placement Raft (4-16 groups by sandbox-id hash).
 Bursts of 10K-20K/sec for 10s are absorbed by batching; sustained needs
-sharding. The design point in this pack is 200/sec sustained, 5K/sec burst —
+sharding. The design point in this pack is 200/sec sustained, 5K/sec burst -
 above that, you're past v1.
 
 **Q17. Cross-node forwarding adds latency. What if 80% of requests are
@@ -187,7 +187,7 @@ locality-aware placement so requests-from-node-A end up creating
 sandboxes-on-node-A whenever capacity allows. With locality on, the cross-node
 ratio drops to <10% in typical workloads. The remaining cross-node forwards
 are by definition cases where the owner had capacity and the local node didn't
-— moving the request is right.
+- moving the request is right.
 
 ## On Security
 
@@ -198,7 +198,7 @@ B re-validates the PAT hash + tenant binding on receipt. Forwards carry the
 PAT *hash* and a signed bundle, not a delegation token. If A doesn't actually
 have a valid PAT for that tenant, B rejects. The forward isn't trusted; it's
 a request. This is the same posture as a sidecar receiving an authorized
-HTTP request from a peer — re-check, don't trust.
+HTTP request from a peer - re-check, don't trust.
 
 **Q19. What stops a compromised sandbox from joining the libp2p mesh and
 seeing peer traffic?**
@@ -232,7 +232,7 @@ sandbox runner shaped like Nomad.
 **"libp2p is overkill."** It buys mTLS-by-PeerID, NAT traversal, federation
 discovery, and stream multiplexing. Reimplementing those costs more.
 
-**"Raft is overkill — just use a coordinator service."** A coordinator
+**"Raft is overkill - just use a coordinator service."** A coordinator
 service is operationally heavier than embedded Raft and doesn't survive
 the coordinator going down without HA, which means you've reinvented Raft
 with worse semantics.

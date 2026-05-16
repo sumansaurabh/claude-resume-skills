@@ -1,11 +1,11 @@
-# 10 — Cheat Sheet
+# 10 - Cheat Sheet
 
 ## The Opener (memorize this)
 
 > "Memory in our agent platform is a **plane**, not a store. Five tiers:
 > execution state, short-term, episodic, long-term, vector. The DAG workflow
 > engine treats every ReAct step as a checkpointed transaction over those
-> tiers — that's what makes the agent durably resumable and deterministically
+> tiers - that's what makes the agent durably resumable and deterministically
 > replayable at 10K+ runs/day. A Memory Manager is the chokepoint for
 > isolation, audit, and context budgeting at 1B+ tokens/month."
 
@@ -21,13 +21,13 @@
 
 ## Five Things To Land In Every Answer
 
-1. **Five tiers, different contracts** — collapsing them is the failure mode.
+1. **Five tiers, different contracts** - collapsing them is the failure mode.
 2. **Execution state is the substrate**, not memory the model sees.
 3. **Vector is derived**, not a write target. Sources live in episodic /
    long-term.
 4. **Determinism comes from the system** (event log, manifests, content
    hashes), not from pinning the model.
-5. **Multi-tenant isolation enforced everywhere** — collections per tenant
+5. **Multi-tenant isolation enforced everywhere** - collections per tenant
    in Qdrant, RLS in PG, JWT-bound tenant claim, ContextBuilder asserts.
 
 ## Numbers To Drop
@@ -65,14 +65,14 @@
 
 ## What NOT To Say
 
-- "We use a vector DB for memory." (Wrong — that's one tier of five.)
-- "Retries cover durability." (Wrong — durability is the event log + idempotent
+- "We use a vector DB for memory." (Wrong - that's one tier of five.)
+- "Retries cover durability." (Wrong - durability is the event log + idempotent
   fencing.)
-- "Filters isolate tenants in Qdrant." (Wrong — collections do; filters are
+- "Filters isolate tenants in Qdrant." (Wrong - collections do; filters are
   for scope-within-tenant.)
-- "We pin the model so replay is deterministic." (Wrong — the system is
+- "We pin the model so replay is deterministic." (Wrong - the system is
   deterministic; the model intentionally isn't.)
-- "Memory is just LangChain memory." (Wrong — LangGraph runs the graph; we
+- "Memory is just LangChain memory." (Wrong - LangGraph runs the graph; we
   own what's remembered.)
 
 ## Closing Line

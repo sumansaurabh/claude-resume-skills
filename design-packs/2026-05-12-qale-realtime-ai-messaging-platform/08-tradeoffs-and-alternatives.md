@@ -1,4 +1,4 @@
-# 08 — Tradeoffs and Alternatives
+# 08 - Tradeoffs and Alternatives
 
 The choices that define the architecture, what was rejected, and what would change my mind. Anchor codes from `00-question-and-context.md`.
 
@@ -16,8 +16,8 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 
 **Why:**
 - Qale's moat is **AI inline with the message bus**. If the bus is a vendor, the AI plane sits on the slow side of an HTTP webhook and we lose the latency story.
-- Token economics — we want full control over what goes into the model context, when, and at what cost. Vendor abstractions hide that.
-- Anchor: I built the equivalent for ShareChat ads at 40M DAU (A-SC1, A-SC2) — RTB latency budget was tighter than Qale's, and we built it; cost and risk of building were less than people assumed once we had the right primitives.
+- Token economics - we want full control over what goes into the model context, when, and at what cost. Vendor abstractions hide that.
+- Anchor: I built the equivalent for ShareChat ads at 40M DAU (A-SC1, A-SC2) - RTB latency budget was tighter than Qale's, and we built it; cost and risk of building were less than people assumed once we had the right primitives.
 
 **What would change my mind:** if 6-month time-to-market is non-negotiable for an existential customer, buy the bus, eat the latency, plan to migrate within 12 months.
 
@@ -25,19 +25,19 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 
 ---
 
-## TR-2: Transport — WebSocket vs SSE vs WebTransport vs custom QUIC
+## TR-2: Transport - WebSocket vs SSE vs WebTransport vs custom QUIC
 
 **Decision:** WebSocket now, WebTransport over QUIC at month 12–18, never custom QUIC.
 
 **Chose:** WebSocket (RFC 6455) with JSON framing for v1.
 
-**Rejected:** SSE (server-only); WebTransport (still maturing in browsers — assumption); custom QUIC protocol for v1.
+**Rejected:** SSE (server-only); WebTransport (still maturing in browsers - assumption); custom QUIC protocol for v1.
 
 **Why:**
 - WS is bidirectional, mature, every CDN supports it, every browser supports it.
 - SSE is fine for AI streaming alone, but we need bidirectional for typing, presence, message send.
-- WebTransport is the right next step (multi-stream, drop unreliable typing indicators on UDP, keep messages on reliable streams). Anchor: TunDRA at Microsoft was QUIC-based for 1M+ Compute Instances (A-MS1) — I know the tradeoffs.
-- Custom QUIC is *premature* for Qale; TunDRA solved a problem WebSocket genuinely could not (bidirectional secure session inside Azure VNets at compute-instance scale). Qale's connections are ordinary browser sockets — WS wins on simplicity.
+- WebTransport is the right next step (multi-stream, drop unreliable typing indicators on UDP, keep messages on reliable streams). Anchor: TunDRA at Microsoft was QUIC-based for 1M+ Compute Instances (A-MS1) - I know the tradeoffs.
+- Custom QUIC is *premature* for Qale; TunDRA solved a problem WebSocket genuinely could not (bidirectional secure session inside Azure VNets at compute-instance scale). Qale's connections are ordinary browser sockets - WS wins on simplicity.
 
 **What changes my mind:** sustained mobile-network packet loss complaints from > 5% of users; or measurable latency benefit > 30% from QUIC in production A/B.
 
@@ -45,7 +45,7 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 
 ---
 
-## TR-3: Bus — Kafka vs NATS JetStream vs Redis Streams vs RabbitMQ
+## TR-3: Bus - Kafka vs NATS JetStream vs Redis Streams vs RabbitMQ
 
 **Decision:** Kafka for durable backbone, NATS for low-volume internal request/reply.
 
@@ -57,15 +57,15 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 - Kafka's partitioning model maps cleanly onto `(workspaceId, threadId)` ordering needs.
 - 7-day retention gives us free deterministic replay and cross-service rewind.
 - Tooling ecosystem (Schema Registry, Connect, Streams, kSQL, Kafka Mirror) means we can lean rather than build.
-- Anchor: ShareChat used Pub/Sub (A-SC3) — Kafka is the AWS-native equivalent with stronger ordering.
+- Anchor: ShareChat used Pub/Sub (A-SC3) - Kafka is the AWS-native equivalent with stronger ordering.
 
 **What changes my mind:** if we stay sub-100K users for > 18 months, NATS JetStream is meaningfully cheaper to operate.
 
-**Migration path:** all bus access through a thin internal client library — provider swap is a library change.
+**Migration path:** all bus access through a thin internal client library - provider swap is a library change.
 
 ---
 
-## TR-4: Storage — Postgres vs Cassandra vs DynamoDB for messages
+## TR-4: Storage - Postgres vs Cassandra vs DynamoDB for messages
 
 **Decision:** Postgres + logical sharding, with cold tier in S3/Parquet.
 
@@ -84,7 +84,7 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 
 ---
 
-## TR-5: Search — OpenSearch vs Postgres FTS vs hybrid with vector
+## TR-5: Search - OpenSearch vs Postgres FTS vs hybrid with vector
 
 **Decision:** Hybrid: OpenSearch (lexical) + Qdrant (vector) with a small reranker.
 
@@ -103,11 +103,11 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 
 ---
 
-## TR-6: AI — hosted providers vs self-hosted vLLM
+## TR-6: AI - hosted providers vs self-hosted vLLM
 
 **Decision:** Hosted via model router for v1; revisit self-hosted at scale.
 
-**Chose:** model router across Claude / GPT / Grok (or open via OpenRouter / Bedrock) — the BlackBox playbook (A-BB4).
+**Chose:** model router across Claude / GPT / Grok (or open via OpenRouter / Bedrock) - the BlackBox playbook (A-BB4).
 
 **Rejected:** self-hosted vLLM as the primary serving path at v1.
 
@@ -115,15 +115,15 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 - At 100K–1M users we don't yet have the volume to amortize GPU fleet ownership.
 - Model quality moves monthly; being provider-flexible captures that.
 - Anchor: BlackBox served 1B+ tokens/month entirely through hosted providers with capability-aware routing (A-BB4); same shape works for Qale.
-- Anchor: I know vLLM well from Microsoft IPP fine-tuning (A-MS1) — and that experience tells me self-host pays off only when (a) workload is steady, (b) volume amortizes, (c) you can tolerate model-version control. Not v1.
+- Anchor: I know vLLM well from Microsoft IPP fine-tuning (A-MS1) - and that experience tells me self-host pays off only when (a) workload is steady, (b) volume amortizes, (c) you can tolerate model-version control. Not v1.
 
 **What changes my mind:** hosted spend > $250K/mo with steady workload + a specific small model dominating traffic where self-host pays back in 6 months.
 
-**Migration path:** the router already abstracts provider — adding a `local` provider is a config change, not a rewrite.
+**Migration path:** the router already abstracts provider - adding a `local` provider is a config change, not a rewrite.
 
 ---
 
-## TR-7: Agent runtime — LangGraph vs Temporal vs in-house DAG
+## TR-7: Agent runtime - LangGraph vs Temporal vs in-house DAG
 
 **Decision:** Thin in-house DAG with Temporal-style durability primitives.
 
@@ -132,7 +132,7 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 **Rejected:** raw LangGraph (great prototyping, weak production controls); raw Temporal (powerful but adds a heavy dependency for our specific shape); pure code (no replay, no resume).
 
 **Why:**
-- Anchor: this is the exact shape I led at BlackBox — DAG execution, checkpointing, retry semantics, durable resumable agents (A-BB3).
+- Anchor: this is the exact shape I led at BlackBox - DAG execution, checkpointing, retry semantics, durable resumable agents (A-BB3).
 - We need full control over checkpoint format because deterministic replay and SOC-2 audit depend on it.
 - LangGraph is great for the *agent definition DSL*; we keep that and write our own executor underneath.
 
@@ -142,7 +142,7 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 
 ---
 
-## TR-8: Telemetry — vendor (Datadog) vs in-house ClickHouse mesh
+## TR-8: Telemetry - vendor (Datadog) vs in-house ClickHouse mesh
 
 **Decision:** in-house OpenTelemetry → Kafka → ClickHouse mesh.
 
@@ -153,15 +153,15 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 **Why:**
 - Anchor: BlackBox telemetry mesh ingested 50M spans/day, 2.5TB+ monthly trace data; in-house at ClickHouse cost a fraction of vendor (A-BB5).
 - AI debugging needs custom queries (replay by prompt-hash, route distribution per workspace) that don't fit vendor UIs.
-- We keep Sentry for client errors and ad-hoc product analytics — vendor is fine for those.
+- We keep Sentry for client errors and ad-hoc product analytics - vendor is fine for those.
 
-**What changes my mind:** team time to maintain the mesh exceeds vendor cost — we're not there at < 30 engineers.
+**What changes my mind:** team time to maintain the mesh exceeds vendor cost - we're not there at < 30 engineers.
 
 **Migration path:** OTel SDK is vendor-neutral; can dual-export during migration.
 
 ---
 
-## TR-9: Frontend — SPA vs SSR vs PWA
+## TR-9: Frontend - SPA vs SSR vs PWA
 
 **Decision:** SPA app shell + PWA features, with SSR only for marketing/login/share pages.
 
@@ -170,8 +170,8 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 **Rejected:** full SSR for the app (state hydration cost is huge for a real-time app where every render needs a live socket).
 
 **Why:**
-- Real-time apps don't benefit from SSR after the first frame — the value is the live connection, which only works post-hydration.
-- PWA gives us "feels like an app" on mobile web — important wedge for India/global before native apps land.
+- Real-time apps don't benefit from SSR after the first frame - the value is the live connection, which only works post-hydration.
+- PWA gives us "feels like an app" on mobile web - important wedge for India/global before native apps land.
 
 **What changes my mind:** mobile native app priority shifts; or framework consensus moves decisively to RSC for live apps.
 
@@ -179,7 +179,7 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 
 ---
 
-## TR-10: State management — Redux Toolkit vs Zustand vs Jotai vs custom
+## TR-10: State management - Redux Toolkit vs Zustand vs Jotai vs custom
 
 **Decision:** Zustand for local UI state, RTK Query (or TanStack Query) for server state, IndexedDB cache for offline.
 
@@ -191,7 +191,7 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 - Real-time WebSocket apps want a small store with explicit subscriptions; Zustand fits.
 - TanStack Query handles the read API cleanly; we don't need Redux for that.
 
-**What changes my mind:** team grows and the conventions become hard to enforce — RTK's structure may pay off then.
+**What changes my mind:** team grows and the conventions become hard to enforce - RTK's structure may pay off then.
 
 **Migration path:** any of these can coexist behind hooks.
 
@@ -210,19 +210,19 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 - Shared protobuf/TS types between FE and BE catch contract drift at compile time.
 - Anchor: ShareChat ad codebase was a single repo; cross-team refactors stayed cheap (A-SC1).
 
-**What changes my mind:** clear bifurcation between platform and product teams with no shared types — splits become reasonable.
+**What changes my mind:** clear bifurcation between platform and product teams with no shared types - splits become reasonable.
 
 **Migration path:** straightforward via Turborepo workspace splits.
 
 ---
 
-## TR-12: Cloud — AWS vs GCP vs Azure
+## TR-12: Cloud - AWS vs GCP vs Azure
 
 **Decision:** AWS primary, multi-cloud-ready abstractions where cheap.
 
-**Chose:** AWS — broadest service catalog, strongest India presence (ap-south-1, ap-south-2), best market hire-ability in Hyderabad (most engineers know it).
+**Chose:** AWS - broadest service catalog, strongest India presence (ap-south-1, ap-south-2), best market hire-ability in Hyderabad (most engineers know it).
 
-**Rejected:** Azure (despite my Microsoft background — A-MS2) and GCP, for hiring and cost reasons.
+**Rejected:** Azure (despite my Microsoft background - A-MS2) and GCP, for hiring and cost reasons.
 
 **Why:**
 - Hyderabad hiring pool: AWS skills are most common. We optimize for the team.
@@ -235,7 +235,7 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 
 ---
 
-## TR-13: Service mesh — Istio vs Linkerd vs none yet
+## TR-13: Service mesh - Istio vs Linkerd vs none yet
 
 **Decision:** None at < 10 services; Linkerd at ~10+.
 
@@ -268,7 +268,7 @@ Each tradeoff uses the same shape: **Decision · Chose · Rejected · Why · Wha
 
 **What changes my mind:** UX research shows the bus latency is felt; mitigate by colocating orchestrator with gateway.
 
-**Migration path:** the gateway holds a `submitRun(thread, prompt)` interface — sync or async wired underneath.
+**Migration path:** the gateway holds a `submitRun(thread, prompt)` interface - sync or async wired underneath.
 
 ---
 

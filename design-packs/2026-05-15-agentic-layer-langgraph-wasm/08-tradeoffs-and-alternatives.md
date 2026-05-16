@@ -1,26 +1,26 @@
-# 08 — Tradeoffs and Alternatives
+# 08 - Tradeoffs and Alternatives
 
 The interviewer wants to know that the choices were *chosen*, not defaulted.
 This file walks the major forks and why I'd defend each one.
 
-## LangGraph vs alternatives — for the orchestrator
+## LangGraph vs alternatives - for the orchestrator
 
 | Option | Strengths | Weaknesses | Why not chosen / chosen |
 | - | - | - | - |
 | **LangGraph (chosen)** | Native typed state, checkpointer hooks, growing community, fits ReAct natively, low ceremony to ship | Python-only; executor is in-process; durability is bolt-on; couples graph IR to runtime | Right fit at 10K runs/day; team is Python-first; checkpointer hooks are the load-bearing feature; we wrap the executor anyway |
 | **Temporal / Cadence** | Battle-tested durable execution, language SDKs, history-based replay | Workflows are imperative code, not graphs; LLM-shaped reasoning (loops, critic re-entry) is awkward; cost of running Temporal clusters | Considered; would have given us replay for free but at the cost of making the planner/coder loops painful to express. Right answer for *workflow* tools, wrong answer for *agent* loops |
 | **Inngest / Trigger.dev** | Hosted durable functions, ergonomic | Hosted means cross-cloud egress + SOC-2 vendor review; less control over scheduler | Vendor risk wasn't worth the ergonomics |
-| **LangChain AgentExecutor** | Lower learning curve | One-process, no checkpointing, no graph topology, no fan-in | Hard pass — we explicitly need DAG semantics and resumability |
+| **LangChain AgentExecutor** | Lower learning curve | One-process, no checkpointing, no graph topology, no fan-in | Hard pass - we explicitly need DAG semantics and resumability |
 | **Hand-rolled state machine + queue** | Maximum control, no library churn | We'd rebuild LangGraph poorly; node typing, message reducers, checkpoint hooks all hand-written | Considered for v2; the right answer if we hit 100K runs/day or if LangGraph's executor becomes a bottleneck |
-| **CrewAI / AutoGen** | Multi-agent abstractions out of the box | Heavy framework opinion, less mature, harder to plumb durability and security | Wrong abstraction level — too high-level |
+| **CrewAI / AutoGen** | Multi-agent abstractions out of the box | Heavy framework opinion, less mature, harder to plumb durability and security | Wrong abstraction level - too high-level |
 
 **The honest principal-engineer point**: LangGraph gives us a graph IR and a
-checkpointer protocol — the two things we actually want. Everything else
+checkpointer protocol - the two things we actually want. Everything else
 (executor, retry semantics, tool registry, policy) we own. If we ever
 outgrew LangGraph, we'd keep our graph IR and write a new executor; the rest
 of the platform doesn't change.
 
-## WASM vs other sandbox technologies — for code execution
+## WASM vs other sandbox technologies - for code execution
 
 | Option | Cold start | Isolation | Network | Fit for AI-generated code |
 | - | - | - | - | - |
@@ -36,9 +36,9 @@ and `design-packs/2026-05-07-wasm-sandbox-security-isolation`.
 The agent-layer point is: **WASM's structural network limitation is a
 feature**. The egress proxy is now the single chokepoint for AI-generated
 network access, so the audit story collapses to "show me the egress proxy
-log" — exactly what SOC-2 reviewers want.
+log" - exactly what SOC-2 reviewers want.
 
-## ReAct vs alternatives — for the agent reasoning loop
+## ReAct vs alternatives - for the agent reasoning loop
 
 | Loop pattern | Where it wins | Where it loses |
 | - | - | - |
@@ -62,7 +62,7 @@ expensive work starts) and milestone-scoped failure containment.
 | **Hybrid BM25 + HNSW + cross-encoder rerank (chosen)** | Best recall + precision tradeoff | Higher latency, more infra |
 
 Anchored on the resume tech list: *"Embeddings, VectorDB, Cross-encoder,
-HNSW, bm25, Clickhouse."* Cross-encoder rerank is the differentiator —
+HNSW, bm25, Clickhouse."* Cross-encoder rerank is the differentiator -
 it cuts hallucinated retrieval results by an order of magnitude.
 
 ## Multi-model router: single-model vs multi-model
@@ -89,8 +89,8 @@ This is real engineering cost, not free.
 | **Postgres + S3 (chosen)** | Cheap blob storage, fast hot reads, content-addressed dedup | Two systems to keep consistent |
 | Pure event-sourcing (Kafka log of state deltas) | Maximal replayability | Operational complexity; harder to query |
 
-The chosen split — small typed state in Postgres, large blobs in S3 keyed
-by content hash — is the standard "log + lakehouse" pattern adapted to
+The chosen split - small typed state in Postgres, large blobs in S3 keyed
+by content hash - is the standard "log + lakehouse" pattern adapted to
 agent state. It's boring and right.
 
 ## Streaming: SSE vs WebSocket vs gRPC-web
@@ -111,7 +111,7 @@ plain HTTP `POST /actions`, which avoids the entire WebSocket complexity.
 | - | - | - |
 | Move the graph executor to Go | Python is fine at 10K runs/day; team is Python-first | Above 100K concurrent runs |
 | Per-tenant Kafka topic for events | Overkill at our scale | At 1M runs/day if multi-tenant fanout pressure rises |
-| Use OpenAI Assistants API for stateful threads | Vendor lock-in; we already own checkpointing | Never — we'd lose replay |
+| Use OpenAI Assistants API for stateful threads | Vendor lock-in; we already own checkpointing | Never - we'd lose replay |
 | Use LangSmith instead of self-hosted Langfuse + ClickHouse | Vendor data residency concern | If LangSmith adds enterprise data controls |
 | Replace LangGraph with custom IR | Premature | If executor becomes the bottleneck |
 

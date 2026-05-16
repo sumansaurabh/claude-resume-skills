@@ -1,8 +1,8 @@
-# 10 — Interview Cheat Sheet
+# 10 - Interview Cheat Sheet
 
 ## The 30-Second Hook
 
-> "I built the job orchestration and isolation layer for Azure ML's LLM fine-tuning platform — secure, multi-tenant, Kubernetes-based, processing 20B tokens/year. The hard part was making enterprise customers' training data stay in their network while our compute ran the job."
+> "I built the job orchestration and isolation layer for Azure ML's LLM fine-tuning platform - secure, multi-tenant, Kubernetes-based, processing 20B tokens/year. The hard part was making enterprise customers' training data stay in their network while our compute ran the job."
 
 ---
 
@@ -32,16 +32,16 @@
 
 ## Isolation Layers (say all 3)
 
-1. **VNet peering** — hard L3 boundary per enterprise tenant; no route between tenant subnets
-2. **Kubernetes namespace** — per-tenant namespace with NetworkPolicy deny-all; only NCCL + private endpoint egress allowed
-3. **Managed Identity** — per-job/per-tenant identity bound to exactly that tenant's storage container via Azure RBAC
+1. **VNet peering** - hard L3 boundary per enterprise tenant; no route between tenant subnets
+2. **Kubernetes namespace** - per-tenant namespace with NetworkPolicy deny-all; only NCCL + private endpoint egress allowed
+3. **Managed Identity** - per-job/per-tenant identity bound to exactly that tenant's storage container via Azure RBAC
 
 ---
 
 ## Gang Scheduling (the interviewer will ask)
 
 - **Why:** Distributed training requires all N workers to start simultaneously; partial allocation = deadlock
-- **Volcano:** `minAvailable = N` — none of the N pods are bound until all N can be scheduled atomically
+- **Volcano:** `minAvailable = N` - none of the N pods are bound until all N can be scheduled atomically
 - **If a worker fails:** All workers terminate, retry from last checkpoint
 - **Backpressure:** Low-priority jobs preempted to make room for higher-priority gang jobs
 - **Autoscaler:** AKS provisions new A100 nodes; 2 warm standby nodes per queue for fast start
@@ -61,10 +61,10 @@
 
 ## Security One-Liners
 
-- **"Training data never leaves the customer's Azure subscription"** — Managed Identity delegation reads ADLS; no copy to Microsoft-owned storage
-- **"No secrets in env vars"** — Key Vault CSI driver mounts secrets as files
-- **"No privileged containers"** — `runAsNonRoot`, dropped ALL capabilities, seccomp RuntimeDefault
-- **"TunDRA = QUIC + mTLS"** — mutual certificate authentication for all compute-to-compute traffic; 50% throughput improvement over TCP+TLS
+- **"Training data never leaves the customer's Azure subscription"** - Managed Identity delegation reads ADLS; no copy to Microsoft-owned storage
+- **"No secrets in env vars"** - Key Vault CSI driver mounts secrets as files
+- **"No privileged containers"** - `runAsNonRoot`, dropped ALL capabilities, seccomp RuntimeDefault
+- **"TunDRA = QUIC + mTLS"** - mutual certificate authentication for all compute-to-compute traffic; 50% throughput improvement over TCP+TLS
 
 ---
 
@@ -88,17 +88,17 @@
 |---|---|
 | "Why not Argo?" | Our gang scheduling + VNet isolation + checkpoint-retry semantics required custom Kubernetes API integration that Argo abstracts away |
 | "Why Volcano?" | Only CNCF scheduler with production-grade gang scheduling; bin-packing + multi-tenant queues built-in |
-| "Retry = restart from epoch 0?" | No — always resume from last checkpoint; we checkpoint every 10-15 min to bound loss |
-| "Managed Identity is enough isolation?" | MI is one of three layers (VNet, namespace, identity). By itself it's not — all three together are. |
+| "Retry = restart from epoch 0?" | No - always resume from last checkpoint; we checkpoint every 10-15 min to bound loss |
+| "Managed Identity is enough isolation?" | MI is one of three layers (VNet, namespace, identity). By itself it's not - all three together are. |
 | "50% improvement in what?" | End-to-end checkpoint upload throughput (MB/s), measured at 1M-instance scale with 15-min checkpoint interval |
 | "Jobs/month vs. tokens/year inconsistency?" | Different populations: 15M/month = all AutoML; 20B tokens = LLM fine-tune only |
-| "Completed = training done?" | No — COMPLETED means training + eval passed + artifact in MLflow. Substates: COMPLETING → EVALUATING → ARTIFACT_PUBLISHING → COMPLETED |
+| "Completed = training done?" | No - COMPLETED means training + eval passed + artifact in MLflow. Substates: COMPLETING → EVALUATING → ARTIFACT_PUBLISHING → COMPLETED |
 
 ---
 
 ## The Leadership Frame (for Principal Engineer)
 
-> "The architecture decisions I made — VNet isolation, gang scheduling, async checkpointing — directly enabled the enterprise compliance posture that was the deal requirement for regulated-industry customers. The $100M revenue contribution traces back to those technical choices."
+> "The architecture decisions I made - VNet isolation, gang scheduling, async checkpointing - directly enabled the enterprise compliance posture that was the deal requirement for regulated-industry customers. The $100M revenue contribution traces back to those technical choices."
 
 ---
 

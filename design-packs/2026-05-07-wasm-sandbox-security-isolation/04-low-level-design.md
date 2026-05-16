@@ -1,4 +1,4 @@
-# 04 — Low-Level Design: Enforcement Engine
+# 04 - Low-Level Design: Enforcement Engine
 
 Focus: module-level design of every subsystem that prevents malicious AI-generated code from
 escaping the sandbox or abusing CPU, memory, filesystem, or network access.
@@ -21,7 +21,7 @@ SandboxManager
 
 ## SandboxManager (Go)
 
-`SandboxManager` owns a pool of pre-warmed `WASMInstance` objects — one per supported language
+`SandboxManager` owns a pool of pre-warmed `WASMInstance` objects - one per supported language
 runtime (Python/Pyodide, JavaScript/QuickJS, etc.). It is the single call-site that the
 execution API layer touches.
 
@@ -155,7 +155,7 @@ func (wi *WASMInstance) Run(code []byte, cfg SandboxConfig) SandboxResult {
     wi.store.SetFuel(cfg.MaxFuelUnits)
 
     // 2. Build the linker with the allowed import set ONLY.
-    //    Any import not in this allowlist causes instantiation to fail — the
+    //    Any import not in this allowlist causes instantiation to fail - the
     //    module is rejected before a single instruction executes.
     linker, err := wi.buildFilteredLinker()
     if err != nil {
@@ -190,7 +190,7 @@ func (wi *WASMInstance) Run(code []byte, cfg SandboxConfig) SandboxResult {
 // ONLY safe to call if Run() completed without a SecurityEvent.
 // For any suspicious execution, call Discard() instead.
 func (wi *WASMInstance) Reset() {
-    // We do NOT reuse the wasmtime.Store — a fresh Store (and therefore fresh
+    // We do NOT reuse the wasmtime.Store - a fresh Store (and therefore fresh
     // linear memory) is required for the next execution to prevent cross-tenant
     // memory leakage. Reset() closes the current store and allocates a new one.
     wi.store.Close()
@@ -209,7 +209,7 @@ func (wi *WASMInstance) Discard() {
 
 // buildFilteredLinker returns a linker that only exposes the allowed WASI/host
 // functions. Any import the module requests that is not explicitly linked here
-// will cause Instantiate() to return an error — there is no fallback.
+// will cause Instantiate() to return an error - there is no fallback.
 func (wi *WASMInstance) buildFilteredLinker() (*wasmtime.Linker, error) {
     linker := wasmtime.NewLinker(wi.engine)
 
@@ -301,7 +301,7 @@ func (wi *WASMInstance) executeWithEnforcer(cfg SandboxConfig) SandboxResult {
         return wi.collectUsage(res, cfg)
 
     case <-ctx.Done():
-        // Deadline exceeded — interrupt the WASM execution.
+        // Deadline exceeded - interrupt the WASM execution.
         // wasmtime checks interrupt flags at every fuel decrement point,
         // so the goroutine above will unblock within microseconds.
         handle.Interrupt()
@@ -441,8 +441,8 @@ func ApplySeccompFilter() error {
 ```
 
 **Why not per-execution?** `prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, ...)` is a process-level
-operation. Calling it inside every execution would (a) be redundant — the filter is already in
-effect — and (b) add ~2ms of kernel syscall overhead per execution.
+operation. Calling it inside every execution would (a) be redundant - the filter is already in
+effect - and (b) add ~2ms of kernel syscall overhead per execution.
 
 ---
 
@@ -481,7 +481,7 @@ func (fg *FsGuard) Prepare(execID string) (wasi.FSConfig, func(), error) {
 
     cleanup := func() {
         if err := os.RemoveAll(dir); err != nil {
-            // Log but don't fail — worst case the ephemeral tmpfs is recycled
+            // Log but don't fail - worst case the ephemeral tmpfs is recycled
             // by the OS on next mount.
             log.Printf("FsGuard cleanup failed for %s: %v", dir, err)
         }
@@ -539,7 +539,7 @@ Network blocking is defense-in-depth across three independent layers.
 absent from the linker's allowed import set (see `buildFilteredLinker` above). A module that
 imports any of these will fail to instantiate before executing a single instruction.
 
-### Layer 2: OS — network namespace (middle)
+### Layer 2: OS - network namespace (middle)
 
 Each worker process starts inside a dedicated network namespace with no interfaces:
 
@@ -668,7 +668,7 @@ stateDiagram-v2
 
     Initializing --> Executing : wasmtime.Linker.Instantiate() succeeded\nfuel set, memory limit set, FsGuard ready
 
-    Initializing --> SandboxEscapeDetected : Instantiate() failed\n(unresolved import — blocked import attempt)
+    Initializing --> SandboxEscapeDetected : Instantiate() failed\n(unresolved import - blocked import attempt)
 
     Executing --> Completed : _start() returns exit_code 0\nfuel remaining, memory within limit
 
@@ -680,9 +680,9 @@ stateDiagram-v2
 
     Executing --> SandboxEscapeDetected : seccomp violation (SIGSYS)\nOR blocked syscall (SIGKILL)
 
-    Completed --> Cleanup : Reset() — close Store, realloc fresh Store
+    Completed --> Cleanup : Reset() - close Store, realloc fresh Store
 
-    TimedOut --> Cleanup : Discard() — close Store, do NOT return to pool
+    TimedOut --> Cleanup : Discard() - close Store, do NOT return to pool
 
     OOMKilled --> Cleanup : Discard()
 
@@ -700,9 +700,9 @@ stateDiagram-v2
 | Threat | Layer 1 (WASM) | Layer 2 (OS/Go) | Layer 3 (Infra) |
 |--------|---------------|-----------------|-----------------|
 | CPU abuse | Fuel counter (wasmtime) | context.WithDeadline + InterruptHandle | cgroup cpu.max |
-| Memory abuse | memory.max pages (wasmtime limiter) | — | cgroup memory.max |
+| Memory abuse | memory.max pages (wasmtime limiter) | - | cgroup memory.max |
 | Filesystem escape | WASI path_open restricted to tmpdir | FsGuard quotaFS + os.RemoveAll | Pod ephemeral-storage limit |
 | Network escape | No sock_* in linker import set | CLONE_NEWNET (empty netns) | K8s NetworkPolicy deny-all egress |
-| Syscall abuse | — | seccomp allowlist (SIGKILL on violation) | — |
+| Syscall abuse | - | seccomp allowlist (SIGKILL on violation) | - |
 | Cross-tenant data leak | Store discarded after each execution (fresh linear memory) | No shared mutable state between workers | Separate K8s namespaces per tier |
 | Privilege escalation | No execve/clone in linker | seccomp blocks execve/clone/setuid | Non-root container, no CAP_SYS_ADMIN |

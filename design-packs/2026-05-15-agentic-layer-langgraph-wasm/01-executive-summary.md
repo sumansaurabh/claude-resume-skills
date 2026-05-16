@@ -1,4 +1,4 @@
-# 01 — Executive Summary
+# 01 - Executive Summary
 
 ## The shape of the system in one paragraph
 
@@ -9,8 +9,8 @@ test, and a **model router** that fans out to Claude, GPT, and Grok with
 capability-aware routing. Every agent run is modeled as a **directed acyclic
 graph of typed nodes** (planner → scaffolder → coder → critic → finalizer) with
 **Postgres-backed checkpointing** so a run can crash mid-step and resume
-deterministically. The user's prompt — for example *"design a website like
-Slack"* — enters through a thin API, is durably persisted as a `Run`, dispatched
+deterministically. The user's prompt - for example *"design a website like
+Slack"* - enters through a thin API, is durably persisted as a `Run`, dispatched
 to a stateless worker that hydrates the graph from the checkpoint, and streams
 results back over Server-Sent Events as nodes complete. The platform handles
 **10K+ agent runs/day**, **1B+ tokens/month** through the router, and
@@ -43,9 +43,9 @@ and SOC-2 evidence.
   decision is captured as an OpenTelemetry span with the prompt hash, model,
   seed, temperature, tool envelope, and observation. The trace store is
   ClickHouse; a replay job can reconstruct any past run by feeding cached
-  observations back into a re-instantiated graph — that's how MTTR dropped 60%.
+  observations back into a re-instantiated graph - that's how MTTR dropped 60%.
 
-## End-to-end walkthrough — *"design a website like Slack"*
+## End-to-end walkthrough - *"design a website like Slack"*
 
 | Step | Component | What happens |
 | - | - | - |
@@ -70,7 +70,7 @@ Total: ~6–11 minutes wall-clock for a Slack-clone scaffold, ~120K–400K token
 1. **Decoupling the agent loop from the sandbox.** The agent worker is stateless
    Python; the sandbox plane is stateless Golang. Both can be redeployed
    independently. The bridge is a versioned gRPC contract with capability
-   negotiation — adding a new tool (`sandbox.browser_test`) is a one-day change.
+   negotiation - adding a new tool (`sandbox.browser_test`) is a one-day change.
 2. **Deterministic replay despite non-determinism.** By hashing prompts and
    caching tool observations against the hash, I can rerun a failed agent
    trace through a new model with one config flip. This is what unlocks

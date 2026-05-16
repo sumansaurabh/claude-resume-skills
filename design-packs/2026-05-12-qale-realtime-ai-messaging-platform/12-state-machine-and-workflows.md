@@ -1,4 +1,4 @@
-# 12 — State Machines and Workflows
+# 12 - State Machines and Workflows
 
 The state diagrams that make Qale's behavior explicit. Anchors from `00-question-and-context.md`.
 
@@ -24,7 +24,7 @@ stateDiagram-v2
 
 | From | To | Trigger | Recorded where |
 | --- | --- | --- | --- |
-| Composing | Sent | client emits `client.send_message` | not stored — UI state |
+| Composing | Sent | client emits `client.send_message` | not stored - UI state |
 | Sent | Durable | Message Service writes row + publishes outbox | Postgres `messages.status='durable'`, Kafka |
 | Sent | Failed | validation / auth / rate-limit reject | Postgres `messages.status='failed'` |
 | Durable | Delivered | per-recipient delivery cursor advances | Per-(userId, threadId) cursor in Redis |
@@ -96,10 +96,10 @@ The DAG executor that powers AI runs. The engine guarantees:
 
 1. **Checkpoint after every node transition.** Run state lives in `ai_runs` + `ai_run_steps` tables. A pod can die mid-run; another pod resumes from the last checkpoint.
 2. **Idempotent tool dispatch.** Each tool call is keyed by `(runId, nodeId, attempt)`. Tools either accept a dedup key, are intrinsically idempotent, or have an explicit compensation hook (saga pattern).
-3. **Retry policy per node type.** LLM calls retry up to 2 times across providers (then fall back ladder); tool calls retry per the tool's policy; human-approval nodes don't retry — they wait.
+3. **Retry policy per node type.** LLM calls retry up to 2 times across providers (then fall back ladder); tool calls retry per the tool's policy; human-approval nodes don't retry - they wait.
 4. **Bounded fan-out.** A single run can invoke at most N parallel children to prevent runaway tree growth.
 
-Anchor: BlackBox graph workflow engine — DAG execution, checkpointing, retry semantics, durable resumable agents (A-BB3).
+Anchor: BlackBox graph workflow engine - DAG execution, checkpointing, retry semantics, durable resumable agents (A-BB3).
 
 ```mermaid
 flowchart TD
@@ -149,9 +149,9 @@ User sees streaming output starting at step 3 (~250ms after click). Total wall-c
 | 2 | Tool: lookup participant calendars (3 tools in parallel) |
 | 3 | LLM: propose 3 times |
 | 4 | Tool: send proposal via Qale message back to user |
-| 5 | **Wait** for user reply (state = `WaitingForUser`) — durable hold |
+| 5 | **Wait** for user reply (state = `WaitingForUser`) - durable hold |
 | 6 | LLM: parse user choice |
-| 7 | Tool: create calendar invite (non-idempotent — keyed by `(runId, nodeId)`) |
+| 7 | Tool: create calendar invite (non-idempotent - keyed by `(runId, nodeId)`) |
 | 8 | Persist + finish |
 
 Node 5 may sit in `WaitingForUser` for hours. The run state survives restarts and is resumed by an event when the user replies.
@@ -205,11 +205,11 @@ Per-channel rules:
 
 ## 10. Operational tools
 
-- `qale ai run inspect <runId>` — print full DAG state, all node history, all tool calls.
-- `qale ai run replay <runId>` — re-run from captured inputs (anchor A-BB5).
-- `qale ai run cancel <runId>` — graceful cancel.
-- `qale ai run resume <runId>` — force-resume a stuck `WaitingForUser` (admin).
-- `qale msg event replay <eventId>` — re-publish a captured event to staging for incident triage.
-- `qale workspace tombstone <wsId>` — mark for delete; cleanup workers consume (anchor A-BB1).
+- `qale ai run inspect <runId>` - print full DAG state, all node history, all tool calls.
+- `qale ai run replay <runId>` - re-run from captured inputs (anchor A-BB5).
+- `qale ai run cancel <runId>` - graceful cancel.
+- `qale ai run resume <runId>` - force-resume a stuck `WaitingForUser` (admin).
+- `qale msg event replay <eventId>` - re-publish a captured event to staging for incident triage.
+- `qale workspace tombstone <wsId>` - mark for delete; cleanup workers consume (anchor A-BB1).
 
 Each command has an audit log entry and requires the right role.

@@ -1,4 +1,4 @@
-# 06 — Security and Isolation
+# 06 - Security and Isolation
 
 ## 1. Threat Model Overview
 
@@ -29,18 +29,18 @@
 ```
 [Internet / Customer SDK / Azure Portal]
          ↓  TLS 1.3 + Azure AD OIDC
-[Platform Control Plane — API Gateway]
+[Platform Control Plane - API Gateway]
          ↓  Managed Identity + RBAC
 [Kubernetes Scheduler + Volcano]
          ↓  Namespace boundary + NetworkPolicy (deny-all)
-[Training Pod — customer code + platform base image]
+[Training Pod - customer code + platform base image]
          ↓  Managed Identity delegation / scoped SAS token
 [Customer Storage (ADLS Gen2 / Blob) + Key Vault]
 ```
 
 ---
 
-## 2. STRIDE Analysis — Top 3 Trust Boundaries
+## 2. STRIDE Analysis - Top 3 Trust Boundaries
 
 ### Boundary A: Internet → Control Plane API
 
@@ -106,7 +106,7 @@ Customer VNet B (10.11.0.0/16) [peered to platform VNet]
 
 > **Assumption:** Each enterprise tenant gets a dedicated VNet peering to the platform VNet. Smaller tenants share a platform-managed VNet with namespace-level NetworkPolicy isolation.
 
-**Why VNet peering instead of shared VNet?** Peering creates a hard network boundary — no route exists between tenant A's subnet and tenant B's subnet. Namespace-level NetworkPolicy within a shared VNet is software-enforced and has a larger blast radius if misconfigured.
+**Why VNet peering instead of shared VNet?** Peering creates a hard network boundary - no route exists between tenant A's subnet and tenant B's subnet. Namespace-level NetworkPolicy within a shared VNet is software-enforced and has a larger blast radius if misconfigured.
 
 ### NSG Rules (per tenant subnet)
 
@@ -184,7 +184,7 @@ Flow:
 3. Pod exchanges OIDC token for an Azure AD access token via `DefaultAzureCredential`.
 4. Azure Storage validates the token signature + claims.
 
-**Key property:** The Managed Identity's RBAC is scoped to exactly the customer's storage container. It has no access to other tenants' storage. It cannot read its own Key Vault secrets — those are injected at pod start via CSI driver before training code starts.
+**Key property:** The Managed Identity's RBAC is scoped to exactly the customer's storage container. It has no access to other tenants' storage. It cannot read its own Key Vault secrets - those are injected at pod start via CSI driver before training code starts.
 
 ### Token Refresh
 
@@ -309,11 +309,11 @@ Resume anchor: *"Co-developed TunDRA, a secure QUIC-based communication protocol
 | Property | TCP + TLS 1.3 | QUIC (TunDRA) |
 |---|---|---|
 | Connection setup | 3-way TCP handshake + TLS handshake = 2 RTTs | 0-RTT resumption with TLS 1.3 session tickets |
-| Head-of-line blocking | Yes — all streams stall on one lost packet | No — independent QUIC streams; one loss only stalls that stream |
-| Connection migration | No — IP change = new TCP connection | Yes — QUIC connection ID survives IP change (pod restart, NAT rebind) |
+| Head-of-line blocking | Yes - all streams stall on one lost packet | No - independent QUIC streams; one loss only stalls that stream |
+| Connection migration | No - IP change = new TCP connection | Yes - QUIC connection ID survives IP change (pod restart, NAT rebind) |
 | Multiplexing | Requires multiple TCP sockets | Single QUIC connection, multiple streams |
 | Congestion control | Kernel TCP (CUBIC/BBR) | Pluggable per connection (BBR tuned for data center) |
-| Implementation language | Kernel-space (OS handles) | User-space Rust — custom congestion, custom flow control |
+| Implementation language | Kernel-space (OS handles) | User-space Rust - custom congestion, custom flow control |
 
 **The 50% improvement** was in secure data transfer throughput, primarily from:
 1. 0-RTT connection resumption reducing setup overhead for short-lived checkpoint uploads

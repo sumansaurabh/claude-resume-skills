@@ -1,4 +1,4 @@
-# 01 — Executive Summary
+# 01 - Executive Summary
 
 ## The One-Paragraph Answer
 
@@ -8,13 +8,13 @@ I was a founding team member on the AI Fine-tuning IPP platform at Microsoft Azu
 
 ## The 60-Second Verbal Answer (for delivery in an interview)
 
-"At Microsoft Azure ML, I was one of the founding engineers on the AI Fine-tuning IPP platform — the infrastructure layer that let enterprise customers fine-tune large language models on their own data without that data leaving their security perimeter.
+"At Microsoft Azure ML, I was one of the founding engineers on the AI Fine-tuning IPP platform - the infrastructure layer that let enterprise customers fine-tune large language models on their own data without that data leaving their security perimeter.
 
 The architecture has two planes. The control plane is a REST API backed by a job orchestration service: you submit a fine-tuning job, we validate your quota and dataset access, assign you an idempotency-keyed job record, enqueue it to Volcano for gang scheduling, and track status transitions from QUEUED through RUNNING to COMPLETED or FAILED. The data plane is what actually runs: your training pods get launched into a per-tenant Kubernetes namespace with a NetworkPolicy that allows NCCL traffic between workers and private-endpoint egress to your ADLS storage, but nothing else. DeepSpeed handles gradient sharding across GPUs, Ray Train handles the fault-tolerant training loop, and we checkpoint incrementally to Azure Blob so a node failure doesn't restart your job from epoch zero.
 
 When training completes, a checkpoint manager finalizes artifacts, an evaluation harness runs BLEU and MMLU benchmarks, and if those pass, an artifact publisher registers the model in MLflow with lineage back to the training job. Logs stream through Fluent Bit to Azure Monitor. GPU utilization, NCCL throughput, and checkpoint write latency all flow to a Prometheus/DataDog stack with oncall alerting.
 
-At scale — 15M+ jobs per month across AutoML and fine-tuning — the hard problems were gang scheduling pressure on fragmented clusters, per-tenant GPU quota enforcement to prevent starvation, and tenant isolation that satisfied Microsoft's compliance requirements without adding so much overhead that jobs took 10 minutes to start."
+At scale - 15M+ jobs per month across AutoML and fine-tuning - the hard problems were gang scheduling pressure on fragmented clusters, per-tenant GPU quota enforcement to prevent starvation, and tenant isolation that satisfied Microsoft's compliance requirements without adding so much overhead that jobs took 10 minutes to start."
 
 ---
 

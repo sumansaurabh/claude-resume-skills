@@ -1,4 +1,4 @@
-# 12 — Worker State Machine and Workflow
+# 12 - Worker State Machine and Workflow
 
 The data-plane worker is a state machine. Knowing it well lets you debug stalls
 and design idempotent retries.
@@ -103,7 +103,7 @@ Three idempotency keys keep state consistent under retries:
 
 A retry shares `job_id` but gets a **new** `run_id` (so MLflow shows the
 attempt history). Checkpoints under the same `job_id` are read across retries
-— this is what makes "resume from last `_SUCCESS`" deterministic regardless of
+- this is what makes "resume from last `_SUCCESS`" deterministic regardless of
 which run wrote it.
 
 ## Why this state machine matters for the architecture answer
@@ -118,5 +118,5 @@ which run wrote it.
 
 At Microsoft AutoML scale (`resume.txt` L91-92), the state machine is uniform
 across job types. The same machinery runs a 7B LoRA, a 70B full fine-tune, and
-an AutoML hyperparameter sweep — because what changes is the **profile** that
+an AutoML hyperparameter sweep - because what changes is the **profile** that
 populates `LOADING_MODEL` and `TRAINING`, not the state diagram.

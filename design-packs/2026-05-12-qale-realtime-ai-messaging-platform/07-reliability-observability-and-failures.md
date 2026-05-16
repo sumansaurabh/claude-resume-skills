@@ -1,4 +1,4 @@
-# 07 — Reliability, Observability, and Failures
+# 07 - Reliability, Observability, and Failures
 
 How Qale stays up under real load, fails gracefully, and is debuggable when AI gets weird. Anchor codes from `00-question-and-context.md`.
 
@@ -48,12 +48,12 @@ SLA published to enterprise customers is 1 nines below the SLO, with credit sche
 
 **Retry storm prevention:**
 - Token-bucket retry budget per service (max 10% of inbound RPS spent on retries).
-- Circuit breaker per upstream — open after 50% errors over 30s window, half-open after 30s.
+- Circuit breaker per upstream - open after 50% errors over 30s window, half-open after 30s.
 - Exponential backoff with full jitter. Anchor BlackBox tool-call retry pattern (A-BB3).
 
 ## 4. Circuit breakers and bulkheads
 
-- **Per-AI-provider** circuit breaker — when open, router shifts traffic to the next provider in the routing table. Decision is per-route-class, not global.
+- **Per-AI-provider** circuit breaker - when open, router shifts traffic to the next provider in the routing table. Decision is per-route-class, not global.
 - **Per-tenant bulkhead** thread/connection pools so one workspace cannot starve another at the AI Orchestrator.
 - **Hedged requests** for read-heavy critical paths (search): fire to two replicas after 100ms; first response wins. Costs ~10% extra read traffic for ~50% p99 reduction.
 
@@ -70,7 +70,7 @@ SLA published to enterprise customers is 1 nines below the SLO, with credit sche
 - On reconnect within window (5 min), client sends `resumeToken` + `lastSeenSeq`; server replays missed events from the per-thread monotonic sequence.
 - If beyond window, client re-subscribes to threads and resyncs from cursors (cheap because per-thread sequences are monotonic).
 
-Anchor: TunDRA at 1M+ Compute Instances under unreliable networks — same lessons about client-driven resume + server-side state minimization (A-MS1).
+Anchor: TunDRA at 1M+ Compute Instances under unreliable networks - same lessons about client-driven resume + server-side state minimization (A-MS1).
 
 ## 6. Message delivery semantics
 
@@ -88,7 +88,7 @@ Anchor: TunDRA at 1M+ Compute Instances under unreliable networks — same lesso
 4. Cached or templated response (for deterministic flows like greetings, summaries from cache).
 5. Polite degradation message: "AI is briefly unavailable; your message is delivered."
 
-**Durable resume:** every node in the DAG run is checkpointed (anchor A-BB3). If the executor pod dies mid-run, another pod picks up the run from the last checkpoint. Tool calls keyed by `(runId, nodeId, attempt)` — idempotent or have explicit compensation. This is the durable execution muscle from BlackBox.
+**Durable resume:** every node in the DAG run is checkpointed (anchor A-BB3). If the executor pod dies mid-run, another pod picks up the run from the last checkpoint. Tool calls keyed by `(runId, nodeId, attempt)` - idempotent or have explicit compensation. This is the durable execution muscle from BlackBox.
 
 **Tool-call safety:** for non-idempotent tools (send external email), retries require an explicit re-confirm; the saga is recorded in `ai_run_steps` with compensation hooks.
 
@@ -134,11 +134,11 @@ LLM spans are the workhorse of debugging AI. They make deterministic replay poss
 | Routine HTTP / WS event | Head-based 5% |
 | DB / Kafka span | Head-based 10% |
 | Errors | 100% (always) |
-| LLM run spans | 100% (low volume, high value — anchor A-BB5) |
+| LLM run spans | 100% (low volume, high value - anchor A-BB5) |
 | Tool calls inside LLM run | 100% |
 | Slow events (latency > p99 thresh) | 100% (tail-based) |
 
-The point: never lose a rare-but-important AI failure to head-based sampling. BlackBox taught me this — we lost an entire weekend of debugging once because the worst tool-call traces were the ones we'd sampled away.
+The point: never lose a rare-but-important AI failure to head-based sampling. BlackBox taught me this - we lost an entire weekend of debugging once because the worst tool-call traces were the ones we'd sampled away.
 
 ## 11. Dashboards and alerts
 
@@ -169,7 +169,7 @@ The single most-bang-for-buck investment for AI debugging. Anchor: at BlackBox, 
 
 **Mechanism:**
 - Every AI run captures: full prompt sent, model + version, deterministic seed where supported, tool-call args, tool-call results, retrieval doc IDs and content hashes, provider response (cached for 7d).
-- Replay tool: `qale ai replay <runId>` — re-runs the DAG against captured inputs. If the model is deterministic in seed, the output matches; if not, you can A/B against the original to spot drift.
+- Replay tool: `qale ai replay <runId>` - re-runs the DAG against captured inputs. If the model is deterministic in seed, the output matches; if not, you can A/B against the original to spot drift.
 - For end-to-end: `qale event replay <eventId>` re-publishes a captured event to a sandbox env to reproduce a downstream failure.
 
 **Cost:** prompt+response cache adds ~500 GB/mo at 1M users (a few hundred dollars). Worth it for a 60% MTTR cut.
@@ -182,10 +182,10 @@ The single most-bang-for-buck investment for AI debugging. Anchor: at BlackBox, 
 - Drop 10% packets on a random AZ for 5 min weekly.
 - Expire all access tokens at once and watch the rebind path.
 
-**Quarterly gameday:** scripted scenario, full team, IC rotation. Past examples (from Microsoft cadence — A-MS5):
-- "Region ap-south-1 is gone" — read failover, comms flow.
-- "Provider X has banned us at 10am" — router fallback, customer comms.
-- "Cross-tenant leak found" — security IR flow, evidence preservation.
+**Quarterly gameday:** scripted scenario, full team, IC rotation. Past examples (from Microsoft cadence - A-MS5):
+- "Region ap-south-1 is gone" - read failover, comms flow.
+- "Provider X has banned us at 10am" - router fallback, customer comms.
+- "Cross-tenant leak found" - security IR flow, evidence preservation.
 
 ## 15. Top 10 incident runbooks
 
@@ -206,11 +206,11 @@ Each is a 1-page runbook (linked from PagerDuty alert) with: signals, diagnosis 
 
 ## 16. Post-mortem culture
 
-**Template:** summary, timeline, root causes (multiple — never just one), impact, what went well, what went poorly, action items with owner + due date.
+**Template:** summary, timeline, root causes (multiple - never just one), impact, what went well, what went poorly, action items with owner + due date.
 
 **Cadence:** Sev1 in 3 business days, Sev2 in 5, Sev3 reviewed in weekly ops review.
 
-**Blameless rule:** post-mortems describe systems and decisions, never people. The person who pushed the bad change is the same person who has the most context to explain it — make it safe to write.
+**Blameless rule:** post-mortems describe systems and decisions, never people. The person who pushed the bad change is the same person who has the most context to explain it - make it safe to write.
 
 **Action item enforcement:** every PM action item lands in Jira with owner + due date; weekly review. Stale > 30d escalates to me.
 

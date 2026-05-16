@@ -1,4 +1,4 @@
-# 12 — State Machine and Workflows
+# 12 - State Machine and Workflows
 
 The two state machines that matter and the cross-node workflows that exercise
 them.

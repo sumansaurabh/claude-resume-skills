@@ -1,4 +1,4 @@
-# 06 — Security and Isolation
+# 06 - Security and Isolation
 
 ## Why WASM for SOC-2 Compliance
 
@@ -87,7 +87,7 @@ func (w *Worker) buildWASIConfig(req *ExecutionRequest) wazero.ModuleConfig {
         WithStdin(strings.NewReader(req.StdinData)).   // controlled input
         WithStdout(stdoutWriter).                        // captured output
         WithStderr(stderrWriter).                        // captured output
-        // NO filesystem mounts — FSConfig is empty
+        // NO filesystem mounts - FSConfig is empty
         WithFSConfig(wazero.NewFSConfig()).
         // NO environment variables by default
         // (only explicit allowlist entries, currently none for user code)
@@ -121,7 +121,7 @@ WASI capability model, memory isolation, CPU timeout, memory limit.
 
 ```
 Worker process namespace:
-  Network: isolated (CLONE_NEWNET) — no default routes
+  Network: isolated (CLONE_NEWNET) - no default routes
   PID: shared with host (workers are not PID-namespaced, for simplicity)
   Mount: shared with host (WASM already prevents filesystem access)
 ```
@@ -147,7 +147,7 @@ This is the most frequently tested question in SOC-2 audits: **"How do you ensur
 
 The answer has three components:
 
-1. **WASM instance isolation:** Each execution gets a new module instance with its own linear memory. WASM code can only address offsets within its own linear memory — there is no WASM instruction that can reference host memory or another module's linear memory.
+1. **WASM instance isolation:** Each execution gets a new module instance with its own linear memory. WASM code can only address offsets within its own linear memory - there is no WASM instruction that can reference host memory or another module's linear memory.
 
 2. **No module instance reuse:** We discard the module instance after each execution (call `module.Close(ctx)`). This frees the WASM linear memory. We do not reuse module instances across executions from different tenants (or even the same tenant), eliminating any risk of one execution reading the previous execution's heap state.
 
@@ -184,7 +184,7 @@ s.connect(("redis.internal", 6379))
 # Result: socket() not available; OSError raised
 ```
 
-All of these fail at the WASI capability boundary — the Python interpreter calls the underlying OS API, which in WASM execution is intercepted by the WASI host implementation and returns an error (capability not granted).
+All of these fail at the WASI capability boundary - the Python interpreter calls the underlying OS API, which in WASM execution is intercepted by the WASI host implementation and returns an error (capability not granted).
 
 ---
 

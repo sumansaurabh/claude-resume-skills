@@ -1,4 +1,4 @@
-# 10 — Cheat Sheet
+# 10 - Cheat Sheet
 
 The 30-second-to-3-minute talking points. Use to anchor the conversation
 when you're walking the whiteboard or under interview time pressure.
@@ -9,7 +9,7 @@ when you're walking the whiteboard or under interview time pressure.
 > To distribute it without a central control plane, decompose into three
 > planes: SWIM gossip for membership and capacity, owner-authoritative
 > sandbox state, and a tiny Raft for placement and port allocation. The
-> hot path — HTTP into a sandbox — never touches consensus. Every peer is
+> hot path - HTTP into a sandbox - never touches consensus. Every peer is
 > a valid front door via libp2p stream forwarding to the owner. Federation
 > is gossip-bridges between fabrics, no log merging. v1 ships Raft for
 > placement (Nomad-shaped, operable, debuggable); v2 swaps in CRDT
@@ -63,7 +63,7 @@ The distributed design fixes them in this order:
   first, true leaderless second.
 - **CRDT placement is v2.** Same data plane, swap the substrate. Conflicts
   are rare (each create proposed at one node) but operator-hostile to
-  debug — earn the experience first.
+  debug - earn the experience first.
 - **gVisor today, Firecracker future.** Runtime is orthogonal to clustering;
   `internal/runtime` is a driver interface.
 - **PAT today, OIDC + SPIFFE-style cross-fabric tomorrow.** Auth complexity
@@ -84,7 +84,7 @@ The distributed design fixes them in this order:
   change, not a rearchitecture.
 - **Vertical slice first.** The toolbox proxy forwarder exercises
   membership, placement cache, libp2p streams, and end-to-end correctness in
-  one PR — without changing how sandboxes are *created*. Right-sized
+  one PR - without changing how sandboxes are *created*. Right-sized
   first deliverable.
 
 ## Resume Anchors To Cite Out Loud
@@ -99,9 +99,9 @@ The distributed design fixes them in this order:
 
 ## Three Numbers To Memorize
 
-- **5 voters, ≤10K learners** — Raft topology at 10K scale.
-- **Power-of-two-choices** — `K=2` random samples for placement; provably ~optimal.
-- **~100 bytes per Raft commit** — keeps placement Raft well under leader fsync limits.
+- **5 voters, ≤10K learners** - Raft topology at 10K scale.
+- **Power-of-two-choices** - `K=2` random samples for placement; provably ~optimal.
+- **~100 bytes per Raft commit** - keeps placement Raft well under leader fsync limits.
 
 ## The Question I'd Ask Back If The Interviewer Pushed
 

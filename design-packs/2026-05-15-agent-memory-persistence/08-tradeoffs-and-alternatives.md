@@ -1,4 +1,4 @@
-# 08 — Tradeoffs and Alternatives
+# 08 - Tradeoffs and Alternatives
 
 ## Tier-by-tier Alternatives Considered
 
@@ -9,7 +9,7 @@
 | **PG append-only event log + checkpoints (chosen)** | Strong durability, transactional, easy to reason about, replay-friendly | Operationally heavier than KV; needs partitioning at scale | Picked: replay was a top-3 requirement |
 | Temporal / Cadence | Mature durable workflow engine; well-known semantics | Another runtime to operate; opinionated about how the graph is expressed; integration with LangGraph is bolt-on | Considered as the substrate; we ended up *implementing the LangGraph CheckpointStore* on top of PG to keep one event log shape |
 | Kafka log + materialized view | Naturally append-only, fast | Harder for replay-by-key, harder for arbitrary range scans, ops cost of Kafka for relatively low write volume here | Rejected: write volume doesn't justify it |
-| etcd / Consul | Strong consistency for small state | Wrong tool — too small for arbitrary payload, ops cost | Rejected |
+| etcd / Consul | Strong consistency for small state | Wrong tool - too small for arbitrary payload, ops cost | Rejected |
 
 ### Short-term
 
@@ -25,7 +25,7 @@
 | Option | Pros | Cons | Verdict |
 | --- | --- | --- | --- |
 | **PG append-only events + LLM rollups (chosen)** | Lossless event store + cheap-to-query summary | Rollup pipeline is its own thing | Picked |
-| Vector-only "store every turn as embedding" | Simple | Loses fidelity; expensive to embed everything; fuzzy retrieval of facts that should be exact | Rejected — this is *the* failure mode of naive memory designs |
+| Vector-only "store every turn as embedding" | Simple | Loses fidelity; expensive to embed everything; fuzzy retrieval of facts that should be exact | Rejected - this is *the* failure mode of naive memory designs |
 | Graph DB | Good for relationships | Operational complexity; ROI unclear at this scale | Rejected for v1; revisit when "show me the chain of decisions across 5 sessions" becomes a top use case |
 
 ### Long-term
@@ -52,7 +52,7 @@
 
 We chose to make the **system** deterministic (event log, manifests, content
 hashes), not the **model** (we don't pin temperature or model versions
-universally). This means replay can show "same context, different output —
+universally). This means replay can show "same context, different output -
 that's the model" cleanly. Pinning the model would lock product velocity.
 
 ### Five tiers vs one
@@ -72,7 +72,7 @@ into agent code, where it hurts more.
 
 A library is faster to build. We picked a service because tenant isolation,
 audit, and replay all benefit from a single chokepoint. The cost is one
-extra hop (~1 ms on the network) — well below the ReAct step budget.
+extra hop (~1 ms on the network) - well below the ReAct step budget.
 
 ### Schema registry vs free-form long-term
 
@@ -122,5 +122,5 @@ tradeoff for the long tail.
   `resume.txt` BlackBox bullet 3.
 - LangGraph integration anchored in `resume.txt` BlackBox bullet 2.
 - Vector stack choices anchored in `resume.txt` technologies line.
-- 60% MTTR reduction (drives the determinism choice) — `resume.txt`
+- 60% MTTR reduction (drives the determinism choice) - `resume.txt`
   BlackBox bullet 5, `blackbox-experience.md` #20.

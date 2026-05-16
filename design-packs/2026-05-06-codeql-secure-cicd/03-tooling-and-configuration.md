@@ -1,10 +1,10 @@
-# 03 — Tooling and Configuration
+# 03 - Tooling and Configuration
 
 ## GitHub Advanced Security Feature Map
 
 | Feature | What it does | How we configured it |
 |---|---|---|
-| **Code Scanning (CodeQL)** | SAST — finds vulnerabilities in code via data-flow analysis | Runs on every PR and push to main; SARIF results uploaded to GitHub Security tab |
+| **Code Scanning (CodeQL)** | SAST - finds vulnerabilities in code via data-flow analysis | Runs on every PR and push to main; SARIF results uploaded to GitHub Security tab |
 | **Secret Scanning** | Scans commits for credential patterns | Push protection enabled for high-confidence patterns; custom patterns for Azure tokens |
 | **Dependency Review** | Checks PRs for new high-severity dependency CVEs | Blocks merge on CVSS > 7.0; license check enforced |
 | **Dependabot** | Auto-creates PRs for outdated dependencies with CVEs | Configured per ecosystem (pip, gomod); grouped minor updates to reduce PR noise |
@@ -137,7 +137,7 @@ jobs:
                              -W clippy::integer_arithmetic
 ```
 
-The `unsafe` block baseline approach deserves explanation: we did not aim for zero unsafe blocks (that's unrealistic in a network protocol implementation — QUIC's zero-copy buffer access requires some unsafe code). Instead we established a known-good count and required a documented security sign-off for every new unsafe block, including: what invariant makes this safe, what was checked to verify it, and who approved it.
+The `unsafe` block baseline approach deserves explanation: we did not aim for zero unsafe blocks (that's unrealistic in a network protocol implementation - QUIC's zero-copy buffer access requires some unsafe code). Instead we established a known-good count and required a documented security sign-off for every new unsafe block, including: what invariant makes this safe, what was checked to verify it, and who approved it.
 
 ---
 
@@ -191,7 +191,7 @@ jobs:
           category: 'container-scan'
 ```
 
-Trivy results feed into the same GitHub Security tab as CodeQL — one unified view of open vulnerabilities across code, dependencies, and container images.
+Trivy results feed into the same GitHub Security tab as CodeQL - one unified view of open vulnerabilities across code, dependencies, and container images.
 
 ---
 

@@ -82,8 +82,8 @@ User (SDK / AI Studio)
 
 ## How to Use This Pack
 
-1. **Warm up:** Read `01-executive-summary.md` — internalize the 60-second answer
-2. **Deep prep:** Read `02-architecture.md` and `11-control-plane-vs-data-plane.md` — know the diagram cold
+1. **Warm up:** Read `01-executive-summary.md` - internalize the 60-second answer
+2. **Deep prep:** Read `02-architecture.md` and `11-control-plane-vs-data-plane.md` - know the diagram cold
 3. **Technical depth:** Read `04-low-level-design.md`, `06-security-and-isolation.md`, `07-reliability-observability-and-failures.md`
-4. **Interview pressure:** Work through `09-cross-questions.md` — answer each question aloud before reading the answer
-5. **Day-of:** Review `10-cheat-sheet.md` — the one-page guide for interview morning
+4. **Interview pressure:** Work through `09-cross-questions.md` - answer each question aloud before reading the answer
+5. **Day-of:** Review `10-cheat-sheet.md` - the one-page guide for interview morning

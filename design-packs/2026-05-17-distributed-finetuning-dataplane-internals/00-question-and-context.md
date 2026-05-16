@@ -1,4 +1,4 @@
-# 00 — Question, Scope, Anchors
+# 00 - Question, Scope, Anchors
 
 ## Verbatim question
 
@@ -56,7 +56,7 @@ These are stated explicitly so I can defend or relax them under pushback:
 4. Workload identity uses **Azure AD Workload Identity for AKS**; no static creds
    in the pod. Pulls from Blob and ACR are token-mediated.
 5. The platform uses **Volcano** (or KubeFlow MPIJob/PyTorchJob) for **gang
-   scheduling** — all replicas start atomically or none start.
+   scheduling** - all replicas start atomically or none start.
 6. Observability stack is **OpenTelemetry → Kusto/Geneva** for traces/metrics and
    **MLflow** for runs/artifacts. Logs go through stdout → fluent-bit → Kusto.
 
@@ -73,9 +73,9 @@ These are stated explicitly so I can defend or relax them under pushback:
 
 ## Confidence
 
-**High** on the runtime patterns (DeepSpeed/FSDP/vLLM/Ray Train) — these are public
+**High** on the runtime patterns (DeepSpeed/FSDP/vLLM/Ray Train) - these are public
 APIs and the resume names all of them. **Medium-high** on the specific IPP wiring
-(MLflow, Kusto, Volcano) — I'm using public-Azure-equivalent designs rather than
+(MLflow, Kusto, Volcano) - I'm using public-Azure-equivalent designs rather than
 claiming Microsoft-internal implementation details. Anything I cannot back from the
 resume is labeled as an assumption.
 
@@ -85,6 +85,6 @@ resume is labeled as an assumption.
 - The interviewer can ask "what changes if we go from FSDP to ZeRO-3" and get a
   code-level answer, not a hand-wave.
 - The artifact and log paths are concrete (file formats, where bytes land, when
-  they're flushed) — not "we use MLflow."
+  they're flushed) - not "we use MLflow."
 - Tradeoffs land with conviction: "we used DeepSpeed because X, here's where we'd
   pick FSDP/Megatron instead."

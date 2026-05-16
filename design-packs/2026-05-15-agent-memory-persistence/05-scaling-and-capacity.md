@@ -1,4 +1,4 @@
-# 05 — Scaling and Capacity
+# 05 - Scaling and Capacity
 
 ## Anchored Volume Model
 
@@ -52,7 +52,7 @@ is kept in PG. This is what keeps Postgres footprint flat.
 
 ## How Each Store Scales
 
-### Execution state — Postgres + blob
+### Execution state - Postgres + blob
 
 - Partition `exec_event` by `tenant_id` hash + `produced_at` month.
 - Hot tier kept ~30 days online; older partitions detached and archived to
@@ -62,7 +62,7 @@ is kept in PG. This is what keeps Postgres footprint flat.
 - Connection pooling via PgBouncer; per-tenant connection limits prevent a
   noisy tenant from starving others.
 
-### Short-term — Redis
+### Short-term - Redis
 
 - Sharded Redis cluster keyed by `tenant_id|run_id`.
 - Eviction: `volatile-lru` with TTL set per run; eviction is acceptable
@@ -70,25 +70,25 @@ is kept in PG. This is what keeps Postgres footprint flat.
 - Lease pattern: a worker holds a lease key for the run; lease loss triggers
   rehydrate-from-PG on reassignment.
 
-### Episodic — Postgres + S3 + rollup workers
+### Episodic - Postgres + S3 + rollup workers
 
 - Same partitioning strategy as `exec_event`.
 - Rollup workers run on a separate pool, throttled per tenant. A rollup is
   allowed to lag (it's not on the hot path); SLO is "rollup within 5 min of
   N events or T idle."
 
-### Long-term — Postgres only
+### Long-term - Postgres only
 
 - Tiny by volume; the constraint is **schema correctness**, not throughput.
 - A read replica in each region for low-latency reads.
 - Per-key version + audit row on every change.
 
-### Vector — Qdrant
+### Vector - Qdrant
 
 - Per-tenant collections; HNSW with `m=16`, `ef_construct=128`,
   `ef_search=64–128` tunable per query.
 - Cold tenants (>30d idle) are unloaded; warm-up on first query (~1–2 s
-  one-time cost — accepted because cold tenants don't have latency-sensitive
+  one-time cost - accepted because cold tenants don't have latency-sensitive
   agents).
 - bm25 sidecar (Tantivy/OpenSearch index of the same payload text) for
   hybrid retrieval.
@@ -147,8 +147,8 @@ reduction**.
 
 ## Anchors
 
-- 10K+ runs/day, 1B+ tokens/month — `resume.txt`, `blackbox-experience.md`
+- 10K+ runs/day, 1B+ tokens/month - `resume.txt`, `blackbox-experience.md`
   #11, #19.
-- 50M spans/day, 2.5TB+/month trace — `resume.txt`,
+- 50M spans/day, 2.5TB+/month trace - `resume.txt`,
   `blackbox-experience.md` #20.
-- Vector + HNSW + bm25 + cross-encoder — `resume.txt` technologies line.
+- Vector + HNSW + bm25 + cross-encoder - `resume.txt` technologies line.

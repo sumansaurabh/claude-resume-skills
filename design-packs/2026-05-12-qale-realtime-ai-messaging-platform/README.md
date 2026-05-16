@@ -1,10 +1,10 @@
-# Qale — Real-Time AI-Native Messaging Platform
+# Qale - Real-Time AI-Native Messaging Platform
 
 **Target role:** Head of Engineering, Turium AI (Hyderabad). Builder-first leadership, hands-on across architecture, performance, execution.
 
 **Product framing:** Qale is a real-time, AI-native communication platform meant to replace legacy email and reset the global messaging baseline. Approaching Alpha; the engineering job is to take it Alpha → Public Launch → 1M+ users.
 
-**Why this pack exists:** to walk an interviewer through how I would architect Qale end-to-end, scale it to 1M+ users, and run engineering — grounded in concrete prior work (BlackBox model router & telemetry mesh, Microsoft TunDRA + secure multi-tenant infra, ShareChat real-time pub/sub at 40M DAU, HomeLane WebRTC).
+**Why this pack exists:** to walk an interviewer through how I would architect Qale end-to-end, scale it to 1M+ users, and run engineering - grounded in concrete prior work (BlackBox model router & telemetry mesh, Microsoft TunDRA + secure multi-tenant infra, ShareChat real-time pub/sub at 40M DAU, HomeLane WebRTC).
 
 ## File map
 
@@ -30,7 +30,7 @@
 
 ## How to read this pack in an interview
 
-1. Open with `01-executive-summary.md` — the 3-minute version.
+1. Open with `01-executive-summary.md` - the 3-minute version.
 2. If they want depth, jump into `02-architecture.md` and `11-control-plane-vs-data-plane.md`.
 3. For API/LLD follow-ups, use `03` and `04`.
 4. For "how do you get to 1M users" pressure, use `05` and `15`.

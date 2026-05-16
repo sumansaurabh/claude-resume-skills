@@ -1,5 +1,5 @@
 /* =========================================================
-   Design Packs — Markdown Renderer  (client-side app logic)
+   Design Packs - Markdown Renderer  (client-side app logic)
    ========================================================= */
 
 (function () {
@@ -234,7 +234,7 @@
       })
       .join('<span class="sep">/</span>');
 
-    // Fetch content — encode each path segment individually to preserve slashes
+    // Fetch content - encode each path segment individually to preserve slashes
     const encodedPath = filePath.split('/').map(s => encodeURIComponent(s)).join('/');
     const res = await fetch(`/api/file/${encodedPath}`);
     const content = await res.text();

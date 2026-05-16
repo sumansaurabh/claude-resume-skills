@@ -1,9 +1,9 @@
-# 00 — Question and Context
+# 00 - Question and Context
 
 ## Original Question
 
 > You built memory persistence for agents. What should be stored in short-term
-> memory, long-term memory, vector memory, episodic memory and execution state —
+> memory, long-term memory, vector memory, episodic memory and execution state -
 > how did you build it, deep dive into architecture.
 
 ## In Scope
@@ -19,9 +19,9 @@
 
 ## Out Of Scope (call out, do not deep-dive)
 
-- WASM sandbox internals — covered in `2026-05-07-wasm-sandbox-security-isolation`.
-- Model router design across Claude/GPT/Grok — separate question.
-- Telemetry mesh storage internals (Clickhouse layout, span schema) — referenced
+- WASM sandbox internals - covered in `2026-05-07-wasm-sandbox-security-isolation`.
+- Model router design across Claude/GPT/Grok - separate question.
+- Telemetry mesh storage internals (Clickhouse layout, span schema) - referenced
   but not designed end-to-end here.
 
 ## Resume Anchors Used
@@ -43,7 +43,7 @@ These are explicitly assumptions because the resume does not name internals:
 
 1. The **execution state** for the DAG engine is checkpointed in Postgres and
    blob storage; the runtime is durable in the Temporal/LangGraph-checkpoint
-   sense (history-replay vs state-snapshot is a hybrid — see `02-architecture.md`).
+   sense (history-replay vs state-snapshot is a hybrid - see `02-architecture.md`).
 2. The **vector memory** uses Qdrant with HNSW (Qdrant is on the resume's
    Microsoft stack and the BlackBox bullets list HNSW + bm25); we treat it as the
    default ANN store, with bm25 + cross-encoder reranking on top.
@@ -64,7 +64,7 @@ These assumptions are flagged in each downstream file and challenged in
 
 A No-Code AI platform that runs **10K+ agent runs/day** with **durable
 execution** and **deterministic replay** has to answer four memory questions
-correctly — and they are usually conflated:
+correctly - and they are usually conflated:
 
 1. *Will my retry resume from where it crashed?* → execution state.
 2. *Does the agent remember the last 4 turns of "the user wanted JSON, not YAML"?* → short-term + episodic.
@@ -73,4 +73,4 @@ correctly — and they are usually conflated:
 
 A weak answer collapses these into "we use a vector DB." A strong answer assigns
 each one a tier with its own latency budget, retention policy, isolation model,
-and replay semantics — which is what this pack does.
+and replay semantics - which is what this pack does.

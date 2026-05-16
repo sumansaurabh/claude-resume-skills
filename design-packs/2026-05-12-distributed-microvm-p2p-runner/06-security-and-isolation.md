@@ -1,13 +1,13 @@
-# 06 — Security and Isolation
+# 06 - Security and Isolation
 
 ## Trust Model
 
 Two layers, deliberately separated:
 
-1. **Within a fabric** — the operator owns the bare metal, the OS, and the
+1. **Within a fabric** - the operator owns the bare metal, the OS, and the
    `sandboxd` binary. Nodes trust each other by default. Tenant workloads
    (sandboxes) are mutually untrusted at the runtime layer.
-2. **Across fabrics** — bridge peers connect two fabrics with explicit,
+2. **Across fabrics** - bridge peers connect two fabrics with explicit,
    policy-gated trust. Nodes in fabric F1 do not implicitly trust nodes in F2.
 
 This split mirrors the BlackBox sandbox plane (single trust domain for
@@ -28,14 +28,14 @@ AML's multi-tenant Kubernetes posture (nodes trusted, tenant pods isolated).
 | **DoS** via placement spam | API + Raft | Per-tenant rate limit (token bucket) at API; per-PAT idempotency-key bucket; admission rejects before Raft. |
 | DoS via gossip flooding | Membership | memberlist message size cap; rate limit per-source UDP packets; mTLS for libp2p means random-IP attackers can't join gossip. |
 | **EoP** within a sandbox | Container escape | gVisor as default runtime (user-space kernel reimplementation); seccomp + capability drop; rootless container; no host network share. |
-| EoP across nodes | Forward RPC | Forwarder validates `tenant_id` matches the PAT that initiated the original request — receiving node re-checks, doesn't trust the sender. |
+| EoP across nodes | Forward RPC | Forwarder validates `tenant_id` matches the PAT that initiated the original request - receiving node re-checks, doesn't trust the sender. |
 
 ## Identity and Authentication
 
 ### Peer-to-peer (cluster internal)
 
 - Every node has an Ed25519 keypair (PeerID = SHA-256 of public key).
-- libp2p TLS handshake binds the QUIC connection to the PeerID — no separate
+- libp2p TLS handshake binds the QUIC connection to the PeerID - no separate
   CA needed for intra-fabric traffic.
 - A fabric-wide membership policy gates which PeerIDs may join. Three modes:
   1. **Open** (OSS dev): any peer with a valid handshake joins.
@@ -100,8 +100,8 @@ side-channels (e.g., create-then-destroy probes timing). Mitigations:
 
 - Placement RPC errors do not reveal which other nodes were sampled.
 - Capacity vectors gossiped publicly within the fabric carry only aggregate
-  numbers (free CPU, free memory) — not per-tenant breakdown.
-- `GET /v1/sandboxes` is tenant-scoped at the API — no cross-tenant list.
+  numbers (free CPU, free memory) - not per-tenant breakdown.
+- `GET /v1/sandboxes` is tenant-scoped at the API - no cross-tenant list.
 
 ### Cross-tenant ingress confusion
 
@@ -116,7 +116,7 @@ from reaching tenant B's sandbox even if a sandbox-id is guessed.
 A sandbox-create request forwarded from node A to node B carries the
 originating PAT *hash* (not the PAT itself), the `tenant_id`, and a
 short-lived signature. Node B re-checks the tenant has placement permission
-on B *before* admitting — the forward isn't a trust delegation.
+on B *before* admitting - the forward isn't a trust delegation.
 
 Failure mode prevented: A is compromised, attempts to create sandboxes on B
 for a tenant that A's PAT doesn't actually serve. B catches because it
@@ -164,13 +164,13 @@ Object Lock within 60s) and queryable for ≥90 days.
 | Compromised bridge peer in fabric F1 publishes garbage capacity vectors | Bridge peer messages signed by their PeerID; F2 admission policy throttles or de-trusts a misbehaving bridge automatically |
 | Fabric F1 declares trust in F2; F2's trust anchor is rotated mid-flight | `FabricDescriptor` carries a `valid_after` / `valid_until`; rotation is via signed key-handover with overlap window |
 | F1 attempts to flood F2 with cross-fabric Create requests | F2 rate-limits per `(remote_fabric_id, tenant_id)`; default budget is 0 (opt-in only) |
-| F1 ingress to a sandbox on F2 reveals F2's internal placement | F2 returns only `{owner_peer_id, address}` to F1's bridge — no internal capacity info leaks |
+| F1 ingress to a sandbox on F2 reveals F2's internal placement | F2 returns only `{owner_peer_id, address}` to F1's bridge - no internal capacity info leaks |
 
 ## What's Out Of Scope (Honestly)
 
 - Confidential computing / SGX / TDX for sandbox memory protection. Possible
   upgrade path; orthogonal to distribution.
-- DDoS at the L3/L4 layer hitting the libp2p ports — assumed handled by
+- DDoS at the L3/L4 layer hitting the libp2p ports - assumed handled by
   upstream network gear or a cloud provider's DDoS protection.
 - Side-channel attacks within a single node (Spectre-style across sandboxes
   on the same CPU). gVisor mitigates kernel-side; CPU-side is the

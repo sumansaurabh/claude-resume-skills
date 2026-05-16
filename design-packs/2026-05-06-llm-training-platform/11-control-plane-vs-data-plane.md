@@ -1,4 +1,4 @@
-# 11 — Control Plane vs. Data Plane
+# 11 - Control Plane vs. Data Plane
 
 ## 1. Precise Definitions in This System
 
@@ -6,7 +6,7 @@
 
 **Data Plane** is the set of components that execute *the actual work*. It moves tokens, computes gradients, writes checkpoint shards, ships logs, and publishes artifacts. Data-plane components are designed for throughput and fault tolerance, not strong consistency. They are ephemeral by design: if a data-plane pod dies and restarts, the system recovers by replaying from the last durable checkpoint, not by querying the control plane for lost state.
 
-The boundary is enforced physically: control-plane services run on system node pools in AKS (CPU-only, tainted against user workloads) or as Azure-managed services (Azure ML, Key Vault). Data-plane pods run on GPU node pools in tenant namespaces and cannot reach control-plane internal APIs directly — they communicate through a narrow set of private endpoints.
+The boundary is enforced physically: control-plane services run on system node pools in AKS (CPU-only, tainted against user workloads) or as Azure-managed services (Azure ML, Key Vault). Data-plane pods run on GPU node pools in tenant namespaces and cannot reach control-plane internal APIs directly - they communicate through a narrow set of private endpoints.
 
 ---
 
@@ -36,19 +36,19 @@ The boundary is enforced physically: control-plane services run on system node p
 
 ### Security
 
-The control plane holds secrets (Key Vault), tenant policy (IPP layer), and RBAC enforcement. Keeping it separate from the data plane means a compromised training pod — even with full container escape — cannot reach the Job Service's internal API, cannot enumerate other tenants' jobs, and cannot modify job state without going through the authenticated API gateway.
+The control plane holds secrets (Key Vault), tenant policy (IPP layer), and RBAC enforcement. Keeping it separate from the data plane means a compromised training pod - even with full container escape - cannot reach the Job Service's internal API, cannot enumerate other tenants' jobs, and cannot modify job state without going through the authenticated API gateway.
 
-NetworkPolicy rules (enforced by Azure CNI / Cilium) are configured to deny all ingress to control-plane internal services from tenant namespaces. The attack surface from the data plane to the control plane is a single HTTPS webhook endpoint (for status updates) and the Azure managed service endpoints (ADLS, Key Vault, ACR) — all over private links, all requiring a Workload Identity token.
+NetworkPolicy rules (enforced by Azure CNI / Cilium) are configured to deny all ingress to control-plane internal services from tenant namespaces. The attack surface from the data plane to the control plane is a single HTTPS webhook endpoint (for status updates) and the Azure managed service endpoints (ADLS, Key Vault, ACR) - all over private links, all requiring a Workload Identity token.
 
 ### Reliability and Blast Radius
 
-If the Job Service restarts or the scheduler crashes, in-flight training jobs continue running. The data plane does not poll the control plane during training — it was given all configuration at launch time (via pod spec). This means a control-plane incident has zero impact on training throughput.
+If the Job Service restarts or the scheduler crashes, in-flight training jobs continue running. The data plane does not poll the control plane during training - it was given all configuration at launch time (via pod spec). This means a control-plane incident has zero impact on training throughput.
 
 Conversely, if a GPU node fails and takes out several training pods, the control plane is unaffected. The Job Service detects the failure via Kubernetes pod status events and triggers a recovery action (reschedule or fail the job). The blast radius of a data-plane failure is bounded to the affected tenant's jobs.
 
 ### Independent Scaling
 
-The control plane scales based on API request rate and job submission volume — CPU-bound, low throughput, high availability requirements. The data plane scales based on the number of active training jobs and GPU node count — GPU-bound, high throughput, failure-tolerant. They have completely different scaling characteristics and should not be co-located.
+The control plane scales based on API request rate and job submission volume - CPU-bound, low throughput, high availability requirements. The data plane scales based on the number of active training jobs and GPU node count - GPU-bound, high throughput, failure-tolerant. They have completely different scaling characteristics and should not be co-located.
 
 ### Operational Isolation
 
@@ -131,7 +131,7 @@ Job Service receives artifact reg ←─── Artifact Publisher calls ML REST 
 - New job submissions fail (API Gateway returns 503 or queues requests).
 - The scheduler cannot place new jobs onto the cluster.
 - Status webhooks from Checkpoint Manager accumulate in a retry queue (the Checkpoint Manager uses exponential backoff with a dead-letter path to ADLS for cases where the webhook is unreachable for > 10 minutes).
-- Azure Monitor continues receiving logs from Fluent Bit — this path does not go through the Job Service.
+- Azure Monitor continues receiving logs from Fluent Bit - this path does not go through the Job Service.
 
 **Recovery:** When the Job Service restarts, it reconciles its in-memory state against the Kubernetes API (pod statuses) and ADLS (checkpoint manifest files). It reconstructs the current state of all running jobs from these durable sources. Missed webhook deliveries are retried from the dead-letter queue. No job state is lost.
 
@@ -205,7 +205,7 @@ sequenceDiagram
     Launcher->>JobSvc: StatusUpdate(run_id, state=Running)
     JobSvc->>Meta: UpdateRun(state=Running)
 
-    Note over Pods,ADLS: Data Plane — autonomous execution
+    Note over Pods,ADLS: Data Plane - autonomous execution
     Pods->>TunDRA: Open QUIC streams to ADLS
     TunDRA->>ADLS: Authenticate (Workload Identity token), stream training data
     ADLS-->>TunDRA: Token batches (multiplexed QUIC streams)
@@ -252,8 +252,8 @@ sequenceDiagram
 
 2. **Data-plane autonomy is load-bearing for reliability.** At 15M+ jobs/month with 20B+ tokens/year processed, you cannot afford control-plane coupling to training execution. A Job Service rolling deploy cannot stall active training.
 
-3. **State flows one way during execution, then reports back on completion and checkpoint milestones.** The control plane does not need to know every gradient step — it needs to know: is the job alive? where is the latest checkpoint? what did it produce?
+3. **State flows one way during execution, then reports back on completion and checkpoint milestones.** The control plane does not need to know every gradient step - it needs to know: is the job alive? where is the latest checkpoint? what did it produce?
 
-4. **NetworkPolicy is your blast radius limiter.** The IPP layer's namespace-scoped NetworkPolicy means a compromised pod in tenant A cannot reach tenant B's storage or the Job Service's internal admin APIs. This is not defense in depth — this is the primary isolation boundary.
+4. **NetworkPolicy is your blast radius limiter.** The IPP layer's namespace-scoped NetworkPolicy means a compromised pod in tenant A cannot reach tenant B's storage or the Job Service's internal admin APIs. This is not defense in depth - this is the primary isolation boundary.
 
 5. **TunDRA is why checkpoints and data ingestion are fast and secure.** QUIC's 0-RTT reconnect and multiplexing eliminate the per-restart TLS penalty that would otherwise add seconds of latency on every pod restart at 1M+ Compute Instances scale.

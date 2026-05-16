@@ -1,13 +1,13 @@
-# 07 — Reliability, Observability, and Failures
+# 07 - Reliability, Observability, and Failures
 
 The reliability story for an agentic platform is different from a normal
 microservice. Three properties matter more than the usual SLO chart:
 
-1. **Resumability** — runs survive worker death, provider outage, and
+1. **Resumability** - runs survive worker death, provider outage, and
    transient failure without restarting from scratch.
-2. **Determinism on replay** — a non-deterministic LLM run can be
+2. **Determinism on replay** - a non-deterministic LLM run can be
    reconstructed bit-for-bit from logs + cached observations.
-3. **Bounded blast radius** — a single bad run can't damage another tenant,
+3. **Bounded blast radius** - a single bad run can't damage another tenant,
    another run, or the platform.
 
 ## Failure taxonomy
@@ -28,7 +28,7 @@ microservice. Three properties matter more than the usual SLO chart:
 | Tenant quota exceeded | Monthly tokens hit | Gateway / worker check | New runs rejected with 429; in-flight runs allowed to finish |
 | Replay drift | Cached observation mismatch | Replay engine | Quarantine; alert; manual review |
 
-## Retry policy — explicit, not default
+## Retry policy - explicit, not default
 
 Default `retry-everything-3x` is poison in agent systems because tool calls
 have side effects. Retries are scoped:
@@ -46,7 +46,7 @@ have side effects. Retries are scoped:
   Idempotent by `call_id`.
 - **Postgres writes**: retried at the asyncpg layer up to 3x with backoff.
 
-## Replay — the load-bearing reliability feature
+## Replay - the load-bearing reliability feature
 
 Anchored on the resume claim: *"50M spans/day, 2.5TB+ monthly trace data for
 deterministic replay; cut org-wide MTTR for complex AI logic anomalies by 60%."*
@@ -67,7 +67,7 @@ output_state)`. Replay reconstructs the run by:
 
 Drift causes:
 
-- Non-determinism in the prompt construction (rare but possible — e.g. `now()`).
+- Non-determinism in the prompt construction (rare but possible - e.g. `now()`).
 - Floating-point reductions in scoring nodes.
 - Node code changes since the original run (this is *expected* drift, not a
   bug; replay records the divergence point for the engineer).
@@ -105,7 +105,7 @@ links:
   emitting_model_call_span
 ```
 
-The `prompt_hash` and `args_hash` are what give replay its leverage —
+The `prompt_hash` and `args_hash` are what give replay its leverage -
 deduping by hash is what makes 2.5 TB of monthly data queryable instead of
 inert.
 
@@ -114,7 +114,7 @@ inert.
 - **100%** of error spans, runs flagged for replay, runs over $X cost, runs
   hitting `human_gate`.
 - **5%** of successful runs sampled uniformly for SLO calculation.
-- **100% of routing decisions** regardless of sampling — the router's
+- **100% of routing decisions** regardless of sampling - the router's
   decisions are small and we want a complete picture for evaluating the
   router.
 
@@ -173,14 +173,14 @@ The interview-grade version of "how do you debug an AI logic anomaly":
 3. Pull the surrounding tool calls. Was a sandbox call returning weird
    stderr that the coder misinterpreted?
 4. Pull the last good checkpoint. Fork the run from there in **replay mode**.
-5. Replay node-by-node. Watch for the divergence point — usually a brittle
+5. Replay node-by-node. Watch for the divergence point - usually a brittle
    regex on tool output, a model that started returning a different JSON
    shape, or a retrieval that pulled stale memory.
 6. Reproduce locally with the same `prompt_hash` and cached observations.
 7. Fix in code, rerun replay, confirm convergence, ship.
 
 Steps 1–6 take ~15 minutes when the trace data is good. That's the 60% MTTR
-reduction the resume claims — and it's enabled by every model call having a
+reduction the resume claims - and it's enabled by every model call having a
 hash, every tool call having an envelope ID, and every checkpoint being a
 complete state snapshot.
 

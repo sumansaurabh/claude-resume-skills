@@ -21,16 +21,16 @@
 | "Mentored 8 engineers on secure protocol design; standardized threat modeling to eliminate recurring vulnerabilities" | Microsoft resume bullet | Threat model structure, defense-in-depth methodology, STRIDE decomposition |
 | "Co-developed TunDRA, a secure QUIC-based communication protocol in Rust powering 1M+ compute instances" | Microsoft resume bullet | Low-level security design, network trust boundary thinking, capability-based access analogies |
 
-**Confidence:** High — two strong anchors (WASM sandbox at BlackBox, multi-tenant isolation at Microsoft) and two supporting anchors (threat modeling, TunDRA).
+**Confidence:** High - two strong anchors (WASM sandbox at BlackBox, multi-tenant isolation at Microsoft) and two supporting anchors (threat modeling, TunDRA).
 
 ## What the Interviewer Is Probing
 
-- **Depth on isolation layers** — not just "we used WASM" but specifically what WASM provides and what it does not
-- **Exact resource enforcement mechanism per dimension** — fuel/instruction metering for CPU, linear memory max for memory, WASI FSConfig allowlist + ephemeral-only for filesystem, WASI import blocking + OS network namespace for network
-- **Multi-layer defense-in-depth** — understanding that each layer assumes the one above it may be bypassed
-- **Multi-tenant threat model** — distinction between same-tenant cross-execution leakage (fresh instance per run) and cross-tenant leakage (separate pools, separate ephemeral dirs)
-- **Compliance operationalization** — connecting isolation controls to auditable SOC-2 evidence
+- **Depth on isolation layers** - not just "we used WASM" but specifically what WASM provides and what it does not
+- **Exact resource enforcement mechanism per dimension** - fuel/instruction metering for CPU, linear memory max for memory, WASI FSConfig allowlist + ephemeral-only for filesystem, WASI import blocking + OS network namespace for network
+- **Multi-layer defense-in-depth** - understanding that each layer assumes the one above it may be bypassed
+- **Multi-tenant threat model** - distinction between same-tenant cross-execution leakage (fresh instance per run) and cross-tenant leakage (separate pools, separate ephemeral dirs)
+- **Compliance operationalization** - connecting isolation controls to auditable SOC-2 evidence
 
 ## Archetype
 
-`system-design` — used for architecture, API design, LLD, and multi-component platform questions. This question has strong security focus, so `06-security-and-isolation.md` is the deepest file. The archetype is not `security-review` because the question also asks for enforcement mechanism design, resource limit modeling, and LLD of the enforcement engine.
+`system-design` - used for architecture, API design, LLD, and multi-component platform questions. This question has strong security focus, so `06-security-and-isolation.md` is the deepest file. The archetype is not `security-review` because the question also asks for enforcement mechanism design, resource limit modeling, and LLD of the enforcement engine.

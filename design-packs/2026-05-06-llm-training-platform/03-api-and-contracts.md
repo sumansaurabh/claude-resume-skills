@@ -1,4 +1,4 @@
-# 03 — API Contracts & Internal gRPC Interfaces
+# 03 - API Contracts & Internal gRPC Interfaces
 
 > **Resume anchor:** Founding team member of AI Fine-tuning on IPP; designed secure multi-tenant ML infrastructure on Kubernetes and Azure VNet; 15M+ AutoML jobs/month; TunDRA QUIC protocol over 1M+ Compute Instances.
 
@@ -8,18 +8,18 @@
 
 Base URL: `https://api.finetune.azure.com/v1`
 
-Authentication: Bearer token via Azure Managed Identity or AAD OAuth2. Every request carries `Authorization: Bearer <token>` and the tenant is resolved from the token claim — no tenant ID in the URL path.
+Authentication: Bearer token via Azure Managed Identity or AAD OAuth2. Every request carries `Authorization: Bearer <token>` and the tenant is resolved from the token claim - no tenant ID in the URL path.
 
 ---
 
 ### 1.1 Resource Hierarchy
 
 ```
-/jobs                        — collection of fine-tuning jobs
-/jobs/{job_id}               — individual job resource
-/jobs/{job_id}/logs          — streaming log resource
-/jobs/{job_id}/artifacts     — artifact listing resource
-/jobs/{job_id}/checkpoints   — checkpoint listing resource
+/jobs                        - collection of fine-tuning jobs
+/jobs/{job_id}               - individual job resource
+/jobs/{job_id}/logs          - streaming log resource
+/jobs/{job_id}/artifacts     - artifact listing resource
+/jobs/{job_id}/checkpoints   - checkpoint listing resource
 ```
 
 ---
@@ -39,7 +39,7 @@ Authentication: Bearer token via Azure Managed Identity or AAD OAuth2. Every req
 
 ---
 
-### 1.3 POST /jobs — Create Job
+### 1.3 POST /jobs - Create Job
 
 **Request headers:**
 
@@ -135,13 +135,13 @@ X-Request-ID: trace-uuid-for-logging
 }
 ```
 
-**Response 200 OK (duplicate idempotency key, same body — safe replay):**
+**Response 200 OK (duplicate idempotency key, same body - safe replay):**
 
 Returns the original job record, identical to 201, allowing clients to treat retries as idempotent.
 
 ---
 
-### 1.4 GET /jobs/{job_id} — Status Polling
+### 1.4 GET /jobs/{job_id} - Status Polling
 
 **Request:**
 
@@ -192,7 +192,7 @@ Authorization: Bearer eyJ...
 
 ---
 
-### 1.5 DELETE /jobs/{job_id} — Cancel
+### 1.5 DELETE /jobs/{job_id} - Cancel
 
 **Response 202 Accepted:**
 
@@ -209,11 +209,11 @@ Cancellation is asynchronous. The final status transitions to `CANCELED` once al
 
 ---
 
-### 1.6 GET /jobs/{job_id}/logs — Streaming Logs
+### 1.6 GET /jobs/{job_id}/logs - Streaming Logs
 
 Supports two modes:
 
-**Mode A — Server-Sent Events (SSE):** Default. Client sends `Accept: text/event-stream`. Server streams log lines as they arrive.
+**Mode A - Server-Sent Events (SSE):** Default. Client sends `Accept: text/event-stream`. Server streams log lines as they arrive.
 
 ```
 GET /v1/jobs/ftjob-8a3c2f1d9e7b4051/logs?follow=true&since=0 HTTP/1.1
@@ -235,7 +235,7 @@ data: {"timestamp":"2026-05-06T08:18:11Z","pod":"worker-1","level":"INFO","messa
 data: {"timestamp":"2026-05-06T08:18:45Z","pod":"worker-0","level":"INFO","message":"Step 1/3750 | loss=2.341 | lr=1.2e-5 | tokens/sec=18450"}
 ```
 
-**Mode B — Snapshot:** `follow=false` returns a paginated JSON response of stored log lines from the log aggregator.
+**Mode B - Snapshot:** `follow=false` returns a paginated JSON response of stored log lines from the log aggregator.
 
 Query parameters:
 
@@ -249,7 +249,7 @@ Query parameters:
 
 ---
 
-### 1.7 GET /jobs/{job_id}/artifacts — Artifact Listing
+### 1.7 GET /jobs/{job_id}/artifacts - Artifact Listing
 
 ```json
 {
@@ -302,7 +302,7 @@ Query parameters:
 | `FAILED` | Non-retriable error; job cannot continue | **Yes** |
 | `CANCELED` | User-initiated or system-initiated cancellation completed | **Yes** |
 
-`CHECKPOINTING` is a sub-state of `RUNNING` surfaced to the API to let clients know writes are in progress — do not cancel during this window if you want a clean checkpoint.
+`CHECKPOINTING` is a sub-state of `RUNNING` surfaced to the API to let clients know writes are in progress - do not cancel during this window if you want a clean checkpoint.
 
 ---
 
@@ -315,7 +315,7 @@ Every `POST /jobs` request must include an `Idempotency-Key` header. The API tie
 1. Hashes `(tenant_id, idempotency_key)` and looks it up in Redis (TTL: 24 hours).
 2. **Cache miss:** Record does not exist. Persist the request body hash + `job_id` to Redis, then proceed to create the job.
 3. **Cache hit, same body hash:** Return the original response verbatim with HTTP 200. No new job is created. This is the safe-retry path for transient network errors.
-4. **Cache hit, different body hash:** Return HTTP 409 Conflict. The client intended a new job but reused a key — this is a client error.
+4. **Cache hit, different body hash:** Return HTTP 409 Conflict. The client intended a new job but reused a key - this is a client error.
 
 ### Why this matters for LLM training
 

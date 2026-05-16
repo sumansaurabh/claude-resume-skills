@@ -1,4 +1,4 @@
-# 07 — Reliability, Observability, and Failures
+# 07 - Reliability, Observability, and Failures
 
 At **15M+ jobs/month** (`resume.txt` L91-92), even a 0.1% failure rate is 15K
 broken runs/month. Reliability inside the data plane is mostly about making
@@ -10,7 +10,7 @@ broken runs/month. Reliability inside the data plane is mostly about making
 |---|---|---|---|
 | **GPU XID error** | NVML XID 79/13/63 logged; CUDA error context lost | Driver / sidecar | Drain node, restart job on different node |
 | **CUDA OOM** | `torch.cuda.OutOfMemoryError` | Trainer | Lower batch / increase ZeRO stage / offload; if user-induced, fail-fast |
-| **NCCL timeout** | `ProcessGroupNCCL Watchdog` exception; `WORK_TIMEOUT` | Trainer | One straggler — investigate node health; restart from checkpoint |
+| **NCCL timeout** | `ProcessGroupNCCL Watchdog` exception; `WORK_TIMEOUT` | Trainer | One straggler - investigate node health; restart from checkpoint |
 | **Node loss** | Pod NotReady > grace | Volcano | Reschedule job from checkpoint |
 | **NaN loss** | Loss = NaN, gradients are inf | Trainer | If transient: rewind 1 step (DS supports this); persistent → fail-fast |
 | **Dataloader fail** | `RuntimeError` from worker; pid exit | Trainer | Auto-retry with workers=0; if persistent → user-input error |
@@ -80,11 +80,11 @@ class CheckpointManager:
 Important properties:
 
 1. **`_SUCCESS` written last.** Resume code skips any checkpoint without it.
-2. **Async write** — training does not pause. If a checkpoint is still writing
+2. **Async write** - training does not pause. If a checkpoint is still writing
    when the next interval hits, the next one is skipped (don't queue forever).
-3. **NVMe staging** — blob writes can be slow and bursty; staging on NVMe
+3. **NVMe staging** - blob writes can be slow and bursty; staging on NVMe
    smooths it out and lets training continue while bytes rsync to blob.
-4. **Pruning** — keep last K + special-case the eval-best one.
+4. **Pruning** - keep last K + special-case the eval-best one.
 
 ## Idempotent resume
 
@@ -106,7 +106,7 @@ def resume_or_fresh(cfg):
     return state
 ```
 
-The base-model SHA check is the most important guardrail — it catches user
+The base-model SHA check is the most important guardrail - it catches user
 errors that would otherwise corrupt the run silently.
 
 ## Observability stack
@@ -145,7 +145,7 @@ Two channels, three signals:
   not security).
 - Federated tokens, AAD tokens, MLflow tokens. Filter at the fluent-bit layer
   and at the OTEL exporter.
-- Per-step trace at high cadence — OTEL volume explodes. Sample 1% of steps,
+- Per-step trace at high cadence - OTEL volume explodes. Sample 1% of steps,
   always capture first 10 + last 10 + any step where loss > 2 × median.
 
 ## Health sidecar

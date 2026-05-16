@@ -1,4 +1,4 @@
-# 04 — Low-Level Design
+# 04 - Low-Level Design
 
 This file is the one the interviewer will probe with "now zoom in." It pins down
 the LangGraph topology, the typed state, the executor, the checkpointer, the
@@ -34,7 +34,7 @@ Notes on the topology:
 
 - **`tool_executor` is its own node** rather than a side-channel inside `coder`.
   This makes every tool dispatch a graph transition with its own checkpoint
-  and its own span — essential for replay.
+  and its own span - essential for replay.
 - **`human_gate`** is a parking node. The graph state goes `awaiting_approval`,
   Postgres row is written, the worker releases the lease, and a webhook /
   `POST /v1/runs/.../actions` call resumes it.
@@ -111,7 +111,7 @@ Two design choices to defend:
 
 1. **`messages` uses LangGraph's `add_messages` reducer**, but every other field
    is replaced wholesale. We do *not* let LangGraph's default reducer touch
-   anything else — that would silently merge dict states and hide bugs.
+   anything else - that would silently merge dict states and hide bugs.
 2. **`tool_calls` is an append-only ledger**, not a side table. Having it inside
    `RunState` means each checkpoint is a complete description of the run, and
    a replay can be sourced from a single Postgres row + a few blob fetches.
@@ -187,7 +187,7 @@ Loop guards:
 - `max_iterations` per milestone (default 12).
 - Tool-call dedup: identical `args_hash` within a milestone is short-circuited
   with a cached observation **and** a special system message
-  *"You already ran this tool; do not call it again."* — combats the
+  *"You already ran this tool; do not call it again."* - combats the
   ReAct-loop-on-same-tool failure mode.
 - A `loop_signature` (last 3 tool args hashed) is checked; if the same trigram
   repeats, the run is parked into `human_gate`.
@@ -260,7 +260,7 @@ LangGraph ships a `Pregel`-style runtime. I replace the default executor with a
    Redis stream with a short delay so another worker (or this one) can pick
    it up. Releases the lease either way.
 
-That fifth step is the **stateless-worker trick** — workers don't hold the
+That fifth step is the **stateless-worker trick** - workers don't hold the
 graph in memory between nodes. Pod rollouts are zero-downtime.
 
 ## Checkpointing
@@ -313,7 +313,7 @@ def evaluate(state, tool_descr, args) -> Decision:
     return Decision(allowed=True, requires_human=False, reason="default")
 ```
 
-The function above is intentionally short — *every* row of logic must turn
+The function above is intentionally short - *every* row of logic must turn
 into a `policy_decisions` row for SOC-2 evidence, so we keep the surface tiny
 and auditable.
 
@@ -362,7 +362,7 @@ agent/
 
 ## Why I keep the graph small
 
-A real interviewer will ask "why only 9 nodes?" — the answer is that the
+A real interviewer will ask "why only 9 nodes?" - the answer is that the
 **ReAct loop happens *inside* `coder` + `tool_executor`**, not as separate
 graph nodes. Trying to model every tool call as its own node bloats the
 checkpoint table and hides the actual control flow. Two nodes (a thinker and

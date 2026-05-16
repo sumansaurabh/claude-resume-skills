@@ -1,4 +1,4 @@
-# 04 — Low-Level Design
+# 04 - Low-Level Design
 
 ## Module Layout
 
@@ -79,7 +79,7 @@ func (m *Membership) Sample(k int, filter Predicate) []PeerCapacity {
     snapshot := m.snapshotPeers()  // O(N), short critical section
     eligible := filterInPlace(snapshot, filter)
     if len(eligible) <= k { return eligible }
-    // Reservoir sampling — k-of-N in O(N) without allocation.
+    // Reservoir sampling - k-of-N in O(N) without allocation.
     out := make([]PeerCapacity, k)
     copy(out, eligible[:k])
     for i := k; i < len(eligible); i++ {
@@ -108,7 +108,7 @@ type PlacementClient interface {
 ```
 
 Local `Lookup` is a non-blocking cache read. `LookupAuthoritative` only used
-when correctness demands (e.g., during owner handoff verification) — costs a
+when correctness demands (e.g., during owner handoff verification) - costs a
 Raft `LeaderRead` (single quorum round-trip).
 
 ### `cluster.PortPartition`
@@ -132,7 +132,7 @@ func (p *PortPartition) Free() int32                       // for capacity vecto
 ```
 
 **Sizing the partition:** with 32K usable host ports per node and 10K nodes,
-the global pool is 320M ports — well above any practical sandbox count. Each
+the global pool is 320M ports - well above any practical sandbox count. Each
 node owns a small slice (e.g., 16K ports per node, expanded on demand via a
 Raft commit).
 
@@ -208,7 +208,7 @@ func (f *IngressForwarder) forwardToOwner(ctx context.Context, sandboxID string,
 
 Splicing uses `io.Copy` in two goroutines with proper half-close handling.
 On Linux you can switch to `splice(2)` for zero-copy when both sides are TCP
-sockets — measurable win for high-throughput sandboxes.
+sockets - measurable win for high-throughput sandboxes.
 
 ### `service.CreateSandbox` (modified)
 
@@ -284,7 +284,7 @@ Watch is implemented by tagging each commit with `(index, op)` and pushing
 to subscribers. Subscribers can pull from a given index for catchup.
 
 **Why not BadgerDB-backed Raft store:** the FSM fits in memory at 10M
-sandboxes (~100 bytes each = 1 GB — uncomfortable but possible). At 100M, you
+sandboxes (~100 bytes each = 1 GB - uncomfortable but possible). At 100M, you
 shard the placement Raft into K groups by `hash(sandbox_id) % K`.
 
 ### Sandbox Lifecycle (owner-local, unchanged)
@@ -379,6 +379,6 @@ Every hot-path entry instruments three signals:
 - **Histogram**: `ingress_latency_seconds{path}`,
   `forward_overhead_seconds{cross_region}`, `raft_commit_latency_seconds`.
 
-This is intentionally lighter than the BlackBox 50M spans/day mesh — single-host
+This is intentionally lighter than the BlackBox 50M spans/day mesh - single-host
 cardinality and a sharded ClickHouse pattern is the upgrade path if someone
 runs the OSS at scale. See [07-reliability-observability-and-failures.md](07-reliability-observability-and-failures.md).

@@ -1,4 +1,4 @@
-# 04 — Low-Level Design
+# 04 - Low-Level Design
 
 ## Service Decomposition
 
@@ -6,13 +6,13 @@
 |---|---|---|---|
 | **API Server** | Go (Gin) | HTTP server, SSE endpoint, auth middleware, route dispatch | Redis (rate limits), Scheduler |
 | **Rate Limiter** | Go | Per-tenant token bucket; sliding window counters | Redis |
-| **Request Validator** | Go | Language allowlist, size limits, timeout validation | — |
+| **Request Validator** | Go | Language allowlist, size limits, timeout validation | - |
 | **Execution Scheduler** | Go | Worker selection, queuing, pool state management | Worker Pool, Redis (pool state) |
-| **Stream Manager** | Go | SSE multiplexing, event buffering, reconnect support | — |
+| **Stream Manager** | Go | SSE multiplexing, event buffering, reconnect support | - |
 | **Pre-Warm Pool Manager** | Go | Worker lifecycle, warm pool sizing, language ratio adjustment | Workers |
 | **Worker** | Go | Owns one wazero runtime; executes one job at a time | wazero, WASI config |
-| **wazero Runtime** | Go (pure-Go WASM) | WASM module loading, instantiation, execution, resource limits | — |
-| **WASM Modules** | WASM bytecode | Language runtimes compiled to WASM (Pyodide, QuickJS) | — |
+| **wazero Runtime** | Go (pure-Go WASM) | WASM module loading, instantiation, execution, resource limits | - |
+| **WASM Modules** | WASM bytecode | Language runtimes compiled to WASM (Pyodide, QuickJS) | - |
 | **Audit Logger** | Go | OTel span emission for every execution | OTel collector → Clickhouse |
 | **Pool Watchdog** | Go (goroutine) | Detects stale/crashed workers, respawns, adjusts warm count | Pre-Warm Pool Manager |
 
@@ -21,7 +21,7 @@
 ## Worker: Core Component
 
 The Worker is the most critical component. It is a Go struct that:
-1. Owns one `wazero.Runtime` — the WASM execution engine
+1. Owns one `wazero.Runtime` - the WASM execution engine
 2. Executes exactly one job at a time (single-threaded per worker)
 3. Manages the entire lifecycle: sandbox creation → execution → cleanup → ready
 
@@ -117,7 +117,7 @@ func (w *Worker) cleanup() {
 
 ## ModuleCache: Pre-Compilation
 
-Compiling WASM bytecode to native machine code (JIT) is expensive — 200-800ms for Pyodide. We pre-compile once and cache the compiled module:
+Compiling WASM bytecode to native machine code (JIT) is expensive - 200-800ms for Pyodide. We pre-compile once and cache the compiled module:
 
 ```go
 type ModuleCache struct {
@@ -150,7 +150,7 @@ func (mc *ModuleCache) Load(ctx context.Context, rt wazero.Runtime, lang Languag
 }
 ```
 
-`wazero.CompiledModule` is the result of parsing and JIT-compiling the WASM bytecode. It is **immutable and goroutine-safe** — multiple workers share the same compiled module. Each `InstantiateModule` call creates a new instance with fresh linear memory.
+`wazero.CompiledModule` is the result of parsing and JIT-compiling the WASM bytecode. It is **immutable and goroutine-safe** - multiple workers share the same compiled module. Each `InstantiateModule` call creates a new instance with fresh linear memory.
 
 **Key distinction:**
 - `CompiledModule`: shared, immutable JIT-compiled native code
@@ -176,11 +176,11 @@ func (pm *PoolManager) Dispatch(req *ExecutionRequest) (*Worker, error) {
         if w.language == req.Language {
             return w, nil
         }
-        // Wrong language — put back and try a cross-language compatible worker
+        // Wrong language - put back and try a cross-language compatible worker
         // (some workers can switch languages by reloading the module cache)
         pm.available <- w
     default:
-        // Pool empty — cold start or queue
+        // Pool empty - cold start or queue
     }
     return pm.coldStart(req)
 }
@@ -269,7 +269,7 @@ func (sm *StreamManager) Publish(executionID string, event ExecutionEvent) {
         select {
         case sub <- event:
         default:
-            // Subscriber channel full — slow consumer, drop event
+            // Subscriber channel full - slow consumer, drop event
             // (SSE handles this via reconnect with Last-Event-ID)
         }
     }

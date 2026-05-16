@@ -1,4 +1,4 @@
-# 05 — Scaling and Capacity
+# 05 - Scaling and Capacity
 
 ## Headline numbers (from the resume)
 
@@ -16,10 +16,10 @@ Translating to per-second arithmetic:
 | Tokens (in+out, both billed) | ~33M/day | ~390/s | ~1.2K/s |
 | Spans | 50M | ~580/s | ~1.7K/s |
 
-These are healthy but not extreme — the bottleneck is **dollars and provider
+These are healthy but not extreme - the bottleneck is **dollars and provider
 rate limits**, not requests per second.
 
-## Capacity model — derivation
+## Capacity model - derivation
 
 ### Tokens per run
 
@@ -59,7 +59,7 @@ A Slack-clone run typically generates **30–80 sandbox calls**:
 
 ### Compute footprint per run
 
-The agent worker itself does almost no CPU work — it spends ~95% of wall-clock
+The agent worker itself does almost no CPU work - it spends ~95% of wall-clock
 in I/O wait on model and sandbox calls. **One worker pod with 4 in-flight
 runs and 2 vCPU / 4 GiB RAM** is the sweet spot.
 
@@ -94,7 +94,7 @@ booted. Cold start is ~500 ms; warm start (pooled) is ~30 ms.
 
 Every node transition writes a row plus typically 2–4 model_call / tool_call
 rows. For peak ~150 concurrent runs × ~12 nodes/run / ~7-min wall-clock that's
-roughly **~5 writes/s steady, ~30 writes/s peak** — small. The real concern
+roughly **~5 writes/s steady, ~30 writes/s peak** - small. The real concern
 is row width when `state_jsonb` grows.
 
 - **Mitigation:** spill `messages` over 10 KB into S3 blobs by reference;
@@ -106,7 +106,7 @@ is row width when `state_jsonb` grows.
 with one shard, but the **OTel collector tier** is the bottleneck if span
 sizes balloon (LLM spans can carry 100 KB prompt payloads).
 
-- **Mitigation:** tail-sample LLM spans — keep 100% of error / slow / replay
+- **Mitigation:** tail-sample LLM spans - keep 100% of error / slow / replay
   candidate spans, 5% of healthy fast spans. Drop free-form prompt payloads
   into a side blob and reference them by hash on the span.
 
@@ -170,12 +170,12 @@ compression. Concrete controls:
 
 | Horizon | Step | Cost / Effort |
 | - | - | - |
-| 30K runs / day | Scale agent worker pods 3x, add second Postgres replica, double sandbox node count | low — same architecture |
+| 30K runs / day | Scale agent worker pods 3x, add second Postgres replica, double sandbox node count | low - same architecture |
 | 100K runs / day | Shard `runs` and `checkpoints` by tenant hash, move tool registry to a stronger cache, regional model API keys | medium |
-| 1M runs / day | Externalize the LangGraph IR (protobuf), make the executor a Go service, keep node bodies in Python over an in-process bridge — Python is the bottleneck above ~20K concurrent runs | high — multi-quarter |
+| 1M runs / day | Externalize the LangGraph IR (protobuf), make the executor a Go service, keep node bodies in Python over an in-process bridge - Python is the bottleneck above ~20K concurrent runs | high - multi-quarter |
 | 10M runs / day | Hot/warm tiering for trace data; ClickHouse on object storage; multi-region active-active control plane | high |
 
 The honest principal-engineer answer is that LangGraph's executor is fine for
 the 10K runs/day reality; the upgrade path is "stop using LangGraph as the
-runtime, keep using its graph definition" — and that's a year-long migration
+runtime, keep using its graph definition" - and that's a year-long migration
 to do well.

@@ -1,4 +1,4 @@
-# 00 — Question, Context, and Resume Anchors
+# 00 - Question, Context, and Resume Anchors
 
 ## Original question
 
@@ -68,13 +68,13 @@ This question is a layered trap. The naive answer is "LangGraph runs the agent,
 sandbox executes code, done." The Principal-level answer must cover:
 
 1. **Why LangGraph at all** vs Temporal, vs raw queue + state machine, vs LangChain
-   AgentExecutor — and where LangGraph stops scaling.
-2. **The control-plane / data-plane split** — orchestrator state vs sandbox bytes.
+   AgentExecutor - and where LangGraph stops scaling.
+2. **The control-plane / data-plane split** - orchestrator state vs sandbox bytes.
 3. **Durable execution semantics** when LLM calls are nondeterministic and tool
    calls have side effects.
 4. **Multi-tenant security** when AI-generated code runs in a shared cluster.
-5. **Cost** — 1B tokens/month is real money; context budgeting is not optional.
-6. **Replay** — how a non-deterministic agent run is reconstructed for debugging
+5. **Cost** - 1B tokens/month is real money; context budgeting is not optional.
+6. **Replay** - how a non-deterministic agent run is reconstructed for debugging
    and SOC-2 evidence.
 
 Each of those is given its own file in this pack.

@@ -1,4 +1,4 @@
-# 08 — Tradeoffs and Alternatives
+# 08 - Tradeoffs and Alternatives
 
 ## Orchestration Layer Alternatives
 
@@ -7,7 +7,7 @@
 | **Argo Workflows** | Mature, Kubernetes-native DAG engine; strong community | Overhead for simple linear training jobs; workflow definition is YAML-heavy; no built-in GPU gang scheduling awareness | Rejected: too much workflow abstraction for what is fundamentally a single-stage job |
 | **Ray** (Ray Train + Ray Job) | Excellent elastic scaling; native Python; good fault tolerance | Complex cluster management; Ray's own scheduling can conflict with Volcano's gang scheduling; debugging Ray distributed state is hard | Used Ray Train as the training loop library; did not use Ray for job orchestration |
 | **Kubeflow Pipelines** | Kubernetes-native ML pipelines; good UI; Azure support | Heavy operator footprint; pipeline SDK is complex for end-users; not optimized for single-step LLM fine-tunes | Rejected: over-engineered for the IPP use case (submit job → train → publish is 3 steps, not a complex pipeline) |
-| **Azure ML Pipelines SDK v2** | First-party, tight Azure ML integration; good SDK ergonomics | Control plane is managed service — reduces flexibility for custom isolation and scheduling requirements | Used for user-facing API surface; the internal scheduler/launcher was custom to support VNet isolation requirements |
+| **Azure ML Pipelines SDK v2** | First-party, tight Azure ML integration; good SDK ergonomics | Control plane is managed service - reduces flexibility for custom isolation and scheduling requirements | Used for user-facing API surface; the internal scheduler/launcher was custom to support VNet isolation requirements |
 | **Custom Kubernetes Operator + CRD** | Full control over scheduling, pod lifecycle, isolation; can integrate natively with Volcano | High build cost; requires deep Kubernetes expertise to maintain | Chosen: the isolation and scheduling requirements (per-tenant namespace, VNet peering, gang scheduling) were complex enough to justify a custom operator |
 | **Volcano + custom job controller** | Gang scheduling, bin-packing, multi-tenant queues built-in; pluggable | Volcano is a CNCF project with its own release cadence; some bugs required upstream contributions | Chosen for scheduling layer; custom controller wraps Volcano with platform-specific admission logic |
 
@@ -99,7 +99,7 @@
 
 **The synchronous checkpoint write path.**
 
-The initial CheckpointManager implementation wrote checkpoints synchronously: training paused, checkpoint serialized to disk, uploaded to Blob, manifest updated, training resumed. For 7B LoRA jobs (300MB checkpoint), this added 30-60 seconds every 100 steps — measurable training overhead.
+The initial CheckpointManager implementation wrote checkpoints synchronously: training paused, checkpoint serialized to disk, uploaded to Blob, manifest updated, training resumed. For 7B LoRA jobs (300MB checkpoint), this added 30-60 seconds every 100 steps - measurable training overhead.
 
 The async path (serialize to NVMe in background, upload while training continues) was added as a v2 feature, but it required careful correctness reasoning: if the pod fails between the local NVMe write and the Blob upload, the checkpoint manifest may be stale. The fix required a two-phase commit: write to NVMe, update a local "pending upload" log, upload to Blob, then update the manifest. The logic was correct but subtle.
 

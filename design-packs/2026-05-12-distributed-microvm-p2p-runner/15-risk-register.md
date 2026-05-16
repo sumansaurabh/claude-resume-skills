@@ -1,11 +1,11 @@
-# 15 — Risk Register
+# 15 - Risk Register
 
 The technical and operational risks, ranked by likelihood × impact, with
 mitigations and trip-wires.
 
 ## Top Risks (Ranked)
 
-### R1 — Placement Raft Becomes The Bottleneck Under Burst
+### R1 - Placement Raft Becomes The Bottleneck Under Burst
 
 - **Likelihood:** Medium
 - **Impact:** High (Create latency degrades; 503s)
@@ -19,7 +19,7 @@ mitigations and trip-wires.
 - **Trip-wire:** `placement_raft_commit_p99_ms > 100ms for 5min`.
 - **Recovery:** Enable batching mode; if persistent, add Raft shards.
 
-### R2 — Gossip Cluster Loses Cohesion Above ~10K Nodes
+### R2 - Gossip Cluster Loses Cohesion Above ~10K Nodes
 
 - **Likelihood:** Medium (at high-end fleets)
 - **Impact:** High (false-dead cascades; placement chaos)
@@ -29,11 +29,11 @@ mitigations and trip-wires.
 - **Mitigation:**
   1. Tune SWIM at 10K: longer suspicion, larger fanout, slower probe.
   2. Hierarchical gossip above 10K (regional pools that gossip a summary).
-  3. Federate above 10K — split into smaller fabrics meshed by bridges.
+  3. Federate above 10K - split into smaller fabrics meshed by bridges.
 - **Trip-wire:** `gossip_false_positive_rate > 5% for 1h`.
 - **Recovery:** Bump suspicion multiplier; federate cluster.
 
-### R3 — Cross-Region Forward Latency Breaks SLOs
+### R3 - Cross-Region Forward Latency Breaks SLOs
 
 - **Likelihood:** High (in any geo-distributed deploy)
 - **Impact:** Medium (user-visible latency)
@@ -46,7 +46,7 @@ mitigations and trip-wires.
 - **Trip-wire:** `forward_overhead_p99_ms > 50ms in same fabric for 10min`.
 - **Recovery:** Enable locality preference; document for operators.
 
-### R4 — Owner Death Loses Ephemeral Sandboxes (Acceptable, But Misunderstood)
+### R4 - Owner Death Loses Ephemeral Sandboxes (Acceptable, But Misunderstood)
 
 - **Likelihood:** High (it's by design)
 - **Impact:** Low-Medium (depends on tenant expectation)
@@ -62,7 +62,7 @@ mitigations and trip-wires.
 - **Recovery:** Per-tenant RTO dashboards; auto-flag tenants at risk of
   expecting HA.
 
-### R5 — Federation Trust Anchor Compromise
+### R5 - Federation Trust Anchor Compromise
 
 - **Likelihood:** Low
 - **Impact:** Critical (cross-fabric trust collapses)
@@ -80,7 +80,7 @@ mitigations and trip-wires.
 - **Recovery:** Publish revocation; bring up new trust anchor; re-sign
   descriptors.
 
-### R6 — Audit Log Loss Breaks SOC-2
+### R6 - Audit Log Loss Breaks SOC-2
 
 - **Likelihood:** Low
 - **Impact:** High (compliance violation)
@@ -94,7 +94,7 @@ mitigations and trip-wires.
 - **Trip-wire:** `audit_seq_gap_count > 0` in immutable-store verifier.
 - **Recovery:** Pull missing range from local log; investigate shipper.
 
-### R7 — gVisor Escape (Sandbox Isolation Failure)
+### R7 - gVisor Escape (Sandbox Isolation Failure)
 
 - **Likelihood:** Low (gVisor track record is good)
 - **Impact:** Critical (cross-tenant data exposure)
@@ -109,7 +109,7 @@ mitigations and trip-wires.
   syscall patterns).
 - **Recovery:** Hot-patch gVisor binary; quarantine affected nodes.
 
-### R8 — libp2p Maturity Gaps Surface At Scale
+### R8 - libp2p Maturity Gaps Surface At Scale
 
 - **Likelihood:** Medium
 - **Impact:** Medium
@@ -123,7 +123,7 @@ mitigations and trip-wires.
 - **Trip-wire:** `libp2p_stream_error_rate > 1% for 30min`.
 - **Recovery:** Disable affected protocol; fallback to direct TCP if needed.
 
-### R9 — SQLite Becomes The Per-Node Bottleneck Under Hot Tenant
+### R9 - SQLite Becomes The Per-Node Bottleneck Under Hot Tenant
 
 - **Likelihood:** Low (per-node load is moderate)
 - **Impact:** Medium (per-node degradation, not fleetwide)
@@ -137,7 +137,7 @@ mitigations and trip-wires.
 - **Trip-wire:** `sqlite_wal_checkpoint_p99_ms > 100ms`.
 - **Recovery:** Move sandboxes off node; cap tenant.
 
-### R10 — Bus Factor (Single-Author OSS Project)
+### R10 - Bus Factor (Single-Author OSS Project)
 
 - **Likelihood:** High (until contributors join)
 - **Impact:** High to community

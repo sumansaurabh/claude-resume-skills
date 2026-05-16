@@ -1,9 +1,9 @@
-# Distributed microVM P2P Runner — Design Pack
+# Distributed microVM P2P Runner - Design Pack
 
 A principal-engineer design pack for converting a single-node microVM/sandbox runner
 (Go binary, SQLite-backed, local Caddy ingress, gVisor runtime) into a leaderless,
 peer-to-peer fabric of bare-metal nodes that can scale to ~10K hosts and federate
-across organizational ecosystems — without a central control plane.
+across organizational ecosystems - without a central control plane.
 
 The system is a personal open-source project. It draws on the author's production
 experience operating a Golang WASM/gVisor sandbox plane at 1M+ daily executions,

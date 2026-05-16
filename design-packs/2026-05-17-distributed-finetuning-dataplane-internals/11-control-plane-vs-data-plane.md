@@ -1,7 +1,7 @@
-# 11 — Control Plane vs Data Plane
+# 11 - Control Plane vs Data Plane
 
 The user's question explicitly draws the line: *"I understand how the job goes
-to the data plane — but what is the architecture of the data plane itself?"*
+to the data plane - but what is the architecture of the data plane itself?"*
 This file makes the boundary precise.
 
 ## The rule
@@ -44,25 +44,25 @@ This file makes the boundary precise.
 
 | Concern | Control plane | Data plane |
 |---|---|---|
-| API + auth + tenancy | ✓ | — |
-| Quota enforcement | ✓ | — (consumes already-granted) |
-| Idempotency on submission | ✓ | — |
-| GPU scheduling | ✓ (Volcano) | — |
+| API + auth + tenancy | ✓ | - |
+| Quota enforcement | ✓ | - (consumes already-granted) |
+| Idempotency on submission | ✓ | - |
+| GPU scheduling | ✓ (Volcano) | - |
 | Image pull | ✓ (kubelet, but coordinated) | ✓ (per-pod actual pull) |
 | Workload identity issuance | ✓ (AAD) | ✓ (consumes) |
-| Network policy materialization | ✓ | — (enforced by CNI) |
+| Network policy materialization | ✓ | - (enforced by CNI) |
 | Storage mount provisioning | ✓ (CSI driver init) | ✓ (consumes mount) |
-| NCCL rendezvous | — | ✓ |
-| Model loading + sharding | — | ✓ |
-| Training loop | — | ✓ |
-| Checkpoint writing | — | ✓ |
-| Artifact publishing to MLflow | — | ✓ |
-| Registry entry creation | — (data plane writes; control plane indexes) | ✓ (writes the entry) |
-| Job state transitions | ✓ | — (emits events to a queue) |
+| NCCL rendezvous | - | ✓ |
+| Model loading + sharding | - | ✓ |
+| Training loop | - | ✓ |
+| Checkpoint writing | - | ✓ |
+| Artifact publishing to MLflow | - | ✓ |
+| Registry entry creation | - (data plane writes; control plane indexes) | ✓ (writes the entry) |
+| Job state transitions | ✓ | - (emits events to a queue) |
 | Retries on failure | ✓ (decides to retry) | ✓ (resumes from checkpoint on restart) |
 | Eviction / preemption | ✓ (decides) | ✓ (handles preemption signal) |
-| Billing / quota debit | ✓ | — |
-| OTEL / log ingestion | — (it's a separate platform) | ✓ (emits) |
+| Billing / quota debit | ✓ | - |
+| OTEL / log ingestion | - (it's a separate platform) | ✓ (emits) |
 
 ## Why this separation matters operationally
 
@@ -107,13 +107,13 @@ back to control plane on the hot path.
 
 ## How this maps to the resume
 
-- **Founding member of AI Fine-tuning on IPP** (`resume.txt` L73) — the IPP
+- **Founding member of AI Fine-tuning on IPP** (`resume.txt` L73) - the IPP
   abstraction is itself a control-plane / data-plane separation: jobs land on
   shared compute, the platform owns the data-plane runtime, customers own the
   spec.
-- **AutoML supports 15M+ jobs/month** (`resume.txt` L91) — that volume is only
+- **AutoML supports 15M+ jobs/month** (`resume.txt` L91) - that volume is only
   feasible because the control plane is not in the training hot path.
 - **Co-developed TunDRA, secure protocol for 1M+ compute instances** (`resume.txt`
-  L97-98) — TunDRA is the transport that connects the control plane to the data
+  L97-98) - TunDRA is the transport that connects the control plane to the data
   plane's nodes; the protocol's QUIC choice is specifically because the link is
   high-throughput, intermittent, and security-critical.

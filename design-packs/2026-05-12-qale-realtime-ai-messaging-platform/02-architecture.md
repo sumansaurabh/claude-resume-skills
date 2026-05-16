@@ -1,4 +1,4 @@
-# 02 — End-to-End Architecture
+# 02 - End-to-End Architecture
 
 > Audience: CTO / VP Eng of Turium AI.
 > Goal: leave the room with the conviction that there is *one* coherent system in my head, that it is grounded in things I have actually shipped, and that I know where the seams are.
@@ -7,7 +7,7 @@
 
 ## 1. North star
 
-Qale wins the moment a user stops thinking of "the AI" as a panel on the right-hand side and starts thinking of it as **another participant in the thread that happens to never sleep**. That single product belief drives every architectural choice in this document: AI requests are first-class events on the same bus as messages, AI responses stream back through the same fanout pipe as a human reply, and the *thread* (not the inbox, not the channel) is the canonical unit of state. When this is built right, the latency floor for "send → AI summary visible to all participants" is **<800 ms p95** for a 200-message thread, the system runs at **<$0.04 / DAU / month in inference cost** at 1M users (anchor A-BB4 — BlackBox model router consumed 1B+ tokens/month under cost discipline), and a single engineer can replay any incident — human or AI — deterministically from the telemetry mesh (anchor A-BB5 — 50M spans/day, 60% MTTR cut). That is the bar.
+Qale wins the moment a user stops thinking of "the AI" as a panel on the right-hand side and starts thinking of it as **another participant in the thread that happens to never sleep**. That single product belief drives every architectural choice in this document: AI requests are first-class events on the same bus as messages, AI responses stream back through the same fanout pipe as a human reply, and the *thread* (not the inbox, not the channel) is the canonical unit of state. When this is built right, the latency floor for "send → AI summary visible to all participants" is **<800 ms p95** for a 200-message thread, the system runs at **<$0.04 / DAU / month in inference cost** at 1M users (anchor A-BB4 - BlackBox model router consumed 1B+ tokens/month under cost discipline), and a single engineer can replay any incident - human or AI - deterministically from the telemetry mesh (anchor A-BB5 - 50M spans/day, 60% MTTR cut). That is the bar.
 
 ---
 
@@ -102,7 +102,7 @@ flowchart LR
     OTEL --> CH
 ```
 
-The diagram is a deliberate **eight-tier stack**: Client → Edge → Connection Plane → Event Bus → Domain Services → AI Plane → Storage → Telemetry. Every arrow that crosses a tier boundary is a network hop I will defend with a budget in `05-scaling-and-capacity.md`. Every box is independently deployable, independently observable, and — except for Postgres — horizontally scalable by partition key.
+The diagram is a deliberate **eight-tier stack**: Client → Edge → Connection Plane → Event Bus → Domain Services → AI Plane → Storage → Telemetry. Every arrow that crosses a tier boundary is a network hop I will defend with a budget in `05-scaling-and-capacity.md`. Every box is independently deployable, independently observable, and - except for Postgres - horizontally scalable by partition key.
 
 ### 2.1 Tier responsibilities at a glance
 
@@ -121,9 +121,9 @@ The diagram is a deliberate **eight-tier stack**: Client → Edge → Connection
 
 Three cuts in this map are non-negotiable for me:
 
-1. **The Connection Gateway never talks to Postgres.** It only talks to Redis (sessions) and the bus. If a gateway pod can be killed mid-request without losing a message, the whole system gets simpler. (Anchor A-MS1 — TunDRA: gateways were stateless in front of QUIC sessions for 1M+ Compute Instances.)
+1. **The Connection Gateway never talks to Postgres.** It only talks to Redis (sessions) and the bus. If a gateway pod can be killed mid-request without losing a message, the whole system gets simpler. (Anchor A-MS1 - TunDRA: gateways were stateless in front of QUIC sessions for 1M+ Compute Instances.)
 2. **The AI plane consumes from the bus, not from HTTP.** No domain service ever calls "POST /summarize" directly. The Message Service emits `thread.message.created`, the AI Orchestrator subscribes, decides whether work is needed, and emits `ai.request.created`. This is the single change that makes AI features cancellable, replayable, and budgetable.
-3. **The fanout pipe is *not* the bus.** Kafka is the durable log; fanout is a thin Go process that reads a per-shard subset of topics and pushes JSON frames to gateways. Conflating the two is what kills latency at scale (anchor A-SC2 — RTB demanded sub-100ms, achieved by separating durable log from in-memory fanout).
+3. **The fanout pipe is *not* the bus.** Kafka is the durable log; fanout is a thin Go process that reads a per-shard subset of topics and pushes JSON frames to gateways. Conflating the two is what kills latency at scale (anchor A-SC2 - RTB demanded sub-100ms, achieved by separating durable log from in-memory fanout).
 
 ---
 
@@ -131,7 +131,7 @@ Three cuts in this map are non-negotiable for me:
 
 Three flows, three sequence diagrams. These are the flows the interviewer will probe; if I cannot draw them on a whiteboard, the rest of the pack is theatre.
 
-### 3.1 Flow A — Sending a message in a thread
+### 3.1 Flow A - Sending a message in a thread
 
 **Plain-English sequence:**
 
@@ -142,7 +142,7 @@ Three flows, three sequence diagrams. These are the flows the interviewer will p
 5. Fanout Workers consume `thread.message.persisted`, look up thread members from a cached membership list (Redis, TTL 60s, invalidated on membership change), and push the message frame to all gateways holding sockets for those `user_id`s. Gateway pushes to client.
 6. Notification Service consumes the same event, computes "who is offline / mentioned", and dispatches push / email / SMS via worker queues.
 7. Search Service consumes the same event, indexes the body in ClickHouse (BM25 / inverted) and pushes an embed job onto `ai.requests.embed`.
-8. AI Orchestrator consumes the same event and decides — based on thread heuristics + workspace settings — whether to enqueue a summary, a triage classification, or nothing.
+8. AI Orchestrator consumes the same event and decides - based on thread heuristics + workspace settings - whether to enqueue a summary, a triage classification, or nothing.
 9. Client receives `message.acked { client_msg_id, message_id, server_ts }`, swaps optimistic → confirmed.
 
 **Sequence diagram:**
@@ -193,13 +193,13 @@ sequenceDiagram
 
 This budget is anchored in **A-SC2** (RTB at sub-100ms required the same partitioning discipline) and **A-MS1** (TunDRA hit 50% transfer improvement by removing exactly these per-hop allocations).
 
-### 3.2 Flow B — Receiving a streamed AI summary
+### 3.2 Flow B - Receiving a streamed AI summary
 
 **Plain-English sequence:**
 
 1. Bob opens thread `T1` with 287 messages. Client emits a `ThreadOpenedIntent { thread_id, last_seen_message_id }`.
 2. Gateway publishes `thread.opened` onto the bus.
-3. AI Orchestrator consumes the event, evaluates: (a) is there a cached summary up-to-date through `last_message_id`? (Look in Redis under key `thread:{tid}:summary:{message_id}`.) If yes — emit `ai.response.summary` directly from cache. If no — proceed.
+3. AI Orchestrator consumes the event, evaluates: (a) is there a cached summary up-to-date through `last_message_id`? (Look in Redis under key `thread:{tid}:summary:{message_id}`.) If yes - emit `ai.response.summary` directly from cache. If no - proceed.
 4. AI Orchestrator reserves a token budget from the **Token Budgeter** for `workspace_id` + `feature=summary`. If denied (workspace over budget), emit `ai.response.rejected { reason }` and return.
 5. AI Orchestrator constructs a request: `{ context: chunked thread, target_model_class: 'fast-summary', stream: true, run_id }`. Publishes `ai.request.created`.
 6. Model Router consumes, picks a model (e.g., Haiku-class for sub-1s TTFT, Sonnet-class if previous run quality < threshold), opens streaming connection to provider.
@@ -243,9 +243,9 @@ sequenceDiagram
     AIO->>K: thread.summary.updated
 ```
 
-**Why streaming through Kafka is acceptable** (anticipated pushback): the deltas carry small JSON payloads (~150–400 bytes per delta, ~40 deltas per typical summary). At 1M users with 5% active summary streams concurrent = 50K streams × 40 deltas × 300 bytes = **600 MB/s peak through the bus**, which is well within Kafka's per-broker capacity (modern brokers do GB/s). The win — single fanout substrate, free multi-viewer broadcast, replayable — outweighs the cost. The cost case is in `05-scaling-and-capacity.md`.
+**Why streaming through Kafka is acceptable** (anticipated pushback): the deltas carry small JSON payloads (~150–400 bytes per delta, ~40 deltas per typical summary). At 1M users with 5% active summary streams concurrent = 50K streams × 40 deltas × 300 bytes = **600 MB/s peak through the bus**, which is well within Kafka's per-broker capacity (modern brokers do GB/s). The win - single fanout substrate, free multi-viewer broadcast, replayable - outweighs the cost. The cost case is in `05-scaling-and-capacity.md`.
 
-### 3.3 Flow C — Agent action triggered by a thread ("schedule a meeting")
+### 3.3 Flow C - Agent action triggered by a thread ("schedule a meeting")
 
 This is the flow that justifies calling Qale "AI-native" rather than "messaging with AI features bolted on."
 
@@ -254,18 +254,18 @@ This is the flow that justifies calling Qale "AI-native" rather than "messaging 
 1. User Carol types in thread `T1`: "@Qale schedule a 30-min sync with @Dev next week".
 2. Standard Flow A persists the message. AI Orchestrator detects the `@Qale` mention as an **explicit agent trigger**.
 3. AI Orchestrator publishes `agent.run.requested { thread_id, trigger_message_id, intent_hint: 'schedule_meeting', invoker: carol_id }`.
-4. Agent Runtime consumes the event, instantiates a **DAG run** from the `schedule_meeting` workflow definition (anchor A-BB2/A-BB3 — DAG executor with checkpointing and retry semantics, supporting 10K+ runs/day at BlackBox).
+4. Agent Runtime consumes the event, instantiates a **DAG run** from the `schedule_meeting` workflow definition (anchor A-BB2/A-BB3 - DAG executor with checkpointing and retry semantics, supporting 10K+ runs/day at BlackBox).
 5. DAG nodes execute in order:
-   - `n1: parse_intent` — LLM call via Router → structured `{ attendees, duration, window }`.
-   - `n2: resolve_attendees` — Tool call to Workspace Directory.
-   - `n3: fetch_calendars` — Tool call to Google/Microsoft Graph (per-user OAuth tokens stored encrypted).
-   - `n4: propose_slots` — pure compute, no LLM.
-   - `n5: post_proposal` — emits a structured message into thread `T1` via the same Message Service path (Flow A) with `author_type=agent`. Carol and Dev see proposed slots inline.
-   - `n6: await_user_choice` — DAG **checkpoints** here. The run state is persisted to Postgres. The DAG is now suspended.
+   - `n1: parse_intent` - LLM call via Router → structured `{ attendees, duration, window }`.
+   - `n2: resolve_attendees` - Tool call to Workspace Directory.
+   - `n3: fetch_calendars` - Tool call to Google/Microsoft Graph (per-user OAuth tokens stored encrypted).
+   - `n4: propose_slots` - pure compute, no LLM.
+   - `n5: post_proposal` - emits a structured message into thread `T1` via the same Message Service path (Flow A) with `author_type=agent`. Carol and Dev see proposed slots inline.
+   - `n6: await_user_choice` - DAG **checkpoints** here. The run state is persisted to Postgres. The DAG is now suspended.
 6. When Dev clicks a slot, client emits `agent.callback { run_id, node_id: n6, payload: { slot_id } }`. Bus delivers, Agent Runtime resumes the DAG from checkpoint.
-7. `n7: book_slot` — Tool call to calendar APIs. On success, `n8: post_confirmation` posts a confirmation message into the thread.
+7. `n7: book_slot` - Tool call to calendar APIs. On success, `n8: post_confirmation` posts a confirmation message into the thread.
 8. On any node failure, retry with exponential backoff per node policy. After exhaustion, `n_fail: post_apology` posts an honest "I couldn't book this; here's what failed."
-9. Every node emits OpenTelemetry spans into the telemetry mesh, parented under `agent.run.{run_id}` (anchor A-BB5 — same pattern that cut MTTR by 60%).
+9. Every node emits OpenTelemetry spans into the telemetry mesh, parented under `agent.run.{run_id}` (anchor A-BB5 - same pattern that cut MTTR by 60%).
 
 **Sequence diagram:**
 
@@ -299,11 +299,11 @@ sequenceDiagram
     DAG->>Thread: n8 confirmation
 ```
 
-The critical property here: **the agent's "thinking" is visible in the thread the same way a human's is.** Proposal, choice, confirmation — all are messages in `T1`. The user never context-switches into an "AI panel." That is the product thesis embodied in the architecture.
+The critical property here: **the agent's "thinking" is visible in the thread the same way a human's is.** Proposal, choice, confirmation - all are messages in `T1`. The user never context-switches into an "AI panel." That is the product thesis embodied in the architecture.
 
 ---
 
-## 4. Why this shape — anchored to prior experience
+## 4. Why this shape - anchored to prior experience
 
 I am not designing this from a textbook. Each major shape below maps to a system I shipped or co-shipped.
 
@@ -317,7 +317,7 @@ At BlackBox I led the **model router** across Claude, GPT, and Grok with **capab
 
 ### 4.3 Telemetry mesh ← BlackBox LLMOps (A-BB5)
 
-At BlackBox I institutionalized a telemetry mesh ingesting **50M spans/day**, managing **2.5TB/month** of trace data, enabling **deterministic replay** and cutting org-wide MTTR for AI anomalies by **60%**. Qale needs the same thing on day one. Every domain event, every AI run, every agent node carries an OpenTelemetry trace context. ClickHouse stores spans (anchor A-BB5 used the same engine). Langfuse-style UI on top. Without this, debugging "why did the AI summary say X" becomes archaeology — and Qale will need to debug exactly that, daily.
+At BlackBox I institutionalized a telemetry mesh ingesting **50M spans/day**, managing **2.5TB/month** of trace data, enabling **deterministic replay** and cutting org-wide MTTR for AI anomalies by **60%**. Qale needs the same thing on day one. Every domain event, every AI run, every agent node carries an OpenTelemetry trace context. ClickHouse stores spans (anchor A-BB5 used the same engine). Langfuse-style UI on top. Without this, debugging "why did the AI summary say X" becomes archaeology - and Qale will need to debug exactly that, daily.
 
 ### 4.4 Bus + fanout ← ShareChat real-time + Pub/Sub (A-SC1, A-SC2, A-SC3)
 
@@ -355,7 +355,7 @@ Every WebSocket connection is routed to a gateway pod via **consistent hashing o
 
 Why sticky-by-userId rather than random:
 
-- A user often holds 1–3 concurrent sockets (web + mobile + tablet). Co-locating them on one gateway lets us deduplicate fanout: one frame, one pod, multiple writes — instead of one frame, three pods, three reads from the bus.
+- A user often holds 1–3 concurrent sockets (web + mobile + tablet). Co-locating them on one gateway lets us deduplicate fanout: one frame, one pod, multiple writes - instead of one frame, three pods, three reads from the bus.
 - Reconnection after a transient network failure lands on the same pod 95% of the time, so resume tokens are local Redis lookups (sub-1ms) instead of cross-pod cache misses.
 
 When a pod is added or removed, the ring rebalances. We accept that some users get bumped during a deploy; the resume-token protocol (Section 5.4) makes the bump invisible at the application layer.
@@ -381,15 +381,15 @@ Every WebSocket session carries a `session_token` (issued on connect) and a `las
 3. Gateway looks up the session in Redis. If found and within the 5-minute resume window, it replays any frames in the per-session ring buffer (Redis Stream, capped at 1000 entries) with `seq > last_server_seq`. Then transitions the socket into normal operation.
 4. If the session is expired or the gap exceeds the buffer, gateway responds with `RESUME_FAILED { reason: 'gap' | 'expired' }` and the client falls back to a full state hydration via REST (`GET /threads?since=...`).
 
-This is the same shape as TunDRA's session resumption in QUIC (anchor A-MS1) — re-attach by token, replay from a bounded buffer, fall back to full sync if the gap is too large.
+This is the same shape as TunDRA's session resumption in QUIC (anchor A-MS1) - re-attach by token, replay from a bounded buffer, fall back to full sync if the gap is too large.
 
 ### 5.5 Why WebTransport/QUIC is the 18-month evolution, not the v1
 
 WebTransport over HTTP/3 buys us:
 
-- **0-RTT reconnects** on warm sessions — critical for mobile networks switching between WiFi and 4G.
-- **Per-stream backpressure** — we can prioritize a small AI delta stream over a large attachment upload on the same connection.
-- **No head-of-line blocking** — TCP HoL blocking on a flaky connection currently causes "lag spikes" that are very hard to diagnose.
+- **0-RTT reconnects** on warm sessions - critical for mobile networks switching between WiFi and 4G.
+- **Per-stream backpressure** - we can prioritize a small AI delta stream over a large attachment upload on the same connection.
+- **No head-of-line blocking** - TCP HoL blocking on a flaky connection currently causes "lag spikes" that are very hard to diagnose.
 - Direct anchor to TunDRA (A-MS1) where we measured **50% improvement in secure data transfer** moving to QUIC.
 
 Why I would not ship it in v1:
@@ -455,7 +455,7 @@ on(message):
         send_to_dlq(message, reason=str(e))
 ```
 
-DLQ topics mirror their source topic name. A small DLQ inspector service exposes a UI for SREs (during on-call) to triage dead letters: replay, drop, or mutate-and-replay. **Replaying from DLQ must be auditable** — every replay generates a span in the telemetry mesh tagged `dlq.replay`.
+DLQ topics mirror their source topic name. A small DLQ inspector service exposes a UI for SREs (during on-call) to triage dead letters: replay, drop, or mutate-and-replay. **Replaying from DLQ must be auditable** - every replay generates a span in the telemetry mesh tagged `dlq.replay`.
 
 ### 6.3 Producer and consumer contracts
 
@@ -519,11 +519,11 @@ The router is a stateless service consuming `ai.requests` and emitting `ai.respo
 
 The router does a constraint-satisfaction match: filter models that satisfy `min_context`, `tools_required`, `safety_class`; rank by `(p50_latency_for_request × latency_weight) + (estimated_cost × cost_weight)`; pick the top one with rate budget remaining; fall back to next on 429 or 5xx. This is the **same algorithm** I shipped at BlackBox (anchor A-BB4). It generalized across Claude, GPT, and Grok there; it will generalize across whatever providers Qale adds.
 
-### 7.2 Agent runtime — DAG executor
+### 7.2 Agent runtime - DAG executor
 
-Anchored on A-BB2 and A-BB3 (DAG execution, checkpointing, retry, resumable agents — supporting 10K+ runs/day at BlackBox).
+Anchored on A-BB2 and A-BB3 (DAG execution, checkpointing, retry, resumable agents - supporting 10K+ runs/day at BlackBox).
 
-Each agent workflow is a **DAG defined in code** (TypeScript or Python — assumption: Qale picks one; I'd lean TypeScript for symmetry with the frontend stack):
+Each agent workflow is a **DAG defined in code** (TypeScript or Python - assumption: Qale picks one; I'd lean TypeScript for symmetry with the frontend stack):
 
 ```ts
 const scheduleMeeting = defineWorkflow('schedule_meeting', {
@@ -575,13 +575,13 @@ Budgets are configured per workspace plan (Free / Pro / Enterprise) and per feat
 
 Already covered in Flow B (Section 3.2). The thing worth re-stating: the AI response stream and the human message stream **share the same WebSocket and the same fanout substrate**. The client distinguishes by message type (`type: 'ai.delta' | 'message'`), but the transport layer does not care. This is what makes the AI feel like "another participant in the thread" rather than "a different system speaking through a side channel."
 
-### 7.5 Retrieval (RAG) — brief, full version in 13-data-model
+### 7.5 Retrieval (RAG) - brief, full version in 13-data-model
 
 For each workspace, embeddings are stored in Qdrant under a per-workspace collection (or per-workspace vector namespace, depending on collection-count limits). On retrieval-augmented requests, the AI Orchestrator runs:
 
 1. `query → embedding (cached if seen)`
 2. `Qdrant ANN search → top K`
-3. `BM25 reranker on retrieved candidates → top M` (anchor A-BB4 — bm25 + cross-encoder pattern from BlackBox)
+3. `BM25 reranker on retrieved candidates → top M` (anchor A-BB4 - bm25 + cross-encoder pattern from BlackBox)
 4. `Cross-encoder rerank → top N` (only for high-stakes features, not for autocomplete)
 5. `Pack into context with citation tokens`
 
@@ -589,7 +589,7 @@ The cross-encoder/BM25 hybrid is anchor A-BB4. The choice to keep step 4 optiona
 
 ### 7.6 Safety and guardrails
 
-- Every LLM input passes through a lightweight prompt-injection classifier before reaching the provider (anchor A-BB4 — guardrails were part of the BlackBox stack).
+- Every LLM input passes through a lightweight prompt-injection classifier before reaching the provider (anchor A-BB4 - guardrails were part of the BlackBox stack).
 - Every LLM output passes through a redaction classifier for PII / secrets before being persisted or fanned out.
 - Workspace-level controls: "this workspace's content is not used for training" (default on, contractually enforced via provider terms), "this workspace requires no-data-retention providers only" (Enterprise toggle, restricts router model pool).
 
@@ -617,7 +617,7 @@ A brief here; the full schemas, partition keys, and migration path live in `13-d
 | Warm | 30–180 days | Postgres archive partition (different tablespace) | <100ms p95 |
 | Cold | 180+ days | S3 + Iceberg, queried via DuckDB or Trino | <2s p95 (rare) |
 
-Tiering happens via a daily archival job. Cold reads hit a separate "archive read" code path in the Message Service — the API surface stays uniform, but the latency budget is different.
+Tiering happens via a daily archival job. Cold reads hit a separate "archive read" code path in the Message Service - the API surface stays uniform, but the latency budget is different.
 
 ---
 
@@ -628,7 +628,7 @@ Tiering happens via a daily archival job. Cold reads hit a separate "archive rea
 - **End-user auth**: OAuth/OIDC (Google, Microsoft, SSO via SAML for Enterprise). JWT access tokens, opaque refresh tokens stored in `httpOnly` cookies. Session lifetime: access 15 min, refresh 30 days, revocable per-device.
 - **WebSocket auth**: bearer token in `Sec-WebSocket-Protocol` subprotocol header (the only browser-friendly way to send a header on WS upgrade). Validated on connect, then session is cached in Redis for subsequent frames.
 - **Service-to-service auth**: mTLS within the cluster via a service mesh (Linkerd or Istio); SPIFFE identities. No service trusts a JWT for cross-service calls.
-- **Workspace boundary**: every authenticated request is scoped to a `workspace_id`. The middleware that resolves `workspace_id` is the single most-tested piece of code in the system. (Anchor A-BB1 — SOC-2 compliance work demanded exactly this discipline.)
+- **Workspace boundary**: every authenticated request is scoped to a `workspace_id`. The middleware that resolves `workspace_id` is the single most-tested piece of code in the system. (Anchor A-BB1 - SOC-2 compliance work demanded exactly this discipline.)
 
 ### 9.2 Rate limiting
 
@@ -644,7 +644,7 @@ Rate limit responses always carry `Retry-After` headers and a structured error c
 
 ### 9.3 Feature flags
 
-Every new surface lands behind a flag. We use a simple flag service (LaunchDarkly or in-house) keyed by `(workspace_id, user_id, flag_name)`. This is non-negotiable for an AI product where we will be shipping experimental features weekly. Anchor A-MS3 — AutoML evolution at Microsoft used flag-gated rollouts for every change touching the public SDK.
+Every new surface lands behind a flag. We use a simple flag service (LaunchDarkly or in-house) keyed by `(workspace_id, user_id, flag_name)`. This is non-negotiable for an AI product where we will be shipping experimental features weekly. Anchor A-MS3 - AutoML evolution at Microsoft used flag-gated rollouts for every change touching the public SDK.
 
 ### 9.4 Multi-region
 
@@ -652,12 +652,12 @@ Every new surface lands behind a flag. We use a simple flag service (LaunchDarkl
 
 **v2 (1M+ users): multi-region, with a primary write region per workspace.** A workspace is "homed" in a region; all writes for that workspace go there. Reads can be served from the nearest region via a read-replica cache, but we accept that a read may be up to 5s stale on the far side of the world. Cross-region replication via Kafka MirrorMaker for derived events; Postgres logical replication for the source of truth.
 
-Why workspace-homed rather than active-active multi-master: the alternative requires CRDT-like semantics across all message ordering, which is **possible but adds two engineer-quarters of complexity for marginal gain.** Most workspaces have geographically clustered users; the small number that span regions accept slightly higher cross-region latency. This is the same tradeoff Slack made successfully and Discord made differently — both are defensible. I would defend workspace-homed in front of the founders.
+Why workspace-homed rather than active-active multi-master: the alternative requires CRDT-like semantics across all message ordering, which is **possible but adds two engineer-quarters of complexity for marginal gain.** Most workspaces have geographically clustered users; the small number that span regions accept slightly higher cross-region latency. This is the same tradeoff Slack made successfully and Discord made differently - both are defensible. I would defend workspace-homed in front of the founders.
 
 ### 9.5 Multi-tenant isolation
 
 - Hard tenant boundary at the data layer: every query carries `workspace_id` and the framework rejects un-scoped queries via static analysis (lint rule + DB schema policy).
-- Per-tenant rate limits, token budgets, and storage quotas (anchor A-BB1 — SOC-2 isolation discipline).
+- Per-tenant rate limits, token budgets, and storage quotas (anchor A-BB1 - SOC-2 isolation discipline).
 - Per-tenant encryption keys (envelope encryption, KMS-managed) for sensitive features (Enterprise tier). The data plane stores envelope-encrypted blobs; only the customer's key envelope is regional.
 
 ---
@@ -670,12 +670,12 @@ These are conscious omissions. Any of them is a credible feature. None of them b
 | --- | --- | --- |
 | **Federation** (cross-org workspaces, à la Matrix or email) | Adds a routing and trust dimension that doubles the security surface. Customer pull at <100K users is anecdotal. | When 3+ paying Enterprise customers ask in writing. |
 | **Custom transport / proprietary protocol** | WebSocket+JSON is fine through 1M users. WebTransport is the next step (Section 5.5). A custom protocol is several engineer-years for sub-15% latency wins. | When telemetry shows transport is the dominant latency contributor and we have an SRE-mature org. |
-| **Self-hosted LLMs for core features** | Hosted providers via the model router (A-BB4) are cheaper per token at our volume *and* offload safety/quality work. Self-hosting only wins below ~50¢/M tokens at sustained 100B+ tokens/month. | When unit economics break — measured monthly via the budgeter's ledger. |
+| **Self-hosted LLMs for core features** | Hosted providers via the model router (A-BB4) are cheaper per token at our volume *and* offload safety/quality work. Self-hosting only wins below ~50¢/M tokens at sustained 100B+ tokens/month. | When unit economics break - measured monthly via the budgeter's ledger. |
 | **Offline-first sync engine** (CRDT-style local DB) | A correctly-built optimistic UI + IndexedDB cache + reconnect protocol gets us 95% of the perceived offline value at 10% of the engineering cost. | When a top-3 customer asks for explicit offline editing of long threads. |
-| **Native voice/video stack** | WebRTC via OpenTok or LiveKit gets us launch-quality calls (anchor A-HL1 — I have shipped this). Building it ourselves is a Twilio-shaped distraction. | Not before $10M ARR. |
+| **Native voice/video stack** | WebRTC via OpenTok or LiveKit gets us launch-quality calls (anchor A-HL1 - I have shipped this). Building it ourselves is a Twilio-shaped distraction. | Not before $10M ARR. |
 | **On-prem deployment** | Possible but doubles every release pipeline and observability surface. | Only for $1M+ ACV deals, with a separate ops team. |
 | **Native SDKs for integrations marketplace** | Webhooks + OAuth-scoped APIs cover 80% of integration use cases. A formal SDK + extension store is a Public-Launch+12-month item. | When 5+ partners ask for richer extensibility. |
-| **A model fine-tuning pipeline** | We can prompt-engineer and RAG our way to most quality wins. Fine-tuning is justified when we have a workload-specific quality gap that survives all other interventions. (I have shipped fine-tuning at Microsoft — A-MS founding-team note — so I know what it takes; it is not a v1 lift.) | When telemetry shows a specific feature has a measurable quality gap not closeable by retrieval. |
+| **A model fine-tuning pipeline** | We can prompt-engineer and RAG our way to most quality wins. Fine-tuning is justified when we have a workload-specific quality gap that survives all other interventions. (I have shipped fine-tuning at Microsoft - A-MS founding-team note - so I know what it takes; it is not a v1 lift.) | When telemetry shows a specific feature has a measurable quality gap not closeable by retrieval. |
 
 The discipline behind this list: **every deferred item is one fewer thing the Hyderabad team is building in parallel during the months that matter most.** Pre-Public-Launch is not the time to be clever; it is the time to ship the boring 80% with high quality and instrument everything so that the next 20% is informed rather than guessed.
 
@@ -683,6 +683,6 @@ The discipline behind this list: **every deferred item is one fewer thing the Hy
 
 ## 11. Closing one-liner for the interview
 
-> "The shape is: stateless gateways → durable bus → stateless services → AI plane on the same bus → telemetry mesh seeing every span. Each of those four lines maps to something I shipped — TunDRA, ShareChat real-time, BlackBox model router, BlackBox telemetry. The risk is execution velocity, not architectural unknowns. That is a problem I can solve with the right six engineers in Hyderabad."
+> "The shape is: stateless gateways → durable bus → stateless services → AI plane on the same bus → telemetry mesh seeing every span. Each of those four lines maps to something I shipped - TunDRA, ShareChat real-time, BlackBox model router, BlackBox telemetry. The risk is execution velocity, not architectural unknowns. That is a problem I can solve with the right six engineers in Hyderabad."
 
 The next document (`03-real-time-and-messaging.md`) zooms into the connection plane and the message delivery semantics. The one after (`04-ai-plane-and-agents.md`) does the same for the AI plane.

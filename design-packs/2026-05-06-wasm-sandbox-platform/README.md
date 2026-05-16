@@ -80,8 +80,8 @@ User (Copilot UI / LangGraph Agent)
 
 ## How to Use This Pack
 
-1. **Read `01-executive-summary.md`** — the 60-second answer is your delivery target
-2. **Study `02-architecture.md`** — know the Mermaid diagram and the 11-step flow cold
-3. **Understand `06-security-and-isolation.md`** — the SOC-2 story is what makes this a Principal Engineer answer, not just a systems design answer
-4. **Drill `09-cross-questions.md`** aloud — Q1-Q4 on WASM isolation are the most likely attack angles
-5. **Day-of: `10-cheat-sheet.md`** — the one-page guide
+1. **Read `01-executive-summary.md`** - the 60-second answer is your delivery target
+2. **Study `02-architecture.md`** - know the Mermaid diagram and the 11-step flow cold
+3. **Understand `06-security-and-isolation.md`** - the SOC-2 story is what makes this a Principal Engineer answer, not just a systems design answer
+4. **Drill `09-cross-questions.md`** aloud - Q1-Q4 on WASM isolation are the most likely attack angles
+5. **Day-of: `10-cheat-sheet.md`** - the one-page guide

@@ -1,4 +1,4 @@
-# 03 — APIs and Contracts
+# 03 - APIs and Contracts
 
 This document specifies the API surfaces, the WebSocket protocol, the internal gRPC contracts, and the cross-cutting concerns (auth, idempotency, pagination, errors, versioning, rate limiting, webhooks) that every team building Qale will integrate against.
 
@@ -6,12 +6,12 @@ The principle: **three surfaces, one identity, one error envelope, one idempoten
 
 Resume anchors used most in this doc:
 
-- **A-BB3** — DAG workflow engine with checkpointing and retry semantics. Drives the AI run lifecycle and idempotency story.
-- **A-BB4** — Model router across Claude / GPT / Grok at 1B+ tokens/month. Drives the AI streaming surface and provider-degradation error codes.
-- **A-BB5** — LLMOps telemetry mesh, deterministic replay. Drives the `traceId` requirement on every error envelope.
-- **A-MS1** — TunDRA QUIC at 1M+ instances. Drives the connection-rotation, resume-token, and ack-window choices on the WebSocket.
-- **A-MS3** — AutoML job orchestration at 15M+ jobs/month, 200K+ users. Drives the job/run state model behind `POST /ai/runs`.
-- **A-MS4** — secure CI/CD, threat models. Drives the auth, mTLS, and signed-payload choices.
+- **A-BB3** - DAG workflow engine with checkpointing and retry semantics. Drives the AI run lifecycle and idempotency story.
+- **A-BB4** - Model router across Claude / GPT / Grok at 1B+ tokens/month. Drives the AI streaming surface and provider-degradation error codes.
+- **A-BB5** - LLMOps telemetry mesh, deterministic replay. Drives the `traceId` requirement on every error envelope.
+- **A-MS1** - TunDRA QUIC at 1M+ instances. Drives the connection-rotation, resume-token, and ack-window choices on the WebSocket.
+- **A-MS3** - AutoML job orchestration at 15M+ jobs/month, 200K+ users. Drives the job/run state model behind `POST /ai/runs`.
+- **A-MS4** - secure CI/CD, threat models. Drives the auth, mTLS, and signed-payload choices.
 
 Anything called "Qale-specific" that I cannot ground to a resume anchor is labeled **assumption**.
 
@@ -41,8 +41,8 @@ Notes:
 
 ### Identity model
 
-- Every request — REST, WebSocket, gRPC — carries a single subject: `userId` scoped to a `workspaceId`. A user belongs to N workspaces; one access token represents one (`userId`, `workspaceId`) pair. Switching workspace = new token. This eliminates a whole class of cross-tenant bugs that we'd otherwise have to catch in code.
-- This mirrors the multi-tenant boundary I enforced for ML workloads on Azure (A-MS2): the workspace is the unit of isolation everywhere — Postgres row policies, S3 prefixes, Kafka tenant tags, Redis key prefixes, and AI quotas.
+- Every request - REST, WebSocket, gRPC - carries a single subject: `userId` scoped to a `workspaceId`. A user belongs to N workspaces; one access token represents one (`userId`, `workspaceId`) pair. Switching workspace = new token. This eliminates a whole class of cross-tenant bugs that we'd otherwise have to catch in code.
+- This mirrors the multi-tenant boundary I enforced for ML workloads on Azure (A-MS2): the workspace is the unit of isolation everywhere - Postgres row policies, S3 prefixes, Kafka tenant tags, Redis key prefixes, and AI quotas.
 
 ### External auth (web/mobile)
 
@@ -89,15 +89,15 @@ Notes:
 All endpoints are under `https://api.qale.app/v1/`. All requests must carry:
 
 - `Authorization: Bearer <jwt>`
-- `X-Qale-Workspace-Id: <wsid>` — must match the token's `wsid` claim. Mismatch = 403.
-- `X-Request-Id: <uuid>` — client-generated; echoed in the response and in the trace.
-- `Idempotency-Key: <uuid v7>` — required on `POST` that creates side-effect-bearing resources (see §6).
+- `X-Qale-Workspace-Id: <wsid>` - must match the token's `wsid` claim. Mismatch = 403.
+- `X-Request-Id: <uuid>` - client-generated; echoed in the response and in the trace.
+- `Idempotency-Key: <uuid v7>` - required on `POST` that creates side-effect-bearing resources (see §6).
 
 Standard response headers:
 
-- `X-Trace-Id: <hex>` — every response, even errors (A-BB5).
+- `X-Trace-Id: <hex>` - every response, even errors (A-BB5).
 - `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (see §11).
-- `Sunset`, `Deprecation` — when applicable (see §10).
+- `Sunset`, `Deprecation` - when applicable (see §10).
 
 ### 3.1 Create thread
 
@@ -213,7 +213,7 @@ Notes:
 - `cursor` is **opaque, base64-encoded JSON** containing whatever the server needs (`{"seq": 18342}` today; could become `{"seq": 18342, "shard": 7}` later without breaking clients).
 - `direction` ∈ `forward | backward`. Default `backward` (load history).
 - Server caps `limit` at 200; requests above the cap are silently clamped, with `X-Qale-Limit-Clamped: true` in the response.
-- **No `offset` parameter exists.** Offset pagination is forbidden across the platform — see §7.
+- **No `offset` parameter exists.** Offset pagination is forbidden across the platform - see §7.
 
 ### 3.4 Edit and delete a message
 
@@ -227,14 +227,14 @@ Content-Type: application/json
 }
 ```
 
-Response (200): the updated message. New `etag` returned. The thread's sequence is **not** advanced — edits are an out-of-band update on an existing sequence number, broadcast as a `server.message_event` with `kind: "edited"`.
+Response (200): the updated message. New `etag` returned. The thread's sequence is **not** advanced - edits are an out-of-band update on an existing sequence number, broadcast as a `server.message_event` with `kind: "edited"`.
 
 ```
 DELETE /v1/messages/{mid}
 If-Match: W/"v1-0"
 ```
 
-Response (204). Soft delete by default — the row stays, the body is replaced with a tombstone. Hard delete (for GDPR / DSAR) is a separate admin endpoint.
+Response (204). Soft delete by default - the row stays, the body is replaced with a tombstone. Hard delete (for GDPR / DSAR) is a separate admin endpoint.
 
 `If-Match` failures return `412 PRECONDITION_FAILED` with the current `etag` so the client can resolve the conflict.
 
@@ -417,7 +417,7 @@ Response (201):
 4. Server confirms in `server.welcome_complete`, optionally with `resumeToken` and per-thread `lastSequence` snapshot.
 5. Steady state: bidirectional framed JSON messages.
 6. Heartbeat: `client.ping` every 25s, server responds `server.pong`. Three missed pongs → client reconnects.
-7. Token rotation: client sends `client.rebind` with the new JWT. Server validates and updates the session's identity binding **without dropping the socket**. (This is the same pattern I used in TunDRA for cert rotation on long-lived QUIC sessions — A-MS1.)
+7. Token rotation: client sends `client.rebind` with the new JWT. Server validates and updates the session's identity binding **without dropping the socket**. (This is the same pattern I used in TunDRA for cert rotation on long-lived QUIC sessions - A-MS1.)
 8. Disconnect: client sends `client.bye` (clean) or the socket drops (unclean). On unclean drop, the gateway holds session state for 30 seconds to allow `client.resume`.
 9. Reconnect with `resumeToken` → server replays missed events in order from the per-thread last delivered sequence.
 
@@ -438,7 +438,7 @@ JSON over WebSocket text frames at Alpha. Every frame has:
 - `v` is the protocol version negotiated in `client.hello`.
 - `id` is a frame identifier (UUID v7) used for ack correlation.
 - `type` is the frame type (table below).
-- `ts` is the sender's wall clock; informational only — server uses its own clock for ordering.
+- `ts` is the sender's wall clock; informational only - server uses its own clock for ordering.
 
 **Open question** (§13): switch to a binary framing (CBOR or protobuf) once we hit a clear cost or latency wall. Not at Alpha.
 
@@ -633,7 +633,7 @@ JSON over WebSocket text frames at Alpha. Every frame has:
 }
 ```
 
-**`server.error`** — see §9 for the envelope.
+**`server.error`** - see §9 for the envelope.
 
 ### 4.5 Ordering and delivery guarantees
 
@@ -657,7 +657,7 @@ This ordering model is the same shape as the per-instance ordered streams I work
 
 ## 5. Internal gRPC contracts
 
-Internal services speak gRPC over HTTP/2 with mTLS. Protos live in a single shared monorepo path `proto/qale/...`. Below is just enough proto to show the boundaries — the canonical files live in code, not in this doc.
+Internal services speak gRPC over HTTP/2 with mTLS. Protos live in a single shared monorepo path `proto/qale/...`. Below is just enough proto to show the boundaries - the canonical files live in code, not in this doc.
 
 ### 5.1 MessageService
 
@@ -884,7 +884,7 @@ enum PresenceState { OFFLINE = 0; ACTIVE = 1; AWAY = 2; DND = 3; INVISIBLE = 4; 
 
 ## 6. Idempotency model
 
-Anchor: this is the same idempotency pattern I had to build for AI tool calls at BlackBox (A-BB3) — agents that retry a side-effect-bearing tool must not double-charge or double-send.
+Anchor: this is the same idempotency pattern I had to build for AI tool calls at BlackBox (A-BB3) - agents that retry a side-effect-bearing tool must not double-charge or double-send.
 
 ### 6.1 Where idempotency is required
 
@@ -920,7 +920,7 @@ Server-generated keys would force a two-trip protocol (`POST` to allocate a key,
 
 ### 6.4 Idempotency for AI runs specifically
 
-`POST /v1/threads/{tid}/ai/runs` is the most expensive idempotent operation. A user mashing the "Summarize" button must not cost us five LLM calls. Body-hash equivalence here is loose: we hash `(intent, input, tools, modelHint, budget)` — small differences in `metadata` are ignored. This was the same shape of dedup I built into the BlackBox model router (A-BB4) — at 1B+ tokens/month, even single-digit % of duplicate runs are meaningful money.
+`POST /v1/threads/{tid}/ai/runs` is the most expensive idempotent operation. A user mashing the "Summarize" button must not cost us five LLM calls. Body-hash equivalence here is loose: we hash `(intent, input, tools, modelHint, budget)` - small differences in `metadata` are ignored. This was the same shape of dedup I built into the BlackBox model router (A-BB4) - at 1B+ tokens/month, even single-digit % of duplicate runs are meaningful money.
 
 ---
 
@@ -930,7 +930,7 @@ Server-generated keys would force a two-trip protocol (`POST` to allocate a key,
 
 Why no offset:
 
-- Offset pagination breaks under concurrent inserts (the most common case for a chat product — new messages arrive constantly).
+- Offset pagination breaks under concurrent inserts (the most common case for a chat product - new messages arrive constantly).
 - Offset pagination forces the database to scan-and-skip, which gets pathologically expensive past the first few pages.
 - Offset pagination gives a false "page count" affordance that we don't actually need.
 
@@ -989,7 +989,7 @@ This matters at the BlackBox scale (1B+ tokens/month, A-BB4): without an ACK win
 
 ### 8.4 Tool calls in the stream
 
-Tool calls (`server.ai_run_tool_call`) and their results (`server.ai_run_tool_result`) are interleaved with token deltas. Clients render them as inline structured blocks ("Searching workspace…", "Read 5 results"). The structured form is preserved in the persisted output message so the audit log shows exactly which tools ran with which inputs — required for SOC-2 (A-BB1).
+Tool calls (`server.ai_run_tool_call`) and their results (`server.ai_run_tool_result`) are interleaved with token deltas. Clients render them as inline structured blocks ("Searching workspace…", "Read 5 results"). The structured form is preserved in the persisted output message so the audit log shows exactly which tools ran with which inputs - required for SOC-2 (A-BB1).
 
 ### 8.5 Cancellation in the stream
 
@@ -1001,7 +1001,7 @@ Tool calls (`server.ai_run_tool_call`) and their results (`server.ai_run_tool_re
 
 ### 9.1 Envelope
 
-Every error response — REST, WS, gRPC — uses the same envelope.
+Every error response - REST, WS, gRPC - uses the same envelope.
 
 REST/JSON:
 
@@ -1179,7 +1179,7 @@ AI quotas are **plan-bound** and live in the `BillingService`:
 - Per-user per-day cap (configurable by workspace admin).
 - Per-run hard cap from the `budget` field on `POST /ai/runs`.
 
-When any cap is exceeded, the run fails fast with `AI_BUDGET_EXCEEDED`. This is a direct lift of the budget enforcer pattern from the BlackBox model router (A-BB4) — at 1B+ tokens/month, a workspace going haywire (an agent in a tool-call loop) will quietly cost five figures in an afternoon if there's no enforcer.
+When any cap is exceeded, the run fails fast with `AI_BUDGET_EXCEEDED`. This is a direct lift of the budget enforcer pattern from the BlackBox model router (A-BB4) - at 1B+ tokens/month, a workspace going haywire (an agent in a tool-call loop) will quietly cost five figures in an afternoon if there's no enforcer.
 
 ### 11.5 Load shedding
 
@@ -1192,7 +1192,7 @@ When a region or service is over capacity, we shed load by **class**, in this or
 5. `ai.run.start` (any)
 6. `ws.send_message` and `rest.write` (last)
 
-A shed request gets `503 INTERNAL_DEPENDENCY_DEGRADED` with `Retry-After`. We **never** shed message sends or writes ahead of reads — the unit of trust in a chat product is "can my message get through?" If that breaks, the product is broken.
+A shed request gets `503 INTERNAL_DEPENDENCY_DEGRADED` with `Retry-After`. We **never** shed message sends or writes ahead of reads - the unit of trust in a chat product is "can my message get through?" If that breaks, the product is broken.
 
 ---
 
@@ -1247,7 +1247,7 @@ Signature: `v1 = HMAC_SHA256(secret, timestamp + "." + body)`. Receivers verify 
 
 - **At-least-once** delivery. Receivers must dedupe by `X-Qale-Delivery-Id`.
 - Retry policy: exponential backoff with full jitter, retries at 0, 30s, 2m, 10m, 1h, 6h, 24h. After 24h of failures, the webhook endpoint is auto-disabled and the workspace admin gets a notification.
-- HTTP `2xx` is success. `4xx` (except `408`, `429`) stops the retry chain — there's no point retrying a request the server says is malformed.
+- HTTP `2xx` is success. `4xx` (except `408`, `429`) stops the retry chain - there's no point retrying a request the server says is malformed.
 - `Replay endpoint`: `POST /v1/workspaces/{wsId}/webhooks/{whId}/deliveries/{dlvId}/replay`. Admin-only.
 - A delivery log (`GET /v1/workspaces/{wsId}/webhooks/{whId}/deliveries`) shows the last 30 days of attempts with status codes, latencies, and response bodies (truncated).
 
@@ -1285,7 +1285,7 @@ These are decisions I deliberately did **not** make in this doc. I want them on 
 
 ---
 
-## Appendix A — quick reference: required headers per surface
+## Appendix A - quick reference: required headers per surface
 
 | Header | REST | WS upgrade | gRPC | Webhooks (outbound) |
 | --- | :-: | :-: | :-: | :-: |
@@ -1297,7 +1297,7 @@ These are decisions I deliberately did **not** make in this doc. I want them on 
 | `X-Trace-Id` (response) | always | included in errors | always | always |
 | `X-Qale-Signature` | n/a | n/a | n/a | required |
 
-## Appendix B — example end-to-end flow: "user sends a message and asks AI to summarize"
+## Appendix B - example end-to-end flow: "user sends a message and asks AI to summarize"
 
 1. Client `POST /v1/threads/{tid}/messages` with `Idempotency-Key: A`. Server returns `messageId`, `sequence: 18342`, `deliveryState: fanout_pending`.
 2. Server publishes to bus → fanout shard → all subscribed gateways → all subscribed clients see `server.message_event { kind: created, sequence: 18342 }`. Original sender's WS sees `server.message_ack { clientMessageId, messageId, sequence: 18342 }`.

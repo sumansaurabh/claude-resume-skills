@@ -1,11 +1,11 @@
-# 01 — Executive Summary
+# 01 - Executive Summary
 
 ## The One-Paragraph Answer
 
 Today's runner is a single Go binary (`cmd/sandboxd`) that owns five things on one
 host: a SQLite store, sandbox lifecycle service, gVisor runtime via Docker, a
 local Caddy ingress, and an in-process admission controller. To distribute it
-without a central control plane, decompose it into **three planes** — gossip-based
+without a central control plane, decompose it into **three planes** - gossip-based
 **membership**, **owner-authoritative sandbox metadata** with replicated reads,
 and a **placement + port** layer that is the only place consensus is needed.
 Pick one of two consistency stories: Raft-for-placement (Nomad-shaped, easy to
@@ -19,18 +19,18 @@ one so two ecosystems can mesh without merging logs.
 
 ## The Spine, In Five Bullets
 
-1. **Membership** — SWIM gossip (HashiCorp memberlist or libp2p pubsub). Each
+1. **Membership** - SWIM gossip (HashiCorp memberlist or libp2p pubsub). Each
    node advertises a capacity vector. Power-of-two-choices for placement reads.
-2. **Sandbox state** — owner-authoritative. The node where the container runs
+2. **Sandbox state** - owner-authoritative. The node where the container runs
    owns mutations to that row. Other peers hold replicated reads. Owner failure
    = sandbox lost (acceptable: A1, ephemeral).
-3. **Placement + port allocation** — the only consensus surface. Raft holds
+3. **Placement + port allocation** - the only consensus surface. Raft holds
    `{sandbox_id → owner_node_id, version}` and the port-pool partition map.
    Nothing else.
-4. **Ingress** — every peer is a front door. Caddy stays per-host, but the
+4. **Ingress** - every peer is a front door. Caddy stays per-host, but the
    toolbox proxy looks up the owner from the local cached placement map; if
    it's not me, forward over a libp2p stream to the owner.
-5. **Federation** — two clusters bridge by joining the same gossip mesh through
+5. **Federation** - two clusters bridge by joining the same gossip mesh through
    a small set of bridge peers. Each retains its own placement Raft;
    cross-ecosystem placements go via owner forwarding, not log merging.
 
@@ -40,7 +40,7 @@ one so two ecosystems can mesh without merging logs.
   the cost of a Raft round-trip on placement is amortized across millions of
   hot-path requests. You get linearizable placement *and* gossip-speed runtime.
 - **Sandbox ephemerality lets you keep Raft tiny.** Putting `Status`,
-  `ExposedPorts`, `Mounts` into Raft would explode the log. Pointers only —
+  `ExposedPorts`, `Mounts` into Raft would explode the log. Pointers only -
   ~100 bytes per commit. 10K commits/sec on a single Raft leader is achievable.
 - **Owner-sharded ownership preserves the existing single-node code.** The
   `internal/service` lifecycle, `pkg/docker` runtime, `pkg/caddy` ingress, and
@@ -49,7 +49,7 @@ one so two ecosystems can mesh without merging logs.
 - **CRDT/libp2p is the destination, not the start.** Operationally, "who owns
   sandbox X right now" needs to be unambiguous from day one. Once conflicts are
   rare-and-understood (because each node only proposes a placement when it
-  receives a create request — N-way races are uncommon), CRDT is a drop-in
+  receives a create request - N-way races are uncommon), CRDT is a drop-in
   replacement for the same `{sandbox_id → owner_node_id}` map.
 
 ## Scale Envelope

@@ -1,7 +1,7 @@
-# 13 — Data Model and Storage
+# 13 - Data Model and Storage
 
 What lives where, in what format, and how it moves through the data plane. The
-user's question explicitly asks how artifacts are published and logs tracked —
+user's question explicitly asks how artifacts are published and logs tracked -
 this file is the bytes-on-disk view.
 
 ## Storage tiers
@@ -175,7 +175,7 @@ def publish_artifact(ckpt_root, target_root):
 ```
 
 `summon_full_params` is the FSDP API that all-gathers a sharded tensor to one
-rank — the same primitive that runs every forward pass, used in the rare
+rank - the same primitive that runs every forward pass, used in the rare
 "snapshot to disk in full form" case. For DeepSpeed: `engine.save_16bit_model()`
 does the equivalent.
 
@@ -195,7 +195,7 @@ final one if eval is trustworthy.
 
 ## Logs as data
 
-Logs are not just operational — at platform scale they're also the substrate for
+Logs are not just operational - at platform scale they're also the substrate for
 debugging tools, retro analytics, and ML on the platform itself.
 
 The Kusto schema (simplified):
@@ -231,9 +231,9 @@ JobSpans
 Two patterns this enables:
 
 - **Cross-job correlation** (e.g. all jobs that hit a particular NCCL error on a
-  particular node) — trivial Kusto query.
+  particular node) - trivial Kusto query.
 - **Self-service triage** in AI Studio: customers can see *their* logs and
   metrics without filing a ticket.
 
-This is the "tracked logs" part of the user's question — concretely, Kusto with
+This is the "tracked logs" part of the user's question - concretely, Kusto with
 three tables that make logs/metrics/traces joinable via `run_id` + `span_id`.

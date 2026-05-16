@@ -1,4 +1,4 @@
-# 05 — Scaling and Capacity
+# 05 - Scaling and Capacity
 
 ## Target Scale Envelope
 
@@ -8,7 +8,7 @@
 | Sandboxes per fabric | 1M live, 100M lifetime | 10M live, 1B lifetime |
 | Sustained sandbox creates/sec | 200 | 2K (sharded placement) |
 | Burst sandbox creates/sec | 5K (10s burst, batched commits) | 50K (per-shard) |
-| Hot-path requests/sec (sandbox HTTP) | unbounded — owner-local | unbounded |
+| Hot-path requests/sec (sandbox HTTP) | unbounded - owner-local | unbounded |
 | Cross-fabric federation | 5 fabrics meshed | 50 fabrics meshed |
 
 10K nodes is the design center. Nomad documents 10K+, Kubernetes ~5K
@@ -24,7 +24,7 @@ officially. This is real-system territory.
 | Gossip (SWIM) | Tested clean to ~5K; 10K needs tuning | Bigger fanout, longer suspicion timeouts, push/pull anti-entropy interval up. Above 10K, hierarchical gossip or regional pools. |
 | Capacity advertisement | All-to-all broadcast = O(N²) traffic | Don't broadcast. Power-of-two-choices: sample 2-5 random peers per placement decision. Scales infinitely. |
 | Ingress lookup | 10K nodes × millions lookups/sec | Local cache on every node, watch-invalidated. One-hop forward on stale. |
-| Failure churn | Few node deaths/hour ⇒ hundreds of re-placements/hour | Trivial Raft load. Real cost is ingress-route updates — handled by cache invalidation. |
+| Failure churn | Few node deaths/hour ⇒ hundreds of re-placements/hour | Trivial Raft load. Real cost is ingress-route updates - handled by cache invalidation. |
 
 ## Capacity Math
 
@@ -38,7 +38,7 @@ re-placement → ~700/sec. A single Raft leader on commodity NVMe sustains
 at 1K creates/sec.
 
 **Burst scenario:** CI provider spins up 5K sandboxes in 10s = 500 creates/sec
-for 10s. Mitigation: **batch placements** — `PlaceBatch([]CreateRequest)` is
+for 10s. Mitigation: **batch placements** - `PlaceBatch([]CreateRequest)` is
 one Raft commit that places N sandboxes at once. With batches of 50, 5K
 creates = 100 commits at peak. Easily absorbed.
 
@@ -49,10 +49,10 @@ events/sec × 10K subscribers = 7M push events/sec.
 
 That's prohibitive without help. Two techniques:
 
-1. **Filtered watches** — each node only cares about sandboxes it owns + a
+1. **Filtered watches** - each node only cares about sandboxes it owns + a
    sample. Subscriber-side filter at the leader cuts 7M to maybe 500K push
    events/sec across the fleet.
-2. **Pull-based reconciliation for idle nodes** — nodes that haven't sent a
+2. **Pull-based reconciliation for idle nodes** - nodes that haven't sent a
    request in 30s switch from streaming to periodic pull. The placement cache
    tolerates 10s of staleness because the forwarding shim handles
    `OwnerMoved` gracefully.
@@ -95,11 +95,11 @@ near-optimal at 10K nodes.** This is the single biggest scaling lever.
 At >10K commits/sec sustained, leader disk fsync dominates. Mitigations in
 order of effort:
 
-1. **Group commit** — already standard in `hashicorp/raft`. Multiple log
+1. **Group commit** - already standard in `hashicorp/raft`. Multiple log
    entries per fsync.
-2. **Batch sandbox creates at the API layer** — accept `POST /v1/sandboxes:batch`,
+2. **Batch sandbox creates at the API layer** - accept `POST /v1/sandboxes:batch`,
    commit one Raft entry per batch.
-3. **Shard the placement Raft** — one group per `hash(sandbox_id) % K`
+3. **Shard the placement Raft** - one group per `hash(sandbox_id) % K`
    ranges. K=4 buys 4x; K=16 buys ~16x. Adds operational complexity.
 
 ### Bottleneck #2: Cross-fabric forwarding latency
@@ -110,12 +110,12 @@ hit.
 
 Mitigations:
 
-1. **Locality-aware placement** — extend membership filter to prefer same-region
+1. **Locality-aware placement** - extend membership filter to prefer same-region
    peers. Sample K from same region first; fall back to global if no capacity.
-2. **Sticky DNS for long-lived sandboxes** — emit a CNAME `sandbox-{id}.{fabric}`
+2. **Sticky DNS for long-lived sandboxes** - emit a CNAME `sandbox-{id}.{fabric}`
    directly to the owner node's address; falls back to forwarding if the DNS
    record is stale.
-3. **Co-locate API ingress with sandbox owner** — for SDK clients, the SDK
+3. **Co-locate API ingress with sandbox owner** - for SDK clients, the SDK
    learns the owner from the first response and pins to it.
 
 ### Bottleneck #3: Membership churn under chaos
@@ -125,11 +125,11 @@ re-place ~5-50 sandboxes the dead node owned, invalidate ingress caches across
 the fleet.
 
 Re-placement: Raft can sustain it (5 nodes × 50 sandboxes × 3 commits = 750
-commits/hour worst case — irrelevant).
+commits/hour worst case - irrelevant).
 
 Cache invalidation: streaming watch handles it; the issue is the "thundering
 herd" of clients hitting the dead node's sandboxes simultaneously discovering
-the move. Mitigation: serve `OwnerMoved` from the *gossip* layer too — when a
+the move. Mitigation: serve `OwnerMoved` from the *gossip* layer too - when a
 node is declared dead, peers proactively NACK forwards to it with the
 last-known placement.
 
@@ -160,7 +160,7 @@ Federation properties:
   → F2-owner. Latency penalty = 1 extra hop, not pathological.
 
 This is the **same mechanism** that "ecosystems talking to each other" needs.
-Federation isn't a separate feature — it's the same gossip+forward design,
+Federation isn't a separate feature - it's the same gossip+forward design,
 deployed across trust boundaries.
 
 ## Cost Model

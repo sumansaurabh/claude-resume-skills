@@ -1,4 +1,4 @@
-# 04 — Low-Level Design: code, configs, and what differs
+# 04 - Low-Level Design: code, configs, and what differs
 
 This file is the answer to the **code-level part of the question**. Each section
 trains the same model (Llama-3-style, 7-70B class) on the same data, but expresses
@@ -107,7 +107,7 @@ def train_with_fsdp(cfg):
     dist.init_process_group("nccl", init_method="env://")
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
 
-    # Build on meta device, materialize sharded — avoids OOM during load.
+    # Build on meta device, materialize sharded - avoids OOM during load.
     with torch.device("meta"):
         model = build_model(cfg)
     apply_meta_to_real_init(model)
@@ -146,7 +146,7 @@ def train_with_fsdp(cfg):
             save_fsdp_sharded(model, opt, step, cfg.ckpt_dir)
 
 def save_fsdp_sharded(model, opt, step, ckpt_dir):
-    # Distributed Checkpoint (DCP) — sharded, parallel writes, scales O(1) in N.
+    # Distributed Checkpoint (DCP) - sharded, parallel writes, scales O(1) in N.
     import torch.distributed.checkpoint as dcp
     state = {"model": model.state_dict(), "optim": FSDP.optim_state_dict(model, opt)}
     dcp.save(state, checkpoint_id=f"{ckpt_dir}/step-{step}")
@@ -214,14 +214,14 @@ model sizes, and (c) **stable, well-tuned pipeline + ZeRO combinations**.
 }
 ```
 
-### 3b. The Python is short — almost all design is in the config
+### 3b. The Python is short - almost all design is in the config
 
 ```python
 # frameworks/deepspeed.py
 import deepspeed, torch
 
 def train_with_deepspeed(cfg):
-    model = build_model(cfg)        # no .cuda() — DeepSpeed places it
+    model = build_model(cfg)        # no .cuda() - DeepSpeed places it
     engine, optimizer, _, scheduler = deepspeed.initialize(
         model=model,
         model_parameters=model.parameters(),
@@ -256,7 +256,7 @@ def train_with_deepspeed(cfg):
 
 | Stage | What is sharded | Memory factor (vs DDP) | NCCL pattern |
 |---|---|---|---|
-| 0 | Nothing — same as DDP | 1× | all_reduce grads |
+| 0 | Nothing - same as DDP | 1× | all_reduce grads |
 | 1 | Optimizer state | ~4× saving (AdamW) | all_reduce grads, sharded optimizer step |
 | 2 | + Gradients | ~8× | reduce_scatter grads |
 | 3 | + Parameters | ~N× (ideal) | all_gather params + reduce_scatter grads |
@@ -300,7 +300,7 @@ class ColumnParallelLinear(torch.nn.Module):
             torch.empty(self.out_per_rank, in_features, device="cuda", dtype=torch.bfloat16)
         )
     def forward(self, x):
-        # x: [b, s, in_features] — replicated across TP group
+        # x: [b, s, in_features] - replicated across TP group
         local_out = x @ self.weight.t()                       # [b, s, out_per_rank]
         # ColumnParallel keeps output sharded; the next op (RowParallel) does all_reduce
         return local_out
@@ -316,7 +316,7 @@ class RowParallelLinear(torch.nn.Module):
             torch.empty(out_features, self.in_per_rank, device="cuda", dtype=torch.bfloat16)
         )
     def forward(self, x):
-        # x: [b, s, in_per_rank] — sharded along last axis
+        # x: [b, s, in_per_rank] - sharded along last axis
         local = x @ self.weight.t()                           # [b, s, out_features]
         dist.all_reduce(local, group=self.tp_group)           # the TP all-reduce
         return local
@@ -329,10 +329,10 @@ LayerNorm  → ColumnParallelLinear(QKV)  →  attn  →  RowParallelLinear(O)  
           → ColumnParallelLinear(FC1)   →  GeLU  →  RowParallelLinear(FC2) →  +residual
 ```
 
-The **all-reduce inside `RowParallelLinear` is the TP cost** — it's on the
+The **all-reduce inside `RowParallelLinear` is the TP cost** - it's on the
 critical path of every forward and every backward.
 
-### 4c. Pipeline Parallel — interleaved 1F1B schedule
+### 4c. Pipeline Parallel - interleaved 1F1B schedule
 
 ```python
 # Pseudocode for the 1F1B (one-forward-one-backward) schedule used by Megatron + DeepSpeed
@@ -360,10 +360,10 @@ M is microbatch count. This is why you crank up the microbatch count for PP runs
 
 DeepSeek-V3 is built on top of Megatron-style infra but adds:
 
-1. **MLA (Multi-head Latent Attention)** — projects Q/K/V through a low-rank
+1. **MLA (Multi-head Latent Attention)** - projects Q/K/V through a low-rank
    bottleneck. Cuts KV cache 5-10×. Code is essentially a new Attention class
    with an extra down-proj + up-proj.
-2. **DeepSeekMoE** — many small experts (256) + a few "shared experts". Routing
+2. **DeepSeekMoE** - many small experts (256) + a few "shared experts". Routing
    uses an auxiliary-loss-free strategy (a bias term, no aux loss). Code:
 
    ```python
@@ -389,7 +389,7 @@ DeepSeek-V3 is built on top of Megatron-style infra but adds:
 3. **FP8 training** with online scale tracking (DeepSeek-V3 paper §3): forward
    activations in FP8 e4m3, gradients in FP8 e5m2, weights master copy in BF16,
    per-block scaling factors. Implemented in a fork of Transformer Engine.
-4. **DualPipe** — pipeline schedule that overlaps compute with the all-to-all
+4. **DualPipe** - pipeline schedule that overlaps compute with the all-to-all
    from the MoE layers. The key innovation is that during the bubble of one
    microbatch you run the all-to-all comm of another microbatch.
 
@@ -418,7 +418,7 @@ def train_with_megatron_like(cfg):
             save_distributed_checkpoint(model, optimizer, step)
 ```
 
-## 5. Ray Train — orchestration around the above
+## 5. Ray Train - orchestration around the above
 
 Ray Train **is not a sharding library**. It's a job manager that places PyTorch
 processes on Ray actors and hands them the env they need. Inside the worker, you
@@ -464,26 +464,26 @@ def train_with_ray(cfg):
 
 **What Ray Train adds on top of `torchrun`:**
 
-1. **Heterogeneous clusters** — easy to mix GPU/CPU actors, autoscaling,
+1. **Heterogeneous clusters** - easy to mix GPU/CPU actors, autoscaling,
    spot instances.
-2. **Fault tolerance** — built-in checkpoint replay, worker replacement (if you
+2. **Fault tolerance** - built-in checkpoint replay, worker replacement (if you
    use ray's checkpoint API and your code is idempotent).
-3. **Hyperparameter tuning** — `ray.tune` wraps `TorchTrainer` for sweeps.
-4. **Pipeline beyond training** — Ray Data for distributed dataloading, Ray Serve
+3. **Hyperparameter tuning** - `ray.tune` wraps `TorchTrainer` for sweeps.
+4. **Pipeline beyond training** - Ray Data for distributed dataloading, Ray Serve
    for inference, in the same cluster.
 
 **What Ray Train does *not* add:** any new sharding scheme. The model still
 ends up in FSDP/DeepSpeed/Megatron.
 
-## 6. vLLM — what role does it play here?
+## 6. vLLM - what role does it play here?
 
 vLLM is **not a training framework**. It is included in the resume's tech list
 (`resume.txt` L100-101) because the fine-tuning platform uses it for:
 
-1. **Mid-training evaluation** — load the latest checkpoint into a vLLM engine on
+1. **Mid-training evaluation** - load the latest checkpoint into a vLLM engine on
    a sidecar pod, generate completions on an eval set, score with BLEU/MMLU/eval
    harnesses, and log back to MLflow.
-2. **Post-training serving** — once a fine-tuned model is registered, the serving
+2. **Post-training serving** - once a fine-tuned model is registered, the serving
    plane spins up vLLM replicas behind a routing layer.
 
 vLLM's secret sauce, which you should be able to talk about in the same breath
@@ -523,20 +523,20 @@ For training a Llama-3 70B on 8 nodes × 8×H100:
 
 | Concern | DDP | FSDP | DeepSpeed Z3 | Megatron / DeepSeek |
 |---|---|---|---|---|
-| Per-GPU mem (params + grad + opt) | 1× — won't fit | 1/64× — fits | 1/64× — fits, can also offload | Sharded by TP × PP |
+| Per-GPU mem (params + grad + opt) | 1× - won't fit | 1/64× - fits | 1/64× - fits, can also offload | Sharded by TP × PP |
 | User code | DDP wrap, 5 lines | FSDP wrap + policy, 15 lines | `deepspeed.initialize` + JSON config | Rewrite layer classes |
 | Config style | Python args | Python args | JSON | Python + Megatron parallel groups |
 | MoE support | No | No | Yes (`deepspeed.moe`) | Yes, first-class |
 | Pipeline support | No | No | Yes (`PipelineModule`) | Yes, gold standard (1F1B, interleaved, DualPipe) |
 | Checkpoint format | `state_dict` | DCP sharded | DS sharded; gather on save | Megatron sharded |
-| 70B fits on 1 node (8×80GB)? | No (140GB params alone) | Yes BF16 | Yes BF16 (+CPU offload makes 70B viable on smaller GPUs) | Overkill — not the use case |
-| 671B (DeepSeek-V3) feasible? | No | Awkward | Yes with EP + offload | Yes — this is its native regime |
+| 70B fits on 1 node (8×80GB)? | No (140GB params alone) | Yes BF16 | Yes BF16 (+CPU offload makes 70B viable on smaller GPUs) | Overkill - not the use case |
+| 671B (DeepSeek-V3) feasible? | No | Awkward | Yes with EP + offload | Yes - this is its native regime |
 | Communication pattern | all_reduce only | all_gather + reduce_scatter (per FSDP unit) | all_gather + reduce_scatter (per bucket) | TP: all_reduce per layer; MoE: all_to_all; PP: send/recv |
 
 ## 8. Why the platform offered all of them
 
 Tying back to **resume.txt L100-101** (DeepSpeed, PyTorch, vLLM, Ray Train, QLoRA,
-PEFT, MLflow): the platform did not pick one — it offered **profiles**:
+PEFT, MLflow): the platform did not pick one - it offered **profiles**:
 
 | Profile | Stack | Use case |
 |---|---|---|

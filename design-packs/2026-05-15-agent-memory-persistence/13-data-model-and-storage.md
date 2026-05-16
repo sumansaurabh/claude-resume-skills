@@ -1,9 +1,9 @@
-# 13 — Data Model and Storage
+# 13 - Data Model and Storage
 
 A consolidated, copy-paste-able view of every store. Read alongside
 `04-low-level-design.md` (which has the surrounding narrative).
 
-## Postgres — `mem_exec` schema
+## Postgres - `mem_exec` schema
 
 ### `exec_run`
 
@@ -81,7 +81,7 @@ CREATE POLICY stm_snap_rls ON stm_snapshot
 A snapshot is written per checkpoint commit. Recovery reads the latest snapshot
 to rehydrate Redis if the live key is gone.
 
-## Postgres — `mem_episodic` schema
+## Postgres - `mem_episodic` schema
 
 ### `episodic_event`
 
@@ -133,7 +133,7 @@ CREATE TABLE episodic_summary (
 CREATE INDEX episodic_summary_session ON episodic_summary (tenant_id, session_id, created_at DESC);
 ```
 
-## Postgres — `mem_long_term` schema
+## Postgres - `mem_long_term` schema
 
 ### `long_term`
 
@@ -196,7 +196,7 @@ CREATE TABLE long_term_schema (
 );
 ```
 
-## Redis — short-term
+## Redis - short-term
 
 | Key | Type | TTL | Notes |
 | --- | --- | --- | --- |
@@ -208,7 +208,7 @@ CREATE TABLE long_term_schema (
 ACLs per tenant; cluster sharded by `{tenant}|{run_id}` hash tag for
 locality.
 
-## Qdrant — vector
+## Qdrant - vector
 
 Collections:
 
@@ -301,8 +301,8 @@ spans/day per resume).
 
 ## Anchors
 
-- Vector / HNSW / bm25 / cross-encoder shape — `resume.txt` technologies line
+- Vector / HNSW / bm25 / cross-encoder shape - `resume.txt` technologies line
   on BlackBox.
-- Append-only event log + checkpoints + replay — `resume.txt` BlackBox
+- Append-only event log + checkpoints + replay - `resume.txt` BlackBox
   bullet 3 + bullet 5; `blackbox-experience.md` #12, #13, #20.
-- Multi-tenant + SOC-2 retention obligations — `blackbox-experience.md` #5.
+- Multi-tenant + SOC-2 retention obligations - `blackbox-experience.md` #5.

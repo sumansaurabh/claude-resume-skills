@@ -1,4 +1,4 @@
-# 00 — Question and Context
+# 00 - Question and Context
 
 ## Original Question
 
@@ -12,7 +12,7 @@ This is a **10/10 principal-engineer system design question** testing:
 
 - System design for a high-throughput, low-latency execution engine
 - Security isolation design (SOC-2 compliance motivation)
-- WASM runtime depth — not just "we used WASM" but how it works
+- WASM runtime depth - not just "we used WASM" but how it works
 - Control plane vs. execution plane separation
 - Streaming output design
 - Resource management and cleanup at 1M+ executions/day
@@ -23,11 +23,11 @@ This is a **10/10 principal-engineer system design question** testing:
 ## Assumptions
 
 1. **BlackBox Copilot** is an AI-powered no-code/low-code platform where users write prompts or instructions and the Copilot generates and executes code on their behalf. The WASM sandbox is the execution layer for that generated code.
-2. **Zero-shot execution** means each code snippet runs without a persistent execution environment — no shared state across executions, no long-running processes per user.
+2. **Zero-shot execution** means each code snippet runs without a persistent execution environment - no shared state across executions, no long-running processes per user.
 3. **Golang-backed** refers to the orchestration, scheduling, and runtime management layer written in Go. The WASM runtime itself is embedded via Go bindings.
-4. **Primary languages supported:** Python (via Pyodide compiled to WASM), JavaScript (via QuickJS or Deno compiled to WASM), possibly Go itself and Bash subsets. Multi-language support is an assumption — confirm with "the platform targeted Python and JavaScript initially, with others on the roadmap."
+4. **Primary languages supported:** Python (via Pyodide compiled to WASM), JavaScript (via QuickJS or Deno compiled to WASM), possibly Go itself and Bash subsets. Multi-language support is an assumption - confirm with "the platform targeted Python and JavaScript initially, with others on the roadmap."
 5. **wazero** (pure-Go WASM runtime, no CGo) was the runtime choice for security and deployment simplicity. Alternatively, Wasmtime-Go bindings could have been used.
-6. **WASI (WebAssembly System Interface)** provides the capability-based host interface — stdin/stdout/stderr allowed; filesystem and network denied by default.
+6. **WASI (WebAssembly System Interface)** provides the capability-based host interface - stdin/stdout/stderr allowed; filesystem and network denied by default.
 7. **SOC-2** compliance specifically required: tenant isolation (no cross-execution data leakage), audit logging of all executions, resource limits, and network egress controls.
 
 ---

@@ -111,4 +111,4 @@ Prepare these deeply because they directly map to your strongest Microsoft claim
 
 Your Microsoft experience is strongest when framed as:
 
-> “I built secure, multi-tenant, Kubernetes-based ML infrastructure for LLM fine-tuning and AutoML at Azure scale — covering GPU scheduling, job orchestration, VNet isolation, secure CI/CD, threat modeling, and QUIC-based compute communication.”
+> “I built secure, multi-tenant, Kubernetes-based ML infrastructure for LLM fine-tuning and AutoML at Azure scale - covering GPU scheduling, job orchestration, VNet isolation, secure CI/CD, threat modeling, and QUIC-based compute communication.”
