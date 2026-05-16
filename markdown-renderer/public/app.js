@@ -175,9 +175,17 @@
   }
 
   // ─── Load & render file ───
-  async function loadFile(filePath, force = false) {
+  async function loadFile(filePath, force = false, fromHash = false) {
     if (!force && currentPath === filePath) return;
     currentPath = filePath;
+
+    // Sync URL hash (skip if we're already responding to a hash change)
+    if (!fromHash) {
+      const newHash = '#file=' + encodeURIComponent(filePath);
+      if (window.location.hash !== newHash) {
+        history.pushState(null, '', newHash);
+      }
+    }
 
     // Update active state in tree
     document.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));
@@ -529,6 +537,43 @@
     }
   });
 
+  // ─── Hash-based routing ───
+  function getFileFromHash() {
+    const hash = window.location.hash;
+    if (hash.startsWith('#file=')) {
+      return decodeURIComponent(hash.slice('#file='.length));
+    }
+    return null;
+  }
+
+  window.addEventListener('hashchange', () => {
+    const filePath = getFileFromHash();
+    if (filePath && filePath !== currentPath) {
+      loadFile(filePath, true, true);
+    }
+  });
+
+  window.addEventListener('popstate', () => {
+    const filePath = getFileFromHash();
+    if (filePath && filePath !== currentPath) {
+      loadFile(filePath, true, true);
+    } else if (!filePath) {
+      // Back to welcome screen
+      currentPath = null;
+      welcomeScreen.style.display = '';
+      docView.style.display = 'none';
+      document.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));
+    }
+  });
+
   // ─── Init ───
-  loadTree();
+  async function init() {
+    await loadTree();
+    // Restore file from URL hash after tree is built
+    const hashFile = getFileFromHash();
+    if (hashFile) {
+      loadFile(hashFile, true, true);
+    }
+  }
+  init();
 })();
