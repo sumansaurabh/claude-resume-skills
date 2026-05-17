@@ -127,6 +127,27 @@ When `isAgentic: true`, Lane 13 must answer all 15 points below before writing
 not a paragraph mention inside a larger section. "Not applicable" requires a one-sentence
 justification; silence is not acceptable.
 
+Before point 1, the file MUST open with a `## Overview Diagram` section containing a
+Mermaid `graph LR` (or `flowchart LR`) that makes the memory subsystem readable at a
+glance. The diagram is the visual contract that the 15 prose points then elaborate.
+The diagram must include, at minimum:
+
+- One node per memory type from point 1 (working, episodic, semantic long-term, procedural).
+- One node per backing store from point 2 (Redis, Postgres, pgvector, Pinecone, etc.),
+  grouped as a `subgraph` per physical store when multiple memory types share a backend.
+- Read and write edges from each agent node (use the node names from
+  `12-agentic-graph-structure.md`) into the memory types they touch. Distinguish reads
+  from writes — either with solid (`-->`) vs dotted (`-.->`) edges, or with edge labels
+  (`-- write -->`, `-- read -->`).
+- The embedding model from point 6 as a shared node with edges into every vector-backed
+  memory type, so embedding-model consistency is visible without scanning the prose.
+- The cross-tenant isolation boundary from point 9 drawn as a `subgraph "Tenant N"`
+  wrap around all per-tenant stores, with the enforcement point (namespace check,
+  row-level filter, separate index) labeled on the boundary.
+
+Node IDs in this diagram MUST match the agent node names used in
+`12-agentic-graph-structure.md`. If they diverge, the in-loop critic will flag it.
+
 1. **Memory taxonomy** — enumerate each memory type in the system (working/short-term,
    long-term semantic, episodic, procedural/skill), state its purpose, and identify which
    agent nodes read and write each type.
@@ -185,6 +206,29 @@ below before writing `14-ingestion-pipeline.md`. Each point must be a concrete s
 RAG-as-tool-call (agent explicitly invokes a `search()` tool) lives in
 `04-api-and-contracts.md` and `05-low-level-design.md` — not here. This file covers
 the **write path**: how external content flows into the stores the agent reads from.
+
+Before point 1, the file MUST open with a `## Overview Diagram` section containing a
+Mermaid `graph TD` (or `flowchart TD`) of the write path, top-to-bottom from trigger
+to query-visible state. The diagram makes the failure surface and the multi-tenant
+boundary visible at a glance, so a reader can spot a missing DLQ or an isolation gap
+without reading 15 paragraphs. The diagram must include, at minimum:
+
+- One node per trigger source from point 1 (upload, webhook, crawler, push, stream).
+- The pipeline stages in order: chunker (point 2) → embedder (point 3) → dedup gate
+  (point 5) → index writer (point 4) → vector store (named per point 2 in
+  `13-memory-layer-design.md`).
+- An explicit DLQ destination node, with edges into it from every failure class
+  enumerated in point 14 (embedding failure, index write failure, chunking error,
+  filter rejection). Each edge labeled with the failure class so the taxonomy is
+  visible.
+- A content-filter reject branch from point 11 routing to a quarantine node,
+  distinct from the DLQ.
+- The multi-tenant scope from point 10 drawn as a `subgraph "Tenant N"` wrap around
+  the per-tenant boundary, with the enforcement point (namespace prefix, row filter,
+  separate index) labeled.
+- The embedding model node MUST carry the same name used in
+  `13-memory-layer-design.md` point 6. If the names diverge, the in-loop critic will
+  flag the embedding-model mismatch from the diagram alone, without scanning prose.
 
 1. **Ingestion triggers** — what initiates ingestion: user upload event, webhook from
    an external system, scheduled crawler, API push, or real-time event stream. State
@@ -255,6 +299,34 @@ Do NOT duplicate content from `07-security-and-isolation.md` (which covers
 infrastructure security: network, identity, secrets). This file covers **behavioral
 and content safety** — the enforcement layer that governs what the agent is allowed
 to do and say at runtime.
+
+Before point 1, the file MUST open with a `## Overview Diagram` section containing a
+Mermaid `graph TD` (or `flowchart TD`) of the full enforcement pipeline from user
+input to user output. The diagram is what shows that the agent is actually *protected*
+end-to-end — without it, a reader has to assemble the pipeline mentally from 15
+disconnected prose points. The diagram must include, at minimum:
+
+- The full happy-path chain in order: user input → input guardrails (point 1) →
+  planner / agent node → tool-call validator (point 3) → tool → tool-output sanitizer
+  (point 8) → next agent step → output guardrails (point 2) → user.
+- Each guardrail node labeled with the specific checks it runs (jailbreak detection,
+  PII redaction, policy compliance, hallucination gate, etc.) — not just "guardrail".
+- The escalation / HITL branch from point 4 drawn as an explicit edge from each
+  guardrail node that can trigger escalation, leading to a `Human Review` node and
+  back into the graph on resolution.
+- The fail-open vs fail-closed behavior from point 14 drawn explicitly: each
+  guardrail node should have a `failure` edge showing where the request goes when
+  the guardrail itself errors out (pass-through, block, or degraded-policy fallback).
+  Label the edge with the chosen mode.
+- The bypass / override path from point 11, if any exists, drawn as a separate edge
+  with the trusted-caller condition labeled. If no bypass exists, omit the edge and
+  state "no bypass path" in the diagram caption.
+- The multi-tenant policy load point from point 12 shown as a `Policy Config` node
+  with edges into each guardrail node, so per-tenant policy scoping is visible.
+
+The graph node names for the agent / planner / tool stages MUST match the
+corresponding node names in `12-agentic-graph-structure.md`. If they diverge, the
+in-loop critic will flag it.
 
 1. **Input guardrail pipeline** — what checks run on user input before it reaches
    the first agent node: jailbreak/prompt-injection detection, toxicity and harmful
@@ -394,19 +466,34 @@ SKILL.md:
   cycles bounded? Are joins explicit (not implicit)? Is the supervisor /
   worker / tool-caller hierarchy enforceable at the graph layer, not just in
   prompts? (Cross-check: the 20-point Agentic Design Estimates Checklist.)
-- **Memory (13):** all 15 points present as discrete subsections? Embedding
-  model named and consistent with `14`? Cross-tenant isolation enforced at a
-  named layer, not assumed?
-- **Ingestion (14, if applicable):** all 15 points present? Embedding model
-  matches `13` point 6 exactly? Multi-tenant isolation in the index enforced
-  at a named point? Dead-letter behavior specified per error class?
-- **Guardrails (15):** all 15 points present? Input, output, and tool-call
-  validation each addressed independently? Fail-mode (fail-open vs fail-closed)
-  named per check? No infrastructure-security duplication with `07`?
-- **Cross-file consistency:** embedding model named identically in `13` and
-  `14`. Node names in `12` match service names in `03`. Latency budget in
-  `13` point 12 fits within per-hop budget from `12`. Guardrail latency in
-  `15` point 10 fits within the same budget.
+- **Memory (13):** `## Overview Diagram` section present at the top with a Mermaid
+  graph that includes every memory type from point 1, every backing store from
+  point 2, read/write edges from agent nodes (names matching `12`), the embedding
+  model node from point 6, and a tenant-isolation subgraph from point 9? All 15
+  points present as discrete subsections? Embedding model named and consistent
+  with `14`? Cross-tenant isolation enforced at a named layer, not assumed?
+- **Ingestion (14, if applicable):** `## Overview Diagram` section present at the
+  top with a Mermaid graph that includes every trigger from point 1, the
+  chunk→embed→dedup→write stages, an explicit DLQ node with labeled edges from
+  every failure class in point 14, a quarantine branch from point 11, and a
+  tenant-isolation subgraph from point 10? Embedding-model node name matches `13`
+  point 6 exactly in the diagram? All 15 points present? Multi-tenant isolation
+  in the index enforced at a named point? Dead-letter behavior specified per
+  error class?
+- **Guardrails (15):** `## Overview Diagram` section present at the top with a
+  Mermaid graph that draws the full input → input-guardrails → planner →
+  tool-call-validator → tool → tool-output-sanitizer → output-guardrails → user
+  chain, with each guardrail node labeled by check type, explicit fail-mode edges
+  from point 14, the escalation/HITL branch from point 4, and the policy-config
+  node from point 12? Planner / agent / tool node names match `12`? All 15 points
+  present? Input, output, and tool-call validation each addressed independently?
+  Fail-mode (fail-open vs fail-closed) named per check? No infrastructure-security
+  duplication with `07`?
+- **Cross-file consistency:** embedding model named identically in `13` and `14`
+  (both in the prose AND in the overview diagrams). Node names in `12` match
+  service names in `03`, and agent node names referenced by the `13` and `15`
+  diagrams match `12`. Latency budget in `13` point 12 fits within per-hop budget
+  from `12`. Guardrail latency in `15` point 10 fits within the same budget.
 
 ### Verdict format
 
