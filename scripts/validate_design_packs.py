@@ -95,6 +95,7 @@ BANNED_ROOT_FILES = {
 AGENTIC_REQUIRED_FILES = {
     "12-agentic-graph-structure.md",
     "13-memory-layer-design.md",
+    "15-guardrails.md",
 }
 
 KNOWLEDGE_BASE_REQUIRED_FILE = "14-ingestion-pipeline.md"
@@ -200,6 +201,8 @@ def validate_files(pack_dir: Path, manifest: dict) -> list[str]:
     root_files = {path.name for path in pack_dir.iterdir() if path.is_file()}
 
     if manifest.get("isAgentic") is True:
+        # challenges shifts from 15 to 16 in agentic packs; 15 is occupied by guardrails
+        required_files = (required_files - {"15-challenges-by-stage.md"}) | {"16-challenges-by-stage.md"}
         required_files = required_files | AGENTIC_REQUIRED_FILES
         if manifest.get("hasKnowledgeBase") is True:
             required_files = required_files | {KNOWLEDGE_BASE_REQUIRED_FILE}

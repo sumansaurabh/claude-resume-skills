@@ -43,7 +43,8 @@ Before starting, confirm:
 2. The target pack's `manifest.json` exists and contains `"isAgentic": true`.
 3. `12-agentic-graph-structure.md` is present in the pack folder.
 4. `13-memory-layer-design.md` is present in the pack folder.
-5. If `manifest.json` contains `"hasKnowledgeBase": true`, then
+5. `15-guardrails.md` is present in the pack folder.
+6. If `manifest.json` contains `"hasKnowledgeBase": true`, then
    `14-ingestion-pipeline.md` must also be present in the pack folder.
 
 If any check fails, print the relevant message and halt — do not proceed:
@@ -59,6 +60,8 @@ If any check fails, print the relevant message and halt — do not proceed:
 - `13-memory-layer-design.md` missing → "The pack is missing
   `13-memory-layer-design.md`. Re-run `/analyze-my-resume` to generate the
   memory layer design before critiquing."
+- `15-guardrails.md` missing → "The pack is missing `15-guardrails.md`.
+  Re-run `/analyze-my-resume` to generate the guardrails design before critiquing."
 - `14-ingestion-pipeline.md` missing (when `hasKnowledgeBase: true`) → "The
   pack declares `hasKnowledgeBase: true` but is missing `14-ingestion-pipeline.md`.
   Re-run `/analyze-my-resume` to generate the ingestion pipeline design before
@@ -193,15 +196,43 @@ rubric regardless of what the file says.
 | 14 | Error handling and dead-letter — error taxonomy present, per-type retry + dead-letter destination stated |
 | 15 | Access control on ingested content — ACL enforcement point (ingest-time vs query-time) and bypass failure mode stated |
 
+### Guardrails Evaluation
+
+The Critic must evaluate `15-guardrails.md` using the 15-point guardrails rubric
+below. Apply the same `PASS | PARTIAL | FAIL` verdict per point with one sentence
+of evidence. This is a **separate** evaluation from the agentic, memory, and
+ingestion rubrics — a single `FAIL` here is a Phase 1 halt.
+
+Do NOT double-count content from `07-security-and-isolation.md`. This rubric
+evaluates **behavioral and content safety**, not infrastructure security.
+
+| # | Guardrails Point |
+|---|---|
+| 1 | Input guardrail pipeline — check types named, sync/async mode stated, action per check type stated |
+| 2 | Output guardrail pipeline — checks named, latency cost stated, parallel/sequential execution stated |
+| 3 | Tool call validation — capability RBAC per node named, parameter validation described, failure action stated |
+| 4 | Escalation policy — trigger conditions enumerated, action per condition stated, user-facing behavior described |
+| 5 | Cross-agent instruction boundaries — scope of valid instructions defined, privilege escalation detection described |
+| 6 | Behavioral policy enforcement — policy format named, scope creep detection described, violation response stated |
+| 7 | Prompt injection defense (input surface) — detection approach named, confidence threshold stated, action on detection stated |
+| 8 | Prompt injection defense (tool output surface) — sanitization layer described, detection approach named, quarantine strategy stated |
+| 9 | Confidentiality protection — output scanning for leakage described, inter-tenant isolation at response layer stated, log redaction policy stated |
+| 10 | Guardrail latency budget — p99 cost of full stack stated and fits within run budget, optimization approach named |
+| 11 | Bypass and override policy — conditions stated (or hard no-bypass), audit trail requirement stated |
+| 12 | Multi-tenant guardrail isolation — per-tenant policy scoping described, runtime loading strategy stated |
+| 13 | Guardrail observability — trigger rate, false positive rate, latency, bypass events, and escalation rate metrics named; alert threshold stated |
+| 14 | Guardrail failure mode — fail-open/fail-closed/degrade choice stated with rationale and configurability noted |
+| 15 | Guardrail model versioning — rollout strategy named (canary/shadow/A-B), regression detection method stated |
+
 ### Phase 1 Halt Condition
 
 If the Critic's report contains **any `FAIL`** across any active rubric section —
-20 agentic points, Scale Gate, 15 memory layer points, or (when applicable) 15
-ingestion pipeline points:
+20 agentic points, Scale Gate, 15 memory layer points, 15 guardrail points, or
+(when applicable) 15 ingestion pipeline points:
 
 1. Print the full critic report with all FAIL and PARTIAL items highlighted,
-   grouped by section (agentic rubric / scale gate / memory layer / ingestion
-   pipeline).
+   grouped by section (agentic rubric / scale gate / memory layer / guardrails /
+   ingestion pipeline).
 2. Print: "Phase 1 FAILED. The following blocking objections must be addressed
    before this design can proceed to Principal Engineer validation."
 3. List each FAIL item with a one-sentence remediation hint.
@@ -216,6 +247,7 @@ Phase 1 passes when all active rubric sections are fully PASS or PARTIAL:
 - All 20 agentic points PASS or PARTIAL
 - At least 4 of 5 Scale Gate axes pass
 - All 15 memory layer points PASS or PARTIAL
+- All 15 guardrail points PASS or PARTIAL
 - All 15 ingestion pipeline points PASS or PARTIAL *(only checked when `hasKnowledgeBase: true`)*
 
 PARTIAL is not a halt — it is a warning. Print all PARTIAL items prominently,
@@ -233,31 +265,34 @@ PARTIAL, and the Scale Gate result). This keeps the PE's judgment independent.
 > is genuinely production-ready.
 >
 > You have been told: Critic agentic rubric — N PASS, M PARTIAL, 0 FAIL.
-> Scale gate — K of 5 axes passed. Memory layer rubric — P PASS, Q PARTIAL,
-> 0 FAIL. [If hasKnowledgeBase: true]: Ingestion pipeline rubric — R PASS,
-> S PARTIAL, 0 FAIL. All PARTIAL items are: [list PARTIALs grouped by section].
+> Scale gate — K of 5 axes passed. Memory layer — P PASS, Q PARTIAL, 0 FAIL.
+> Guardrails — G PASS, H PARTIAL, 0 FAIL. [If hasKnowledgeBase: true]:
+> Ingestion pipeline — R PASS, S PARTIAL, 0 FAIL.
+> All PARTIAL items: [list PARTIALs grouped by section].
 >
 > Read the full design pack independently, including `12-agentic-graph-structure.md`,
-> `13-memory-layer-design.md`, and (if present) `14-ingestion-pipeline.md`.
-> Then answer these seven questions:
+> `13-memory-layer-design.md`, `15-guardrails.md`, and (if present)
+> `14-ingestion-pipeline.md`. Then answer these eight questions:
 >
 > 1. Is the agentic graph structure (`12-agentic-graph-structure.md`) specific
 >    enough that an engineer could implement it without ambiguity? If not, what
 >    is the first ambiguous decision?
 > 2. Is the memory layer design (`13-memory-layer-design.md`) specific enough
->    to implement without ambiguity? Are the retrieval strategy, isolation
->    boundary, and scale model credible? If not, what is the first gap?
-> 3. If `14-ingestion-pipeline.md` is present: does the ingestion pipeline close
->    the loop between the write path and the memory layer's read path? Is the
->    embedding model consistent? Is the throughput model credible at 1M users?
->    If not present, skip this question.
-> 4. Are the PARTIAL items from the Critic genuinely acceptable gaps for an MVP,
->    or are any of them blockers for a production launch at 1M users?
-> 5. Does the combined design — agentic layer, memory layer, and ingestion
->    pipeline (if present) — show a credible path to 1M users with fleet, queue
->    depth, isolation boundary, cost model, and index scale all addressed end to end?
-> 6. Are there any gaps the Critic missed in any layer that you consider blocking?
-> 7. Would you sign off on this design as ready for implementation?
+>    to implement? Are the retrieval strategy, isolation boundary, and scale
+>    model credible? If not, what is the first gap?
+> 3. Does the guardrails design (`15-guardrails.md`) cover the full execution
+>    pipeline — input, output, tool calls, and cross-agent boundaries? Is the
+>    fail-open/fail-closed policy appropriate for the threat model? Any gaps?
+> 4. If `14-ingestion-pipeline.md` is present: does it close the loop between
+>    the write path and the memory layer's read path, with consistent embedding
+>    model and credible throughput at 1M users? Skip if not present.
+> 5. Are the PARTIAL items from the Critic genuinely acceptable for an MVP, or
+>    are any blockers for a production launch at 1M users?
+> 6. Does the combined design — agentic layer, memory, guardrails, and
+>    ingestion (if present) — show a credible end-to-end path to 1M users with
+>    fleet, queue depth, isolation boundary, cost model, and index scale addressed?
+> 7. Are there any gaps the Critic missed in any layer that you consider blocking?
+> 8. Would you sign off on this design as ready for implementation?
 >
 > Return your verdict as: `APPROVED` or `REJECTED`.
 > Follow it with a one-paragraph rationale and a bullet list of any remaining
@@ -298,6 +333,9 @@ Write `20-critical-agent-approval.md` into the pack folder with this structure:
 ### Memory Layer (15-point rubric)
 - Result: P PASS, Q PARTIAL, 0 FAIL
 
+### Guardrails (15-point rubric)
+- Result: G PASS, H PARTIAL, 0 FAIL
+
 ### Ingestion Pipeline (15-point rubric — omit section if `hasKnowledgeBase: false`)
 - Result: R PASS, S PARTIAL, 0 FAIL
 
@@ -308,6 +346,9 @@ Write `20-critical-agent-approval.md` into the pack folder with this structure:
 
 **Memory layer PARTIALs:**
 <list each memory PARTIAL with its remediation note>
+
+**Guardrails PARTIALs:**
+<list each guardrail PARTIAL with its remediation note>
 
 **Ingestion pipeline PARTIALs:** *(omit if not applicable)*
 <list each ingestion PARTIAL with its remediation note>

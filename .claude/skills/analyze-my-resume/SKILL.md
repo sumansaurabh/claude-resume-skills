@@ -245,11 +245,115 @@ Lane 14 runs concurrently with lanes 11–13. The embedding model consistency ch
 note the inconsistency in the file if it exists; do not block lane completion waiting
 for lane 13 to finish. The file it produces (`14-ingestion-pipeline.md`) is standalone.
 
+## Guardrails Checklist
+
+When `isAgentic: true`, Lane 15 must answer all 15 points below before writing
+`15-guardrails.md`. Each point must be a concrete subsection — not a mention inside
+a larger paragraph. "Not applicable" requires a one-sentence justification.
+
+Do NOT duplicate content from `07-security-and-isolation.md` (which covers
+infrastructure security: network, identity, secrets). This file covers **behavioral
+and content safety** — the enforcement layer that governs what the agent is allowed
+to do and say at runtime.
+
+1. **Input guardrail pipeline** — what checks run on user input before it reaches
+   the first agent node: jailbreak/prompt-injection detection, toxicity and harmful
+   content filtering, PII detection and redaction, input length/size limits. State
+   which checks are synchronous (block until verdict) vs asynchronous (tag and
+   continue), and what the action is on each check type (reject, sanitize, flag).
+
+2. **Output guardrail pipeline** — what checks run on agent output before it reaches
+   the user: policy compliance check, hallucination/factuality gate (if applicable),
+   confidentiality leakage detection (system prompt, internal state, cross-tenant data
+   bleeding into the response). State latency cost per check and whether checks run
+   in parallel or sequentially.
+
+3. **Tool call validation** — before any tool call executes, what validates the
+   proposed call: capability RBAC per agent node (which nodes are authorized to call
+   which tools), parameter schema and bounds validation, rate limiting per tool per
+   run, and detection of anomalous or recursive tool invocations. State the enforcement
+   mechanism and the action on validation failure (retry with sanitized params, reroute
+   to fallback node, or halt run).
+
+4. **Escalation policy** — the conditions under which the system halts, refuses, or
+   routes to human-in-the-loop rather than completing the run: confidence below
+   threshold, policy violation detected, repeated tool failure, budget exhausted,
+   or user-requested pause. For each condition, state the trigger logic and what the
+   user sees (error message, partial result, or hold state).
+
+5. **Cross-agent instruction boundaries** — what one agent node is allowed to instruct
+   another agent node to do: scope of valid instructions, instruction schema validation,
+   and privilege escalation detection (a low-privilege node attempting to invoke a
+   high-privilege node's capabilities). State how instruction integrity is verified and
+   what happens when an out-of-scope instruction is detected.
+
+6. **Behavioral policy enforcement** — how the agent is constrained to its defined
+   purpose mid-run: intent classification on each major plan step, scope creep
+   detection (agent attempting actions outside the user's original request), and the
+   policy definition format (rules engine, classifier, constitutional AI, or system
+   prompt constraints). State what triggers a behavioral violation verdict and what
+   the graph does in response.
+
+7. **Prompt injection defense — input surface** — defense against user-crafted inputs
+   designed to override system instructions or hijack agent behavior: detection
+   approach (regex heuristics, fine-tuned classifier, or LLM-based judge), confidence
+   threshold, and the action on detection (sanitize and continue, reject with
+   explanation, or flag for human review).
+
+8. **Prompt injection defense — tool output surface** — defense against adversarial
+   content returned by external tools (web search results, API responses, code
+   execution output) that attempts to redirect subsequent agent behavior: sanitization
+   layer between tool output and the next agent prompt, detection approach, and
+   quarantine strategy for flagged outputs.
+
+9. **Confidentiality protection** — preventing the agent from leaking system prompts,
+   internal chain-of-thought, intermediate plan steps, or other tenants' data in its
+   responses: output scanning for system prompt signature patterns, inter-tenant state
+   isolation at the response layer, and the logging policy (what is retained, what is
+   redacted from logs).
+
+10. **Guardrail latency budget** — p99 latency cost of the full guardrail stack (input
+    checks + output checks + tool validation combined), and how it fits within the total
+    run latency budget from `12-agentic-graph-structure.md`. State the optimization
+    approach when guardrails add too much latency (async checks, distilled classifier,
+    result caching for repeated inputs).
+
+11. **Guardrail bypass and override policy** — under what conditions, if any, a
+    guardrail check can be bypassed: trusted-caller override (specific admin token),
+    emergency degraded-mode path, or a hard rule that no bypass is possible. State the
+    required audit trail for any override event and how bypasses are monitored.
+
+12. **Multi-tenant guardrail isolation** — how guardrail policy configurations are
+    scoped per tenant (one tenant's custom policy must not affect another's), and how
+    per-tenant policy is loaded, cached, and applied at runtime without cross-tenant
+    bleed.
+
+13. **Guardrail observability** — which metrics and logs track: trigger rate per check
+    type, false positive rate (legitimate requests blocked), p99 latency added per
+    check, bypass events, and escalation rate. State the alert threshold for an
+    anomalous trigger spike (which may indicate an attack or a broken classifier).
+
+14. **Guardrail failure mode** — what the system does when a guardrail check itself
+    fails (service unavailable, timeout, or classifier error): fail-open (pass the
+    request through unguarded), fail-closed (block the request), or degrade (apply a
+    stricter static default policy). State the chosen mode, the rationale, and
+    whether the failure mode is configurable per tenant.
+
+15. **Guardrail model and rule versioning** — when the guardrail classifier, safety
+    model, or policy rules are updated, how the rollout is managed: canary deployment,
+    shadow mode (new version runs alongside old, results compared but old verdict wins),
+    or A/B test. State how regressions (increased false positives or missed violations)
+    are detected before full rollout.
+
+Lane 15 runs concurrently with lanes 11–14. It has no cross-lane dependencies and
+must not block waiting for any other lane. The file it produces (`15-guardrails.md`)
+is standalone — readable without cross-referencing other agentic deep-dive files.
+
 ## Default Workflow
 
 1. Read the core context files and extract the strongest resume anchors for the question.
 2. Classify the request and choose a supported archetype.
-3. Detect whether the question is agentic (see **Agentic System Detection**). If yes, set `isAgentic: true` in the manifest plan and activate lanes 11, 12, and 13. If the system also has a knowledge base (user-uploaded content, crawled docs, product data), set `hasKnowledgeBase: true` and activate lane 14.
+3. Detect whether the question is agentic (see **Agentic System Detection**). If yes, set `isAgentic: true` in the manifest plan and activate lanes 11, 12, 13, and 15. If the system also has a knowledge base (user-uploaded content, crawled docs, product data), set `hasKnowledgeBase: true` and activate lane 14. For agentic packs, challenge lane (10) produces `16-challenges-by-stage.md` instead of `15-`.
 4. Compute the normalized `questionHash`.
 5. Reuse a pack only if the folder was explicitly named or an exact manifest hash match exists.
 6. Otherwise create a new pack folder in `design-packs/YYYY-MM-DD-short-topic-slug/`.
@@ -271,11 +375,12 @@ Use parallel agents whenever possible. Default lanes:
 7. Cross-exam lane: skeptical interviewer questions, traps, and strong rebuttals.
 8. Leadership lane: roadmap, tradeoffs, business framing, why this mattered.
 9. Load-balancer and fleet-sizing lane: edge / internal load-balancer topology, AZ spread, health checks, sticky session policy, TLS termination, blue-green / canary plumbing, plus per-tier AWS instance sizing anchored on the **m8g** family. Produces the **Load Balancer and Edge Topology** and **AWS Node Sizing per Tier** sections inside `03-architecture.md` (or a sibling `12-control-plane-vs-data-plane.md` if the architecture file is already large). Follow the **Load Balancer Configuration** section below for LB knobs and the **Instance sizing** subsection inside Design Estimates for the m8g reference and fleet-count formula. Every tier in the architecture diagram must have: (a) a named LB pattern from the combination table, (b) a chosen instance size, (c) fleet count with the `ceil(peak / per_instance × headroom)` arithmetic shown, and (d) a monthly cost anchor.
-10. Challenge lane: produces `15-challenges-by-stage.md` (v2 numbering) using the Chain-of-Thought Challenge Generation procedure below. Runs after the other lanes because it consumes their findings.
+10. Challenge lane: produces `15-challenges-by-stage.md` for non-agentic packs; produces `16-challenges-by-stage.md` for agentic packs (`isAgentic: true`). Uses the Chain-of-Thought Challenge Generation procedure below. Runs after the other lanes because it consumes their findings.
 11. **Agentic graph topology lane** *(only when `isAgentic: true`)*: produces `12-agentic-graph-structure.md` Layer 1 content — node type taxonomy, edge type taxonomy, a full Mermaid graph of the design, cycle detection strategy, and the supervisor/worker/tool-caller hierarchy. Runs in parallel with the architecture lane and feeds lane 12.
 12. **Agentic per-node state lane** *(only when `isAgentic: true`)*: produces `12-agentic-graph-structure.md` Layer 2 content — per-node state shape (what is checkpointed at each node), edge condition logic (how each conditional branch is evaluated), parallel-join semantics, and human-in-the-loop interrupt points. Runs after lane 11 because it consumes the node inventory from that lane. Merges output with lane 11 into a single `12-agentic-graph-structure.md` file.
 13. **Memory layer lane** *(only when `isAgentic: true`)*: produces `13-memory-layer-design.md`. Runs in parallel with lanes 11 and 12. Must answer the **Memory Layer Checklist** (see below) before writing the file. Covers memory taxonomy, storage backend selection, retrieval strategy, context budget allocation, eviction and consolidation policy, cross-tenant isolation, memory poisoning defenses, scale model, and observability.
 14. **Ingestion pipeline lane** *(only when `isAgentic: true` AND `hasKnowledgeBase: true`)*: produces `14-ingestion-pipeline.md`. Runs in parallel with lanes 11–13. Must answer the **Ingestion Pipeline Checklist** (see below) before writing the file. Covers document ingestion triggers, chunking, embedding pipeline, index write path, deduplication, versioning, re-indexing on model upgrade, freshness/TTL, multi-tenant index isolation, content filtering, scale model, error handling, and access control on ingested content. The embedding model named here must match the model named in `13-memory-layer-design.md` point 6 — if they differ, flag the inconsistency explicitly.
+15. **Guardrails lane** *(only when `isAgentic: true`)*: produces `15-guardrails.md`. Runs in parallel with lanes 11–14. Must answer the **Guardrails Checklist** (see below) before writing the file. Covers the input guardrail pipeline, output guardrail pipeline, tool call validation, escalation policy, cross-agent instruction boundaries, behavioral policy enforcement, prompt injection defenses (input and tool-output surfaces), confidentiality protection, guardrail latency budget, bypass/override policy, multi-tenant guardrail isolation, observability, failure mode (fail-open vs fail-closed), and guardrail model versioning.
 
 If agent support is unavailable, do the same reasoning sequentially and note the fallback.
 
@@ -339,6 +444,18 @@ Optional root files include (use 16+ for agentic packs; 12–14 are reserved for
   `search()` tool explicitly) is NOT covered here — that lives in
   `04-api-and-contracts.md`. This file covers the data pipeline that makes
   content available for retrieval.
+
+- `15-guardrails.md`: standalone deep-dive into the agentic guardrail stack —
+  the enforcement layer that keeps agent behavior safe, scoped, and tenant-isolated
+  across the full execution pipeline (input → planning → tool calls → output).
+  Generated by Lane 15 using the **Guardrails Checklist** below. Must cover all
+  15 guardrail points as discrete subsections. Readable without cross-referencing
+  other files.
+
+**Note on challenges file for agentic packs:** when `isAgentic: true`, the
+challenge lane (10) produces `16-challenges-by-stage.md` — not `15-`. The `15`
+slot is occupied by guardrails. For non-agentic packs, challenges remain at
+`15-challenges-by-stage.md`.
 
 Packs created before 2026-05-17 use `schemaVersion: 1`, which omits design-estimates and keeps architecture at `02`. Do not produce new v1 packs.
 
