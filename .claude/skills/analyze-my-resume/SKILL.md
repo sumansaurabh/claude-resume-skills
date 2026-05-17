@@ -349,6 +349,107 @@ Lane 15 runs concurrently with lanes 11–14. It has no cross-lane dependencies 
 must not block waiting for any other lane. The file it produces (`15-guardrails.md`)
 is standalone — readable without cross-referencing other agentic deep-dive files.
 
+## In-Loop Critic Checkpoint
+
+When `isAgentic: true`, the pack MUST pass an in-loop critic review **after** the
+parallel batch completes and **before** Lane 12 (per-node state) or Lane 10
+(challenges) run. This exists because the agent structure, memory layer, guardrail
+boundaries, ingestion pipeline, and end-to-end architecture are the load-bearing
+decisions in an agentic system. Catching a structural flaw in any of these
+after Layer 2 and challenges are written is wasteful — Layer 2 commits to the
+topology, challenges consume the full pack.
+
+This checkpoint is distinct from the standalone `/critical-agent` skill:
+
+- `/critical-agent` is a **post-hoc production-readiness gate** (three phases:
+  rubric critic, principal engineer validation, approval artifact). It runs
+  against a frozen pack and produces `20-critical-agent-approval.md`.
+- The in-loop checkpoint here is **design-time critique**: it returns structured
+  per-file objections, the flagged lanes revise, and we re-critique. No approval
+  artifact is written. It is bounded and cheap.
+
+### Scope of files reviewed
+
+The critic reviews exactly these files (others are out of scope for this
+checkpoint):
+
+| File | Lane that produced it | Focus of critique |
+|---|---|---|
+| `03-architecture.md` | Lane 2 | End-to-end component map, control/data plane split, LB topology, where the agent runtime fits in the broader system |
+| `12-agentic-graph-structure.md` (Layer 1 only) | Lane 11 | Node taxonomy, edge taxonomy, supervisor/worker/tool-caller hierarchy, Mermaid topology |
+| `13-memory-layer-design.md` | Lane 13 | 15-point memory rubric coverage, embedding model consistency, isolation, scale model |
+| `14-ingestion-pipeline.md` *(if `hasKnowledgeBase: true`)* | Lane 14 | 15-point ingestion rubric, write-path safety, embedding-model match with memory layer |
+| `15-guardrails.md` | Lane 15 | 15-point guardrail rubric, behavioral safety, escalation policy, fail-mode |
+
+### Critic rubric (focused, not the full /critical-agent rubric)
+
+The critic does NOT re-run the full `/critical-agent` three-phase gate. It
+applies a focused structural rubric drawn from the existing checklists in this
+SKILL.md:
+
+- **Architecture (03):** does the runtime topology in `03` reconcile with the
+  agent graph in `12`? Is the LB chain consistent with the latency budget in
+  `02-design-estimates.md`? Are control plane and data plane clearly separated?
+- **Graph topology (12 Layer 1):** does every node have a clear role? Are
+  cycles bounded? Are joins explicit (not implicit)? Is the supervisor /
+  worker / tool-caller hierarchy enforceable at the graph layer, not just in
+  prompts? (Cross-check: the 20-point Agentic Design Estimates Checklist.)
+- **Memory (13):** all 15 points present as discrete subsections? Embedding
+  model named and consistent with `14`? Cross-tenant isolation enforced at a
+  named layer, not assumed?
+- **Ingestion (14, if applicable):** all 15 points present? Embedding model
+  matches `13` point 6 exactly? Multi-tenant isolation in the index enforced
+  at a named point? Dead-letter behavior specified per error class?
+- **Guardrails (15):** all 15 points present? Input, output, and tool-call
+  validation each addressed independently? Fail-mode (fail-open vs fail-closed)
+  named per check? No infrastructure-security duplication with `07`?
+- **Cross-file consistency:** embedding model named identically in `13` and
+  `14`. Node names in `12` match service names in `03`. Latency budget in
+  `13` point 12 fits within per-hop budget from `12`. Guardrail latency in
+  `15` point 10 fits within the same budget.
+
+### Verdict format
+
+The critic returns a structured per-file verdict:
+
+```
+FILE: <relative path>
+VERDICT: OK | NITS | BLOCKING
+BLOCKING OBJECTIONS:
+  - <objection 1, with the specific point of the rubric or cross-file check it violates, and a one-sentence revision instruction>
+  - <objection 2 ...>
+NITS:
+  - <minor issue that does not require revision but should be noted>
+```
+
+`OK` means no revision needed. `NITS` means proceed but record the nit in the
+file's preamble. `BLOCKING` means the flagged lane must revise.
+
+### Revise protocol
+
+For each file with `BLOCKING` verdict:
+
+1. Re-spawn the lane that produced the file (Lane 2, 11, 13, 14, or 15).
+2. Pass the lane: the original input files, the existing draft of the flagged
+   file, and the critic's BLOCKING OBJECTIONS list with the explicit
+   instruction "revise the file to address each objection; preserve all other
+   sections unchanged."
+3. After revision, re-spawn the critic agent on the revised file(s) only.
+4. Cap at **2 revision cycles per file**. If a file still has BLOCKING
+   verdict after 2 cycles, record the surviving objections in
+   `00-question-and-context.md` under a new section "## Surviving Critic
+   Objections" and proceed. Surface them in the final user-facing summary.
+
+The 2-cycle cap exists because (a) a third cycle rarely converges if the
+first two failed, and (b) cost grows linearly per cycle. Surviving objections
+are a signal to the human reader, not a hard stop.
+
+### When to skip this checkpoint
+
+- Non-agentic packs (`isAgentic: false`) — the checkpoint is agentic-only.
+- The `Agent` tool is unavailable — note the fallback in the summary; the
+  user can run `/critical-agent` manually post-pack.
+
 ## Default Workflow
 
 1. Read `resume.txt` and the relevant `*-experience.md` files in the main context.
@@ -367,11 +468,27 @@ is standalone — readable without cross-referencing other agentic deep-dive fil
    spawning agents. This anchors the pack; sub-agents will write into it.
 7. Spawn parallel sub-agents — one `Agent` tool call per lane (see below). Each
    agent receives only the files it needs, not the full pack. Send independent
-   lanes in a single message as parallel `Agent` calls.
+   lanes in a single message as parallel `Agent` calls. Note: for agentic packs,
+   Lane 12 (per-node state) is NOT in the parallel batch — it runs sequentially
+   after the in-loop critic checkpoint confirms the Layer 1 topology.
 8. Wait for all parallel agents to complete. Collect their output file paths.
-9. Run the challenge lane (10) as a final sequential `Agent` call after the others
-   complete, because it consumes their output.
-10. Write a short summary with the created folder path.
+9. **In-loop critic checkpoint** *(agentic packs only)*. Spawn the in-loop critic
+   agent against `03-architecture.md`, `12-agentic-graph-structure.md`
+   (Layer 1 only), `13-memory-layer-design.md`, `15-guardrails.md`, and
+   `14-ingestion-pipeline.md` (if `hasKnowledgeBase: true`). For each file with
+   BLOCKING verdict, respawn the lane that produced it with the critic's
+   objections as revision input and re-critique. Cap at 2 revision cycles per
+   file. Surviving objections go into `00-question-and-context.md` under
+   `## Surviving Critic Objections`. See the **In-Loop Critic Checkpoint**
+   section above for the full protocol.
+10. Run Lane 12 (per-node state) sequentially. Layer 2 depends on a *confirmed*
+    Layer 1 topology, so it must run *after* the critic checkpoint, never
+    before. *(Agentic packs only.)*
+11. Run the challenge lane (10) as a final sequential `Agent` call. It consumes
+    the full pack output and must always run last.
+12. Write a short summary with the created folder path. If the critic surfaced
+    surviving objections, list them in the summary so the user sees them
+    without having to open `00-question-and-context.md`.
 
 ## Sub-Agent Execution Rules
 
@@ -417,10 +534,15 @@ it runs in parallel or sequential.
 
 ### Sequential: after parallel batch completes
 
-| Lane | Produces | Reads | Notes |
-|---|---|---|---|
-| 12. Agentic per-node state *(isAgentic only)* | Merges into `12-agentic-graph-structure.md` | Lane 11's output (`12-agentic-graph-structure.md`) | Layer 2 content: per-node state shape, edge conditions, join semantics, HITL contracts. Runs after lane 11. |
-| 10. Challenge | `15-challenges-by-stage.md` (non-agentic) or `16-challenges-by-stage.md` (agentic) | All files written by parallel lanes | Consumes full pack output. Chain-of-Thought procedure below. Always runs last. |
+Order matters. Run in this exact order — Lane 16 (critic) must run before Lane 12
+(per-node state) because Layer 2 commits to the topology that the critic is
+reviewing. Lane 10 (challenges) consumes the full pack and always runs last.
+
+| Order | Lane | Produces | Reads | Notes |
+|---|---|---|---|---|
+| 1 | 16. In-loop critic checkpoint *(isAgentic only)* | Per-file verdicts and revision rounds; on surviving objections, appends a `## Surviving Critic Objections` section to `00-question-and-context.md` | `03-architecture.md`, `12-agentic-graph-structure.md` (Layer 1 only), `13-memory-layer-design.md`, `15-guardrails.md`, and `14-ingestion-pipeline.md` (if `hasKnowledgeBase: true`) | See **In-Loop Critic Checkpoint** section. Spawns revision sub-agents for any lane with BLOCKING verdict. Cap at 2 revision cycles per file. |
+| 2 | 12. Agentic per-node state *(isAgentic only)* | Merges into `12-agentic-graph-structure.md` | Lane 11's output (`12-agentic-graph-structure.md`), as revised by the critic checkpoint | Layer 2 content: per-node state shape, edge conditions, join semantics, HITL contracts. Must run *after* Lane 16 — Layer 2 commits to the Layer 1 topology, so the topology must be critic-confirmed first. |
+| 3 | 10. Challenge | `15-challenges-by-stage.md` (non-agentic) or `16-challenges-by-stage.md` (agentic) | All files written by parallel lanes plus Lane 12 (for agentic) | Consumes full pack output. Chain-of-Thought procedure below. Always runs last. |
 
 If the `Agent` tool is unavailable, execute lanes sequentially in the main context and note the fallback. Quality will be lower but the structure remains the same.
 
