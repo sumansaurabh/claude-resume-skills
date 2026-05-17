@@ -281,37 +281,37 @@ sequenceDiagram
     participant ROU as persona_router
     participant FET as context_fetch
     participant CAL as calculators
-    participant BUD as budget_agent (ReAct)
+    participant BUD as budget_agent ReAct
     participant REF as reflection
-    participant EXP as explainer (LLM)
+    participant EXP as explainer LLM
     participant ACT as action_gate
     participant EM as emit
 
-    U->>GW: "Why did my balance drop this week?"
-    GW->>RT: turn(session_id, message)
+    U->>GW: Why did my balance drop this week
+    GW->>RT: turn session_id message
     RT->>ROU: classify
-    ROU-->>RT: intent=spend_analysis, path=B
-    RT->>FET: fetch(balances, txns_7d, goals)
+    ROU-->>RT: intent spend_analysis path B
+    RT->>FET: fetch balances txns_7d goals
     par parallel tool calls
         FET->>FET: core_banking.get_balances
-        FET->>FET: txn_query.list(window=7d)
+        FET->>FET: txn_query.list window 7d
         FET->>FET: goals_store.list
     end
-    FET-->>RT: state.balances, state.txns, state.goals
-    RT->>CAL: balance.delta, spend.aggregate, spend.anomaly
-    CAL-->>RT: net=-₹18,200; drivers=[travel ₹9.1k, shopping ₹6.4k]
-    RT->>BUD: ReAct loop, max_iters=4
-    BUD->>BUD: tool: spend.aggregate (already in state, reuse)
-    BUD->>BUD: tool: knowledge_base.lookup("typical week spend")
-    BUD-->>RT: findings={normal_p50: ₹4.2k, this_week: ₹18.2k, z=2.7}
-    RT->>REF: cross-check numbers
+    FET-->>RT: state balances txns goals
+    RT->>CAL: balance delta spend aggregate spend anomaly
+    CAL-->>RT: net minus 18200 drivers travel 9.1k shopping 6.4k
+    RT->>BUD: ReAct loop max_iters 4
+    BUD->>BUD: tool spend.aggregate already in state reuse
+    BUD->>BUD: tool knowledge_base.lookup typical week spend
+    BUD-->>RT: findings normal_p50 4.2k this_week 18.2k z 2.7
+    RT->>REF: cross check numbers
     REF-->>RT: pass
     RT->>EXP: build Explanation
-    EXP-->>RT: {headline, drivers, recommendation, confidence=high}
-    RT->>ACT: evaluate(no_action)
-    ACT-->>RT: allow(no_action)
+    EXP-->>RT: headline drivers recommendation confidence high
+    RT->>ACT: evaluate no_action
+    ACT-->>RT: allow no_action
     RT->>EM: render
-    EM-->>U: "Your balance dropped ₹18,200 this week..."
+    EM-->>U: Your balance dropped 18200 this week
 ```
 
 Total: ~5 tool calls, 1 LLM router call, 1 LLM ReAct iteration in budget,

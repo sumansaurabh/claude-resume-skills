@@ -164,6 +164,49 @@ context. The file must include these subsections, in this order:
 	 the arithmetic shown, not just the answers. Pick numbers consistent with
 	 the resume scale claims; if those numbers are not on the resume, mark them
 	 as assumptions.
+
+	 **Instance sizing — always include a fleet estimate anchored on m8g.**
+	 For every service tier in the capacity model, show: chosen instance size,
+	 instance count, total vCPU, total RAM, total EBS/network throughput, and a
+	 rough monthly cost anchor (On-Demand $/hr × fleet × 730 hr/month).
+
+	 *m8g family reference (AWS Graviton 4 / Arm Neoverse V2 — general purpose,
+	 ~4 GiB RAM per vCPU, EBS-optimized by default):*
+
+	 | Size | vCPU | RAM | EBS bandwidth | Network | Local storage |
+	 |---|---|---|---|---|---|
+	 | m8g.xlarge | 4 | 16 GiB | up to 10 Gbps (burst) | up to 12.5 Gbps | EBS only |
+	 | m8g.2xlarge | 8 | 32 GiB | up to 10 Gbps (burst) | up to 12.5 Gbps | EBS only |
+	 | m8g.4xlarge | 16 | 64 GiB | up to 10 Gbps (burst) | up to 25 Gbps | EBS only |
+	 | m8g.8xlarge | 32 | 128 GiB | 10 Gbps (sustained) | up to 25 Gbps | EBS only |
+	 | m8g.16xlarge | 64 | 256 GiB | 20 Gbps (sustained) | 37.5 Gbps | EBS only |
+	 | m8g.48xlarge | 192 | 768 GiB | 60 Gbps (sustained) | 100 Gbps | EBS only |
+	 | m8g.metal-24xl | 96 | 384 GiB | 30 Gbps (sustained) | 50 Gbps | local NVMe SSD |
+	 | m8g.metal-48xl | 192 | 768 GiB | 60 Gbps (sustained) | 100 Gbps | local NVMe SSD |
+
+	 *Key configuration notes:*
+	 - **EBS burst write**: sizes ≤ m8g.4xlarge have a burst EBS throughput bucket
+	   (burst baseline is typically 3× the sustained floor for up to 30 min); state
+	   the burst vs sustained figures separately when write spikes matter.
+	 - **What m8g is optimized for**: balanced CPU/memory ratio; strong price-per-vCPU
+	   on Graviton 4; well-suited for API servers, coordinators, metadata planes,
+	   and stateless worker fleets. It is *not* storage-optimized — local NVMe is
+	   only present on the metal-24xl and metal-48xl sizes.
+	 - **EBS-attached NVMe (io2 Block Express)**: when low-latency durable writes are
+	   needed on standard m8g sizes, attach an io2 volume; supports up to 256,000
+	   provisioned IOPS and 4,000 MiB/s throughput, sub-millisecond latency, and
+	   99.999% durability SLA.
+	 - **Fleet count formula**: `ceil(peak_resource / per_instance_resource × headroom)`
+	   where headroom = 1.3–1.5 for stateless tiers, 1.5–2.0 for stateful tiers.
+
+	 *When to deviate from m8g:*
+	 | Workload profile | Better family | Reason |
+	 |---|---|---|
+	 | Write-heavy NVMe (>1 GB/s sequential) | i4i | NVMe-backed, up to 7.5 GB/s sequential write, 1M+ IOPS |
+	 | Memory-bound (>8 GiB/vCPU) | r8g | 8 GiB/vCPU ratio, Graviton 4 |
+	 | CPU-bound, low memory (<2 GiB/vCPU) | c8g | Highest vCPU density, Graviton 4 |
+	 | Dense warm storage (HDD) | d3en | Up to 336 TB local HDD per instance |
+	 | ML inference | inf2 / trn2 | Inferentia2 / Trainium2 accelerators |
 6. **Functional and non-functional requirements.** Bulleted list. Functional
 	 covers the core operations the system must support; non-functional covers
 	 latency targets (p50 / p99), availability (e.g., 99.9%), durability,
@@ -177,6 +220,110 @@ For `security-review`, create the required root files defined in `design-packs/R
 
 If the user asks for deeper challenge material, write it under `cross-exam/` using the
 contract in `design-packs/README.md`.
+
+## Load Balancer Configuration
+
+Whenever the architecture includes a load-balancing tier — cloud, on-prem, or
+hybrid — `03-architecture.md` must include a dedicated **Load Balancer
+Configuration** subsection that covers all applicable types below and calls out
+which combination the design uses and why. Do not leave LB configuration
+implicit in a box diagram.
+
+### NLB — AWS Network Load Balancer (Layer 4)
+
+*Optimized for*: raw TCP/UDP throughput, ultra-low latency (<1 ms added),
+static Elastic IPs, TLS passthrough, and PrivateLink endpoints.
+
+Key configuration knobs to document:
+- **Listener**: protocol (TCP / TLS / UDP / TCP_UDP), port, default action.
+- **Target group**: target type (instance | IP | ALB), protocol, health-check
+  protocol and threshold, deregistration delay (connection draining; default
+  300 s — tune down to 30–60 s for short-lived jobs).
+- **Cross-zone load balancing**: disabled by default on NLB (enable for
+  uneven AZ capacity; incurs inter-AZ data charges).
+- **TLS termination vs passthrough**: terminate at NLB for mutual TLS or
+  certificate pinning; pass through when the backend owns the certificate.
+- **Flow hash**: 5-tuple (protocol, src/dst IP, src/dst port) — sticky per
+  connection. Mention when this matters (e.g., WebSocket, gRPC streams).
+- **Preserve client IP**: enabled by default for instance targets; use proxy
+  protocol v2 for IP targets behind a NAT.
+- **Static IPs / Elastic IPs**: one static IP per AZ — required when
+  downstream firewalls whitelist by IP.
+
+### ALB — AWS Application Load Balancer (Layer 7)
+
+*Optimized for*: HTTP/HTTPS/HTTP2/gRPC/WebSocket routing, content-based
+routing rules, WAF integration, and OIDC/Cognito authentication offload.
+
+Key configuration knobs to document:
+- **Listener rules**: evaluated in priority order; conditions include host
+  header, path pattern, HTTP header, query string, source IP, and HTTP method.
+  State which rules the design relies on.
+- **Target groups**: target type (instance | IP | Lambda), protocol
+  (HTTP | HTTPS | gRPC), health-check path and matcher (e.g., `200-399`),
+  and slow-start duration for warming up new targets.
+- **Sticky sessions**: duration-based (ALB cookie, 1 s–7 days) or
+  application-based (custom cookie); mention when stateful services need it
+  and the tradeoff with even distribution.
+- **Idle timeout**: default 60 s; increase for long-lived uploads or gRPC
+  streams, decrease to shed idle connections faster.
+- **gRPC routing**: requires HTTP/2 on the listener and target group;
+  supports routing by gRPC service/method header.
+- **WAF association**: attach an AWS WAF Web ACL to the ALB ARN; rules for
+  rate limiting, IP reputation, and managed rule groups.
+- **Access logs**: enable to S3 for forensics; include requester IP, latency,
+  and matched rule in the log fields you care about.
+- **Connection multiplexing**: ALB reuses backend connections; tune keep-alive
+  timeout on the backend to be longer than the ALB idle timeout.
+
+### MetalLB — Kubernetes Bare-Metal Load Balancer
+
+*Optimized for*: exposing `LoadBalancer`-type Kubernetes Services on bare-metal
+or on-prem clusters where no cloud LB controller is present.
+
+Key configuration knobs to document:
+- **IP address pool** (`IPAddressPool` CR): the CIDR or range MetalLB can
+  assign to Services; must be routable from the client network. Separate pools
+  per environment (prod vs staging) are best practice.
+- **Mode — Layer 2 (ARP/NDP)**:
+  - One node per Service acts as the "speaker leader" (elected via member-list).
+  - Gratuitous ARP/NDP on failover; failover time ~10 s by default.
+  - No ECMP — all traffic enters via the leader node, creating a single-node
+    bottleneck. Document expected max throughput (limited to that node's NIC).
+  - `L2Advertisement` CR selects which pools to advertise and which nodes
+    are eligible speakers.
+- **Mode — BGP**:
+  - MetalLB peers with upstream BGP routers (`BGPPeer` CR); requires
+    BGP-capable ToR switches or a router.
+  - ECMP across all nodes — traffic is distributed per flow at the router.
+  - `BGPAdvertisement` CR controls community strings, local-preference, and
+    aggregation length.
+  - FRR (Free Range Routing) is the recommended MetalLB backend for BGP;
+    document the AS numbers, peer IPs, and hold-timer.
+  - Document graceful-restart behavior to avoid route flaps during rolling
+    deployments.
+- **Speaker DaemonSet**: runs on every eligible node; node selector should
+  exclude control-plane nodes unless explicitly required.
+
+### Combination Patterns
+
+For each design, state the combination in use and justify it:
+
+| Pattern | When to use | Key wiring detail |
+|---|---|---|
+| **NLB → backend pods** | Pure TCP/gRPC, static IPs needed, PrivateLink | NLB target type = IP, targets are pod IPs; disable cross-zone unless AZ skew is large |
+| **ALB → backend pods** | HTTP/HTTPS microservices, path routing, WAF | ALB target type = IP, security group allows ALB SG; use gRPC target group for proto services |
+| **NLB → ALB → pods** | Static IPs at edge + L7 routing; required for WAF + PrivateLink | NLB target type = ALB (native NLB-ALB chaining); note dual-hop latency add (~0.5 ms) |
+| **ALB → MetalLB → pods** | Hybrid: cloud ALB fronts on-prem cluster via DX/VPN | ALB targets = MetalLB VIP IPs; on-prem firewall must allow ALB health-check source CIDR |
+| **NLB → MetalLB → pods** | PrivateLink / static IP entry into bare-metal cluster | NLB in cloud, MetalLB VIP is the NLB target; route via Direct Connect or VPN |
+| **NLB → ALB → MetalLB → pods** | Full hybrid edge: cloud static IP → L7 routing → bare-metal | Document each hop's health-check chain; timeout budgets must decrease end-to-end |
+
+For every combination used, state:
+1. Which OSI layer each hop operates at.
+2. Where TLS terminates (and whether mTLS is needed end-to-end).
+3. How client IP is preserved (X-Forwarded-For, proxy protocol, or TPROXY).
+4. Health-check chain — what each LB checks and at what interval.
+5. Failure mode — what the client sees if one hop in the chain fails.
 
 ## Writing Rules
 
