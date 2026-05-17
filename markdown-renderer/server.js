@@ -129,7 +129,7 @@ async function handleRequest(req, res) {
 }
 
 const server = createServer(handleRequest);
-server.listen(PORT, () => {
-  console.log(`\n  📄 Markdown Renderer running at http://localhost:${PORT}\n`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n  📄 Markdown Renderer running at http://0.0.0.0:${PORT}\n`);
   console.log(`  📁 Serving design-packs from: ${DESIGN_PACKS_DIR}\n`);
 });
