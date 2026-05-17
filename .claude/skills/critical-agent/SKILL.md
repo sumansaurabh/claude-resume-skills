@@ -67,29 +67,32 @@ If any check fails, print the relevant message and halt — do not proceed:
   Re-run `/analyze-my-resume` to generate the ingestion pipeline design before
   critiquing."
 
-## Phase 1: Critic Agent
+## Phase 1: Parallel Critic Sub-Agents
 
-Spawn an Agent with the following mandate (pass it the full pack path and the
-20-point checklist from `analyze-my-resume/SKILL.md` as context):
+Phase 1 uses **four parallel `Agent` calls** — one per rubric section. Send
+them in a single message. Each agent reads only the files relevant to its
+rubric. None reads the full pack. After all four complete, a fifth sequential
+synthesizer agent produces the unified Phase 1 report.
 
-> You are a skeptical principal architect reviewing an agentic system design
-> pack. Your job is to find every gap, not to affirm the design.
->
-> Read the entire pack. Then evaluate the design against each of the 20 Agentic
-> Design Estimates points below. For each point, produce exactly one of:
->
-> - `PASS` — the design answers this point concretely and defensibly.
-> - `PARTIAL` — the design addresses it but leaves a named gap or relies on an
->   unstated assumption.
-> - `FAIL` — the design ignores this point, gives a hand-wave answer, or the
->   proposed solution is incorrect.
->
-> Follow each verdict with one sentence of evidence quoting the specific file
-> and section where you found (or did not find) the answer. Do not soften FAILs.
->
-> After all 20 points, run the **1M-User Scale Gate** (see below).
->
-> Return a structured verdict report — nothing else.
+**Never collapse these into fewer agents.** Giving one agent 70+ evaluation
+points and a full pack to read produces shallow verdicts. The isolation is the
+quality mechanism.
+
+### Sub-Agent A — Agentic Layer (20-point rubric + Scale Gate)
+
+Reads: `manifest.json`, `02-design-estimates.md`, `03-architecture.md`,
+`12-agentic-graph-structure.md`.
+
+Mandate:
+> You are a skeptical principal architect. Your job is to find gaps, not affirm
+> the design. Evaluate the design against the 20 Agentic Design Points below.
+> For each point: `PASS`, `PARTIAL`, or `FAIL`, followed by one sentence of
+> evidence (file + section). Do not soften FAILs.
+> After all 20 points, run the 1M-User Scale Gate. Return a structured verdict
+> report — nothing else.
+
+Pass the 20-point table and the 1M-User Scale Gate table inline in the prompt.
+The agent must not read files outside the list above.
 
 ### The 20 Agentic Design Points (Critic's Rubric)
 
@@ -135,15 +138,22 @@ it "can scale":
 
 If fewer than 4 axes pass, this is a **Scale Gate FAIL** regardless of the 20-point scores.
 
-### Memory Layer Evaluation
+### Sub-Agent B — Memory Layer (15-point rubric)
 
-After the 1M-User Scale Gate, the Critic must evaluate `13-memory-layer-design.md`
-independently using the 15-point memory layer rubric below. Apply the same
-`PASS | PARTIAL | FAIL` verdict per point with one sentence of evidence.
+Reads: `13-memory-layer-design.md` only.
+
+Mandate:
+> You are a skeptical principal architect specializing in stateful AI systems.
+> Evaluate `13-memory-layer-design.md` against the 15 Memory Layer points below.
+> For each point: `PASS`, `PARTIAL`, or `FAIL`, followed by one sentence of
+> evidence (section name + what you found or didn't find). Do not soften FAILs.
+> Return a structured verdict report — nothing else.
+
+Pass the 15-point memory rubric table inline in the prompt.
+The agent must not read files outside `13-memory-layer-design.md`.
 
 This evaluation is **separate** from the 20-point agentic rubric. A design can
-pass all 20 agentic points and still fail here. A single `FAIL` in the memory
-evaluation is a Phase 1 halt — same rule as the agentic rubric.
+pass all 20 agentic points and still fail here. A single `FAIL` is a Phase 1 halt.
 
 | # | Memory Layer Point |
 |---|---|
@@ -163,20 +173,21 @@ evaluation is a Phase 1 halt — same rule as the agentic rubric.
 | 14 | Memory observability — specific logs, metrics, or traces named for wrong-retrieval debugging |
 | 15 | Schema versioning — strategy for embedding dimension change or memory object schema migration stated |
 
-### Ingestion Pipeline Evaluation *(only when `hasKnowledgeBase: true`)*
+### Sub-Agent C — Ingestion Pipeline *(only when `hasKnowledgeBase: true`)*
 
-If `manifest.json` contains `"hasKnowledgeBase": true`, the Critic must evaluate
-`14-ingestion-pipeline.md` using the 15-point ingestion rubric below. Apply the
-same `PASS | PARTIAL | FAIL` verdict per point with one sentence of evidence.
+Reads: `14-ingestion-pipeline.md` and `13-memory-layer-design.md` (embedding
+model consistency check only — point 6 of memory file, point 3 of ingestion file).
 
-This evaluation is **separate** from both the agentic and memory rubrics. A
-single `FAIL` here is a Phase 1 halt — same rule as the other rubrics.
+Mandate:
+> You are a skeptical data-platform engineer. Evaluate `14-ingestion-pipeline.md`
+> against the 15 Ingestion Pipeline points below. For each point: `PASS`,
+> `PARTIAL`, or `FAIL`, followed by one sentence of evidence. Additionally, check
+> that the embedding model in point 3 matches the model in `13-memory-layer-design.md`
+> point 6. If they differ with no migration strategy, auto-FAIL point 3.
+> Return a structured verdict report — nothing else.
 
-Additionally, the Critic must check the **embedding model consistency rule**:
-the model named in `14-ingestion-pipeline.md` point 3 must match the model
-named in `13-memory-layer-design.md` point 6. If they differ and no migration
-strategy is documented, this is an automatic `FAIL` on point 3 of the ingestion
-rubric regardless of what the file says.
+Pass the 15-point ingestion rubric table inline. If `hasKnowledgeBase` is false,
+skip this agent entirely. A single `FAIL` is a Phase 1 halt.
 
 | # | Ingestion Pipeline Point |
 |---|---|
@@ -196,15 +207,19 @@ rubric regardless of what the file says.
 | 14 | Error handling and dead-letter — error taxonomy present, per-type retry + dead-letter destination stated |
 | 15 | Access control on ingested content — ACL enforcement point (ingest-time vs query-time) and bypass failure mode stated |
 
-### Guardrails Evaluation
+### Sub-Agent D — Guardrails (15-point rubric)
 
-The Critic must evaluate `15-guardrails.md` using the 15-point guardrails rubric
-below. Apply the same `PASS | PARTIAL | FAIL` verdict per point with one sentence
-of evidence. This is a **separate** evaluation from the agentic, memory, and
-ingestion rubrics — a single `FAIL` here is a Phase 1 halt.
+Reads: `15-guardrails.md` only.
 
-Do NOT double-count content from `07-security-and-isolation.md`. This rubric
-evaluates **behavioral and content safety**, not infrastructure security.
+Mandate:
+> You are a skeptical AI safety engineer. Evaluate `15-guardrails.md` against the
+> 15 Guardrails points below. For each point: `PASS`, `PARTIAL`, or `FAIL`,
+> followed by one sentence of evidence (section name + what you found or didn't
+> find). Do NOT credit content from the security file — this rubric covers
+> behavioral and content safety only, not infrastructure security.
+> Return a structured verdict report — nothing else.
+
+Pass the 15-point guardrails rubric table inline. A single `FAIL` is a Phase 1 halt.
 
 | # | Guardrails Point |
 |---|---|
@@ -224,55 +239,72 @@ evaluates **behavioral and content safety**, not infrastructure security.
 | 14 | Guardrail failure mode — fail-open/fail-closed/degrade choice stated with rationale and configurability noted |
 | 15 | Guardrail model versioning — rollout strategy named (canary/shadow/A-B), regression detection method stated |
 
+### Phase 1 Synthesizer (sequential, after A–D complete)
+
+After all parallel sub-agents return, spawn one final sequential `Agent` as the
+synthesizer. This agent **does not re-read the pack** — it receives only the
+structured verdict reports from sub-agents A, B, C (if applicable), and D.
+
+Reads: the four verdict reports passed as inline text in the prompt. Nothing else.
+
+Mandate:
+> You are assembling the Phase 1 gate decision from four independent critic reports.
+> Merge them into a single structured Phase 1 report with these sections:
+> - Agentic layer: N PASS, M PARTIAL, F FAIL (list FAILs and PARTIALs)
+> - Scale gate: K/5 axes
+> - Memory layer: N PASS, M PARTIAL, F FAIL
+> - Guardrails: N PASS, M PARTIAL, F FAIL
+> - Ingestion pipeline: N PASS, M PARTIAL, F FAIL (omit if not applicable)
+> - Phase 1 verdict: PASS or FAIL
+> A verdict of FAIL if ANY rubric has even one FAIL or if scale gate < 4/5.
+> List every FAIL with a one-sentence remediation hint.
+> List every PARTIAL grouped by section.
+> Return the structured report only.
+
 ### Phase 1 Halt Condition
 
-If the Critic's report contains **any `FAIL`** across any active rubric section —
-20 agentic points, Scale Gate, 15 memory layer points, 15 guardrail points, or
-(when applicable) 15 ingestion pipeline points:
+If the synthesizer's Phase 1 verdict is **FAIL** (any FAIL across any active rubric,
+or scale gate < 4/5):
 
-1. Print the full critic report with all FAIL and PARTIAL items highlighted,
-   grouped by section (agentic rubric / scale gate / memory layer / guardrails /
-   ingestion pipeline).
+1. Print the synthesizer's Phase 1 report with all FAIL and PARTIAL items,
+   grouped by section (agentic / scale gate / memory / guardrails / ingestion).
 2. Print: "Phase 1 FAILED. The following blocking objections must be addressed
    before this design can proceed to Principal Engineer validation."
-3. List each FAIL item with a one-sentence remediation hint.
+3. List each FAIL with its one-sentence remediation hint from the synthesizer.
 4. **Halt. Do not proceed to Phase 2.**
 
-The user must fix the design pack (re-run `analyze-my-resume` or edit manually)
-and re-invoke `/critical-agent`.
+Fix the design pack (re-run `analyze-my-resume` or edit manually) and re-invoke.
 
 ### Phase 1 Pass Condition
 
-Phase 1 passes when all active rubric sections are fully PASS or PARTIAL:
-- All 20 agentic points PASS or PARTIAL
-- At least 4 of 5 Scale Gate axes pass
-- All 15 memory layer points PASS or PARTIAL
-- All 15 guardrail points PASS or PARTIAL
-- All 15 ingestion pipeline points PASS or PARTIAL *(only checked when `hasKnowledgeBase: true`)*
-
-PARTIAL is not a halt — it is a warning. Print all PARTIAL items prominently,
-grouped by section. The Principal Engineer in Phase 2 will see them.
+The synthesizer returns Phase 1 PASS: no FAILs in any rubric, scale gate ≥ 4/5.
+PARTIAL items are warnings, not halts. Print them grouped by section before
+proceeding. The Principal Engineer in Phase 2 will see the full synthesizer report.
 
 ## Phase 2: Principal Engineer Validation Agent
 
-Spawn a second, independent Agent. This agent must NOT be shown the Critic's
-verdicts for individual points — only the aggregated summary (how many PASS,
-PARTIAL, and the Scale Gate result). This keeps the PE's judgment independent.
+Reads: the synthesizer's Phase 1 report (passed as inline text) + the pack folder
+path so the PE can selectively read files. The PE must NOT be given the individual
+sub-agent verdict reports — only the aggregated synthesizer output.
+
+## Phase 2: Principal Engineer Validation Agent
+
+Spawn a fresh `Agent` for the PE review. This agent receives the synthesizer's
+Phase 1 report as inline text — NOT the individual sub-agent verdicts. It also
+receives the pack folder path and is asked to selectively read the deep-dive files.
+Keeping the PE independent from the raw sub-agent verdicts prevents anchoring bias.
 
 > You are a principal engineer at a company that runs agentic AI systems for
-> over a million users. You are conducting a final production-readiness review
-> of a design pack. You are NOT a yes-man — you approve only when the design
-> is genuinely production-ready.
+> over a million users. You are conducting a final production-readiness review.
+> You are NOT a yes-man — you approve only when the design is genuinely
+> production-ready.
 >
-> You have been told: Critic agentic rubric — N PASS, M PARTIAL, 0 FAIL.
-> Scale gate — K of 5 axes passed. Memory layer — P PASS, Q PARTIAL, 0 FAIL.
-> Guardrails — G PASS, H PARTIAL, 0 FAIL. [If hasKnowledgeBase: true]:
-> Ingestion pipeline — R PASS, S PARTIAL, 0 FAIL.
-> All PARTIAL items: [list PARTIALs grouped by section].
->
-> Read the full design pack independently, including `12-agentic-graph-structure.md`,
-> `13-memory-layer-design.md`, `15-guardrails.md`, and (if present)
-> `14-ingestion-pipeline.md`. Then answer these eight questions:
+> You have been given a Phase 1 critic summary (aggregated counts only, no raw
+> verdicts). The PARTIAL items are listed below by section. Read
+> `12-agentic-graph-structure.md`, `13-memory-layer-design.md`,
+> `15-guardrails.md`, and (if present) `14-ingestion-pipeline.md` yourself.
+> Do not read the entire pack — focus on the deep-dive files and the executive
+> summary. Then answer these eight questions:
 >
 > 1. Is the agentic graph structure (`12-agentic-graph-structure.md`) specific
 >    enough that an engineer could implement it without ambiguity? If not, what
@@ -383,12 +415,13 @@ Remaining obligations: <count of PARTIALs + PE concerns>
 
 ## Execution Rules
 
-- **Never merge Phase 1 and Phase 2 into one agent.** The two agents must be
-  spawned separately. The Critic evaluates against the rubric; the PE evaluates
-  for production readiness. If they are the same agent, the independence check
-  is worthless.
-- **Never skip a FAIL to proceed.** A single FAIL in the 20-point rubric is a
-  hard stop regardless of how strong the rest of the design is.
+- **Never collapse the four Phase 1 sub-agents into fewer.** Sub-agents A, B, C,
+  and D must be separate `Agent` calls reading only their scoped files. One agent
+  reading all 70 points and the full pack produces shallow verdicts. The isolation
+  is the quality mechanism.
+- **Never pass individual sub-agent verdicts to the PE.** The PE receives only the
+  synthesizer's aggregated summary. This prevents anchoring bias.
+- **Never skip a FAIL to proceed.** A single FAIL anywhere is a hard stop.
 - **Never write `20-critical-agent-approval.md` unless Phase 3 conditions are met.**
   Do not create a partial or draft version of the approval artifact.
 - **The approval artifact is not a guarantee.** It is a record that an automated

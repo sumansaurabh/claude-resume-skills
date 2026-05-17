@@ -351,38 +351,78 @@ is standalone — readable without cross-referencing other agentic deep-dive fil
 
 ## Default Workflow
 
-1. Read the core context files and extract the strongest resume anchors for the question.
+1. Read `resume.txt` and the relevant `*-experience.md` files in the main context.
+   Extract the strongest resume anchors for the question. Do NOT read all pack
+   files into the main context — delegate reading to sub-agents.
 2. Classify the request and choose a supported archetype.
-3. Detect whether the question is agentic (see **Agentic System Detection**). If yes, set `isAgentic: true` in the manifest plan and activate lanes 11, 12, 13, and 15. If the system also has a knowledge base (user-uploaded content, crawled docs, product data), set `hasKnowledgeBase: true` and activate lane 14. For agentic packs, challenge lane (10) produces `16-challenges-by-stage.md` instead of `15-`.
+3. Detect whether the question is agentic (see **Agentic System Detection**). If
+   yes, set `isAgentic: true` in the manifest plan and activate lanes 11–13 and 15.
+   If the system also has a knowledge base, set `hasKnowledgeBase: true` and
+   activate lane 14. For agentic packs, challenge lane (10) produces
+   `16-challenges-by-stage.md` instead of `15-`.
 4. Compute the normalized `questionHash`.
-5. Reuse a pack only if the folder was explicitly named or an exact manifest hash match exists.
-6. Otherwise create a new pack folder in `design-packs/YYYY-MM-DD-short-topic-slug/`.
-7. Write `manifest.json` before writing the rest of the pack.
-8. Fan out the parallel agent lanes when the Agent or Task tool is available.
-9. Synthesize the agent results into a coherent file set.
-10. Write the files, then return a short summary with the created folder path.
+5. Reuse a pack only if the folder was explicitly named or an exact manifest hash
+   match exists.
+6. Create the pack folder and write `manifest.json` in the main context before
+   spawning agents. This anchors the pack; sub-agents will write into it.
+7. Spawn parallel sub-agents — one `Agent` tool call per lane (see below). Each
+   agent receives only the files it needs, not the full pack. Send independent
+   lanes in a single message as parallel `Agent` calls.
+8. Wait for all parallel agents to complete. Collect their output file paths.
+9. Run the challenge lane (10) as a final sequential `Agent` call after the others
+   complete, because it consumes their output.
+10. Write a short summary with the created folder path.
+
+## Sub-Agent Execution Rules
+
+**Each lane is a separate `Agent` tool call.** Never collapse two lanes into one
+agent. Never pass all 15 checklists to a single agent. Context discipline is the
+point of the lane structure — violating it defeats the purpose.
+
+For each lane, pass the agent:
+- The question and a one-paragraph brief of what it must produce.
+- Only the input files it actually needs to read (listed per lane below).
+- The output file path it must write.
+- The relevant checklist or procedure from this skill file (copied inline, not
+  as a file reference — the agent does not have this SKILL.md in context).
+
+Do not pass a sub-agent the full SKILL.md, the full resume, or files it does not
+need. Each agent should be able to complete its task in a focused context.
+
+If the `Agent` tool is unavailable, fall back to sequential execution in the main
+context and note the fallback explicitly in the summary.
 
 ## Parallel Agent Lanes
 
-Use parallel agents whenever possible. Default lanes:
+Each lane entry lists: what it produces, what input files it reads, and whether
+it runs in parallel or sequential.
 
-1. Design-estimates lane: use case, personas, existing options, build-vs-buy, capacity and load estimates, functional and non-functional requirements. Produces `02-design-estimates.md`.
-2. Architecture lane: end-to-end request flow, component map, control flow.
-3. API and LLD lane: public APIs, internal contracts, state machines, schemas, component interfaces.
-4. Scale lane: capacity model, quotas, bottlenecks, backpressure, cost controls.
-5. Security lane: isolation, identity, secrets, trust boundaries, threat model.
-6. Reliability lane: retries, checkpointing, failure handling, observability.
-7. Cross-exam lane: skeptical interviewer questions, traps, and strong rebuttals.
-8. Leadership lane: roadmap, tradeoffs, business framing, why this mattered.
-9. Load-balancer and fleet-sizing lane: edge / internal load-balancer topology, AZ spread, health checks, sticky session policy, TLS termination, blue-green / canary plumbing, plus per-tier AWS instance sizing anchored on the **m8g** family. Produces the **Load Balancer and Edge Topology** and **AWS Node Sizing per Tier** sections inside `03-architecture.md` (or a sibling `12-control-plane-vs-data-plane.md` if the architecture file is already large). Follow the **Load Balancer Configuration** section below for LB knobs and the **Instance sizing** subsection inside Design Estimates for the m8g reference and fleet-count formula. Every tier in the architecture diagram must have: (a) a named LB pattern from the combination table, (b) a chosen instance size, (c) fleet count with the `ceil(peak / per_instance × headroom)` arithmetic shown, and (d) a monthly cost anchor.
-10. Challenge lane: produces `15-challenges-by-stage.md` for non-agentic packs; produces `16-challenges-by-stage.md` for agentic packs (`isAgentic: true`). Uses the Chain-of-Thought Challenge Generation procedure below. Runs after the other lanes because it consumes their findings.
-11. **Agentic graph topology lane** *(only when `isAgentic: true`)*: produces `12-agentic-graph-structure.md` Layer 1 content — node type taxonomy, edge type taxonomy, a full Mermaid graph of the design, cycle detection strategy, and the supervisor/worker/tool-caller hierarchy. Runs in parallel with the architecture lane and feeds lane 12.
-12. **Agentic per-node state lane** *(only when `isAgentic: true`)*: produces `12-agentic-graph-structure.md` Layer 2 content — per-node state shape (what is checkpointed at each node), edge condition logic (how each conditional branch is evaluated), parallel-join semantics, and human-in-the-loop interrupt points. Runs after lane 11 because it consumes the node inventory from that lane. Merges output with lane 11 into a single `12-agentic-graph-structure.md` file.
-13. **Memory layer lane** *(only when `isAgentic: true`)*: produces `13-memory-layer-design.md`. Runs in parallel with lanes 11 and 12. Must answer the **Memory Layer Checklist** (see below) before writing the file. Covers memory taxonomy, storage backend selection, retrieval strategy, context budget allocation, eviction and consolidation policy, cross-tenant isolation, memory poisoning defenses, scale model, and observability.
-14. **Ingestion pipeline lane** *(only when `isAgentic: true` AND `hasKnowledgeBase: true`)*: produces `14-ingestion-pipeline.md`. Runs in parallel with lanes 11–13. Must answer the **Ingestion Pipeline Checklist** (see below) before writing the file. Covers document ingestion triggers, chunking, embedding pipeline, index write path, deduplication, versioning, re-indexing on model upgrade, freshness/TTL, multi-tenant index isolation, content filtering, scale model, error handling, and access control on ingested content. The embedding model named here must match the model named in `13-memory-layer-design.md` point 6 — if they differ, flag the inconsistency explicitly.
-15. **Guardrails lane** *(only when `isAgentic: true`)*: produces `15-guardrails.md`. Runs in parallel with lanes 11–14. Must answer the **Guardrails Checklist** (see below) before writing the file. Covers the input guardrail pipeline, output guardrail pipeline, tool call validation, escalation policy, cross-agent instruction boundaries, behavioral policy enforcement, prompt injection defenses (input and tool-output surfaces), confidentiality protection, guardrail latency budget, bypass/override policy, multi-tenant guardrail isolation, observability, failure mode (fail-open vs fail-closed), and guardrail model versioning.
+### Parallel batch (send as one message with multiple Agent calls)
 
-If agent support is unavailable, do the same reasoning sequentially and note the fallback.
+| Lane | Produces | Reads | Notes |
+|---|---|---|---|
+| 1. Design-estimates | `02-design-estimates.md` | `resume.txt`, relevant `*-experience.md`, the question | For agentic packs, must first work through the 20-point Agentic Design Estimates Checklist before writing |
+| 2. Architecture | `03-architecture.md` | `resume.txt`, relevant `*-experience.md`, the question | End-to-end request flow, component map, control flow |
+| 3. API and LLD | `04-api-and-contracts.md`, `05-low-level-design.md` | `resume.txt`, relevant `*-experience.md`, the question | Public APIs, internal contracts, state machines, schemas |
+| 4. Scale | `06-scaling-and-capacity.md` | `resume.txt`, relevant `*-experience.md`, the question | Capacity model, quotas, bottlenecks, backpressure, cost |
+| 5. Security | `07-security-and-isolation.md` | `resume.txt`, relevant `*-experience.md`, the question | Threat model, identity, network, secrets |
+| 6. Reliability | `08-reliability-observability-and-failures.md` | `resume.txt`, relevant `*-experience.md`, the question | Retries, failure modes, observability |
+| 7. Cross-exam | `10-cross-questions.md` | `resume.txt`, relevant `*-experience.md`, the question | Skeptical questions and rebuttals |
+| 8. Leadership | section of `03-architecture.md` or `09-tradeoffs-and-alternatives.md` | `resume.txt`, relevant `*-experience.md`, the question | Roadmap, tradeoffs, business framing |
+| 9. LB and fleet-sizing | LB section inside `03-architecture.md` | `resume.txt`, relevant `*-experience.md`, the question, LB config rules from this skill | Per-tier instance sizing on m8g, LB topology, AZ spread, health checks |
+| 11. Agentic graph topology *(isAgentic only)* | `12-agentic-graph-structure.md` Layer 1 | `resume.txt`, relevant `*-experience.md`, the question | Node taxonomy, edge taxonomy, Mermaid graph, supervisor/worker hierarchy |
+| 13. Memory layer *(isAgentic only)* | `13-memory-layer-design.md` | `resume.txt`, relevant `*-experience.md`, the question, Memory Layer Checklist (copy inline) | All 15 memory points as discrete subsections |
+| 14. Ingestion pipeline *(isAgentic + hasKnowledgeBase only)* | `14-ingestion-pipeline.md` | `resume.txt`, relevant `*-experience.md`, the question, Ingestion Checklist (copy inline) | All 15 ingestion points; note embedding model must match memory layer |
+| 15. Guardrails *(isAgentic only)* | `15-guardrails.md` | `resume.txt`, relevant `*-experience.md`, the question, Guardrails Checklist (copy inline) | All 15 guardrail points; behavioral safety only — not infra security |
+
+### Sequential: after parallel batch completes
+
+| Lane | Produces | Reads | Notes |
+|---|---|---|---|
+| 12. Agentic per-node state *(isAgentic only)* | Merges into `12-agentic-graph-structure.md` | Lane 11's output (`12-agentic-graph-structure.md`) | Layer 2 content: per-node state shape, edge conditions, join semantics, HITL contracts. Runs after lane 11. |
+| 10. Challenge | `15-challenges-by-stage.md` (non-agentic) or `16-challenges-by-stage.md` (agentic) | All files written by parallel lanes | Consumes full pack output. Chain-of-Thought procedure below. Always runs last. |
+
+If the `Agent` tool is unavailable, execute lanes sequentially in the main context and note the fallback. Quality will be lower but the structure remains the same.
 
 ## Required Output Files
 
