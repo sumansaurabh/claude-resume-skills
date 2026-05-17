@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "archetype": "system-design",
+  "slug": "retail-banker-langgraph-agent",
+  "createdAt": "2026-05-17",
+  "question": "Design a Retail Customer Banker AI agent (personal finance assistant + banking support layer). Focus on agentic reasoning using LangGraph, low-level design, how the DAG agent components talk to each other, what tool calls the agent issues, and what is deterministic vs LLM. Show the arch diagram. Demonstrate: modular Python, clean interfaces, unit testing, rule engine thinking, deterministic evaluation, JSON/schema-driven workflows, ReAct reasoning, tool invocation, structured outputs, reflection/self-correction, explainability, auditability, failure handling, retry/recovery, observability.",
+  "questionHash": "sha256:3ba6bfa15be76d9cf12028729eeb6067e3385d7bc55854cfb01873ca0fb88556",
+  "company": "BlackBox",
+  "primarySkill": "/analyze-my-resume",
+  "sourceFiles": ["resume.txt", "blackbox-experience.md"],
+  "grounding": {
+    "confidence": "high",
+    "strongAnchors": 4,
+    "supportingAnchors": 4,
+    "anchors": [
+      "LangGraph/LangChain ReAct agent runtimes with DAG orchestration, tool-calling, durable execution, 10K+ agent runs/day (resume.txt L51-54, blackbox-experience.md #7-#11)",
+      "Graph workflow engine: DAG execution, checkpointing, retry semantics, memory persistence, fault-tolerant execution (resume.txt L52-54, blackbox-experience.md #12-#15)",
+      "Model router across Claude/GPT/Grok with capability-aware routing and context optimization at 1B+ tokens/month (resume.txt L55-56, blackbox-experience.md #16-#19)",
+      "LLMOps telemetry mesh: 50M spans/day, 2.5TB monthly trace data, deterministic replay, 60% MTTR cut (resume.txt L58-59, blackbox-experience.md #20)",
+      "WASM sandbox plane for isolating 1M+ daily code executions and SOC-2 compliance posture (resume.txt L49-50, blackbox-experience.md #3-#5)",
+      "Rule-engine and deterministic-system thinking from ShareChat ad-targeting and CTR prediction over 40M DAU (resume.txt L109-114)",
+      "Real-time streaming analytics design from IQLECT Ampere for sub-second decisioning (resume.txt L130-131)",
+      "Microsoft secure multi-tenant ML infra: isolation, identity, compliance (resume.txt L88-89, microsoft-experience.md)"
+    ]
+  },
+  "scope": [
+    "LangGraph DAG-based ReAct agent runtime for retail banking Q&A and actions",
+    "Persona router, deterministic calculator tools, risk/budget/savings sub-agents, LLM explainer, action executor",
+    "Tool contracts and JSON schemas for every tool call",
+    "Memory model: short-term (graph state), long-term (goals, profile), episodic (conversation)",
+    "Model router fallback, structured-output enforcement, reflection/self-correction loops",
+    "PII isolation, audit trail, SOC-2-style controls, RBI/DPDP alignment",
+    "Reliability: checkpointing, retry, idempotency, human-in-the-loop for risky actions",
+    "Observability: per-step traces, deterministic replay, eval harness"
+  ],
+  "relatedPacks": [
+    "design-packs/2026-05-15-agentic-layer-langgraph-wasm",
+    "design-packs/2026-05-15-agent-memory-persistence",
+    "design-packs/2026-05-06-wasm-sandbox-platform"
+  ]
+}
