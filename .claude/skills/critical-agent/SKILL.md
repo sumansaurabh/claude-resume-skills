@@ -160,13 +160,48 @@ evaluation is a Phase 1 halt — same rule as the agentic rubric.
 | 14 | Memory observability — specific logs, metrics, or traces named for wrong-retrieval debugging |
 | 15 | Schema versioning — strategy for embedding dimension change or memory object schema migration stated |
 
+### Ingestion Pipeline Evaluation *(only when `hasKnowledgeBase: true`)*
+
+If `manifest.json` contains `"hasKnowledgeBase": true`, the Critic must evaluate
+`22-ingestion-pipeline.md` using the 15-point ingestion rubric below. Apply the
+same `PASS | PARTIAL | FAIL` verdict per point with one sentence of evidence.
+
+This evaluation is **separate** from both the agentic and memory rubrics. A
+single `FAIL` here is a Phase 1 halt — same rule as the other rubrics.
+
+Additionally, the Critic must check the **embedding model consistency rule**:
+the model named in `22-ingestion-pipeline.md` point 3 must match the model
+named in `20-memory-layer-design.md` point 6. If they differ and no migration
+strategy is documented, this is an automatic `FAIL` on point 3 of the ingestion
+rubric regardless of what the file says.
+
+| # | Ingestion Pipeline Point |
+|---|---|
+| 1 | Ingestion triggers — event type named, sync vs async stated |
+| 2 | Chunking strategy — algorithm, chunk size (tokens), overlap, and rationale stated |
+| 3 | Embedding pipeline — model named, matches memory layer model, batching strategy described |
+| 4 | Index write path — sync/async named, failure handling and partial-visibility behavior stated |
+| 5 | Deduplication — detection method and action on duplicate stated |
+| 6 | Document versioning — chunk invalidation strategy and staleness window stated |
+| 7 | Re-indexing on embedding model upgrade — strategy and query-correctness during transition stated |
+| 8 | Freshness and TTL — expiry detection method and re-ingest trigger stated |
+| 9 | Ingestion throughput and latency — peak doc/sec, p99 index latency, and queue depth arithmetic present |
+| 10 | Multi-tenant index isolation — isolation mechanism named and enforcement point stated |
+| 11 | Content filtering and safety — PII/injection screening named, action on filter failure stated |
+| 12 | Ingestion observability — lag, failure rate, dead-letter depth, and index growth metrics named |
+| 13 | Scale model — document count, index size, storage cost, and embedding compute cost at 1M users with arithmetic |
+| 14 | Error handling and dead-letter — error taxonomy present, per-type retry + dead-letter destination stated |
+| 15 | Access control on ingested content — ACL enforcement point (ingest-time vs query-time) and bypass failure mode stated |
+
 ### Phase 1 Halt Condition
 
-If the Critic's report contains **any `FAIL`** among the 20 agentic points, a
-**Scale Gate FAIL**, or **any `FAIL`** among the 15 memory layer points:
+If the Critic's report contains **any `FAIL`** across any active rubric section —
+20 agentic points, Scale Gate, 15 memory layer points, or (when applicable) 15
+ingestion pipeline points:
 
 1. Print the full critic report with all FAIL and PARTIAL items highlighted,
-   grouped by section (agentic rubric / scale gate / memory layer).
+   grouped by section (agentic rubric / scale gate / memory layer / ingestion
+   pipeline).
 2. Print: "Phase 1 FAILED. The following blocking objections must be addressed
    before this design can proceed to Principal Engineer validation."
 3. List each FAIL item with a one-sentence remediation hint.
@@ -177,8 +212,11 @@ and re-invoke `/critical-agent`.
 
 ### Phase 1 Pass Condition
 
-Phase 1 passes when **all 20 agentic points are PASS or PARTIAL**, **at least 4
-of 5 Scale Gate axes pass**, and **all 15 memory layer points are PASS or PARTIAL**.
+Phase 1 passes when all active rubric sections are fully PASS or PARTIAL:
+- All 20 agentic points PASS or PARTIAL
+- At least 4 of 5 Scale Gate axes pass
+- All 15 memory layer points PASS or PARTIAL
+- All 15 ingestion pipeline points PASS or PARTIAL *(only checked when `hasKnowledgeBase: true`)*
 
 PARTIAL is not a halt — it is a warning. Print all PARTIAL items prominently,
 grouped by section. The Principal Engineer in Phase 2 will see them.
@@ -196,12 +234,12 @@ PARTIAL, and the Scale Gate result). This keeps the PE's judgment independent.
 >
 > You have been told: Critic agentic rubric — N PASS, M PARTIAL, 0 FAIL.
 > Scale gate — K of 5 axes passed. Memory layer rubric — P PASS, Q PARTIAL,
-> 0 FAIL. All PARTIAL items are: [list agentic PARTIALs and memory PARTIALs
-> grouped separately].
+> 0 FAIL. [If hasKnowledgeBase: true]: Ingestion pipeline rubric — R PASS,
+> S PARTIAL, 0 FAIL. All PARTIAL items are: [list PARTIALs grouped by section].
 >
-> Read the full design pack independently, including both
-> `19-agentic-graph-structure.md` and `20-memory-layer-design.md`. Then answer
-> these six questions:
+> Read the full design pack independently, including `19-agentic-graph-structure.md`,
+> `20-memory-layer-design.md`, and (if present) `22-ingestion-pipeline.md`.
+> Then answer these seven questions:
 >
 > 1. Is the agentic graph structure (`19-agentic-graph-structure.md`) specific
 >    enough that an engineer could implement it without ambiguity? If not, what
@@ -209,14 +247,17 @@ PARTIAL, and the Scale Gate result). This keeps the PE's judgment independent.
 > 2. Is the memory layer design (`20-memory-layer-design.md`) specific enough
 >    to implement without ambiguity? Are the retrieval strategy, isolation
 >    boundary, and scale model credible? If not, what is the first gap?
-> 3. Are the PARTIAL items from the Critic genuinely acceptable gaps for an MVP,
+> 3. If `22-ingestion-pipeline.md` is present: does the ingestion pipeline close
+>    the loop between the write path and the memory layer's read path? Is the
+>    embedding model consistent? Is the throughput model credible at 1M users?
+>    If not present, skip this question.
+> 4. Are the PARTIAL items from the Critic genuinely acceptable gaps for an MVP,
 >    or are any of them blockers for a production launch at 1M users?
-> 4. Does the combined agentic + memory design show a credible path to operating
->    at 1M users — fleet, queue depth, isolation boundary, cost model, and
->    memory index scale all addressed?
-> 5. Are there any gaps the Critic missed in either layer that you consider
->    blocking?
-> 6. Would you sign off on this design as ready for implementation?
+> 5. Does the combined design — agentic layer, memory layer, and ingestion
+>    pipeline (if present) — show a credible path to 1M users with fleet, queue
+>    depth, isolation boundary, cost model, and index scale all addressed end to end?
+> 6. Are there any gaps the Critic missed in any layer that you consider blocking?
+> 7. Would you sign off on this design as ready for implementation?
 >
 > Return your verdict as: `APPROVED` or `REJECTED`.
 > Follow it with a one-paragraph rationale and a bullet list of any remaining
@@ -257,6 +298,9 @@ Write `21-critical-agent-approval.md` into the pack folder with this structure:
 ### Memory Layer (15-point rubric)
 - Result: P PASS, Q PARTIAL, 0 FAIL
 
+### Ingestion Pipeline (15-point rubric — omit section if `hasKnowledgeBase: false`)
+- Result: R PASS, S PARTIAL, 0 FAIL
+
 ### PARTIAL Items (must be addressed before GA)
 
 **Agentic layer PARTIALs:**
@@ -264,6 +308,9 @@ Write `21-critical-agent-approval.md` into the pack folder with this structure:
 
 **Memory layer PARTIALs:**
 <list each memory PARTIAL with its remediation note>
+
+**Ingestion pipeline PARTIALs:** *(omit if not applicable)*
+<list each ingestion PARTIAL with its remediation note>
 
 ## Phase 2: Principal Engineer Verdict
 

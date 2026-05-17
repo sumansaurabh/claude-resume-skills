@@ -97,6 +97,8 @@ AGENTIC_REQUIRED_FILES = {
     "20-memory-layer-design.md",
 }
 
+KNOWLEDGE_BASE_REQUIRED_FILE = "22-ingestion-pipeline.md"
+
 REQUIRED_MANIFEST_KEYS = {
     "schemaVersion",
     "archetype",
@@ -199,6 +201,8 @@ def validate_files(pack_dir: Path, manifest: dict) -> list[str]:
 
     if manifest.get("isAgentic") is True:
         required_files = required_files | AGENTIC_REQUIRED_FILES
+        if manifest.get("hasKnowledgeBase") is True:
+            required_files = required_files | {KNOWLEDGE_BASE_REQUIRED_FILE}
 
     missing_files = sorted(required_files - root_files)
     if missing_files:
