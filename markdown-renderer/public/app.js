@@ -37,6 +37,34 @@
     applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
   });
 
+  // ─── Sidebar resize ───
+  const sidebar = document.getElementById('sidebar');
+  const resizeHandle = document.getElementById('sidebar-resize');
+  const savedWidth = localStorage.getItem('md-renderer-sidebar-width');
+  if (savedWidth) sidebar.style.width = savedWidth + 'px';
+
+  resizeHandle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    document.body.classList.add('sidebar-resizing');
+    resizeHandle.classList.add('dragging');
+
+    const onMove = (e) => {
+      const newWidth = Math.min(600, Math.max(200, e.clientX));
+      sidebar.style.width = newWidth + 'px';
+    };
+
+    const onUp = () => {
+      document.body.classList.remove('sidebar-resizing');
+      resizeHandle.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      localStorage.setItem('md-renderer-sidebar-width', parseInt(sidebar.style.width));
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
   // ─── Mermaid init ───
   mermaid.initialize({
     startOnLoad: false,

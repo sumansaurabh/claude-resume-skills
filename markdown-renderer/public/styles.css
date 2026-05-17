@@ -118,12 +118,37 @@ body {
 /* =============== SIDEBAR =============== */
 #sidebar {
   width: var(--sidebar-width);
-  min-width: var(--sidebar-width);
+  min-width: 200px;
+  max-width: 600px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Sidebar resize handle */
+.sidebar-resize-handle {
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+  transition: background var(--transition);
+  margin-left: -3px;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.dragging {
+  background: var(--text-accent);
+}
+
+/* Prevent text selection while resizing */
+body.sidebar-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .sidebar-header {
