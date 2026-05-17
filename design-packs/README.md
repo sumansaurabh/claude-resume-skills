@@ -20,10 +20,10 @@ Use this shape:
 
 ```json
 {
-	"schemaVersion": 1,
+	"schemaVersion": 2,
 	"archetype": "system-design",
 	"slug": "llm-training-platform",
-	"createdAt": "2026-05-06",
+	"createdAt": "2026-05-17",
 	"question": "You say you scaled secure LLM training across VNet and Kubernetes...",
 	"questionHash": "sha256:...",
 	"company": "Microsoft",
@@ -40,39 +40,74 @@ Use this shape:
 `questionHash` is the SHA-256 of the question after trimming leading and trailing
 whitespace and collapsing internal whitespace runs to a single space.
 
+`schemaVersion` controls the required file layout:
+
+- `1` (legacy): no `02-design-estimates.md`; architecture is `02`. Packs created
+	before 2026-05-17 use this layout and continue to validate under v1.
+- `2` (current): `02-design-estimates.md` is required and sits between the
+	executive summary and architecture; all subsequent numbered files shift by
+	one. Use v2 for every new pack going forward.
+
 ## Supported Archetypes
 
 ### `system-design`
 
 Use for architecture, API design, LLD, scaling, protocol, and multi-component platform questions.
 
-Required root files:
+#### Required root files (v2, current)
 
 - `README.md`
 - `manifest.json`
 - `00-question-and-context.md`
 - `01-executive-summary.md`
-- `02-architecture.md`
-- `03-api-and-contracts.md`
-- `04-low-level-design.md`
-- `05-scaling-and-capacity.md`
-- `06-security-and-isolation.md`
-- `07-reliability-observability-and-failures.md`
-- `08-tradeoffs-and-alternatives.md`
-- `09-cross-questions.md`
-- `10-cheat-sheet.md`
-- `14-challenges-by-stage.md` (generated via Chain-of-Thought Challenge Generation; see the analyze-my-resume and resume-design-pack skills)
+- `02-design-estimates.md`
+- `03-architecture.md`
+- `04-api-and-contracts.md`
+- `05-low-level-design.md`
+- `06-scaling-and-capacity.md`
+- `07-security-and-isolation.md`
+- `08-reliability-observability-and-failures.md`
+- `09-tradeoffs-and-alternatives.md`
+- `10-cross-questions.md`
+- `11-cheat-sheet.md`
+- `15-challenges-by-stage.md` (generated via Chain-of-Thought Challenge Generation; see the analyze-my-resume and resume-design-pack skills)
 
-Optional root files:
+`02-design-estimates.md` is the upfront framing section that the interviewer
+expects before architecture. It must cover:
+
+- **Use case and problem statement** — what is being solved and the business
+	motivation; why this is worth building at all.
+- **User personas and access patterns** — who uses the system (developers,
+	internal services, end users, automated pipelines), in what context, and at
+	what cadence.
+- **Existing options and build-vs-buy** — open source projects, commercial
+	products, and adjacent internal systems that could plausibly solve the
+	problem; the specific gaps in those options that justify building.
+- **Why we are building it** — the load-bearing reason a custom system beats
+	the alternatives (compliance, isolation, scale, cost, latency, integration).
+- **Capacity and load estimates** — back-of-envelope sizing for users, QPS,
+	storage, bandwidth, and growth rate, plus functional and non-functional
+	requirements (latency targets, availability, durability, recovery time).
+
+Treat this file as the interviewer's "frame the problem" expectation; without
+it, architecture lands without context.
+
+#### Optional root files (v2)
 
 Add more files when the question needs them, for example:
 
-- `11-control-plane-vs-data-plane.md`
-- `12-state-machine-and-workflows.md`
-- `13-data-model-and-storage.md`
-- `15-leadership-and-business-framing.md`
-- `16-risk-register.md`
-- `17-debugging-playbooks.md`
+- `12-control-plane-vs-data-plane.md`
+- `13-state-machine-and-workflows.md`
+- `14-data-model-and-storage.md`
+- `16-leadership-and-business-framing.md`
+- `17-risk-register.md`
+- `18-debugging-playbooks.md`
+
+#### Required root files (v1, legacy)
+
+Packs with `schemaVersion: 1` keep the original layout (no design-estimates;
+architecture at `02`, challenges at `14`). New packs must not use v1; it exists
+only so existing packs continue to validate.
 
 ### `security-review`
 
@@ -109,7 +144,8 @@ If present, use:
 - `cross-exam/leadership-and-business-pushback.md`
 - `cross-exam/fast-rebuttals.md`
 
-The root `09-cross-questions.md` file remains the compact core interview follow-up set.
+The root `10-cross-questions.md` file (v2) remains the compact core interview
+follow-up set. For v1 packs, the equivalent file is `09-cross-questions.md`.
 
 ## Matching And Reuse
 

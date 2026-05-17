@@ -46,24 +46,26 @@ matches the normalized prompt exactly.
 
 ## Mandatory Deliverables
 
-Write `manifest.json` first, then the archetype-specific required files.
+Write `manifest.json` first (with `schemaVersion: 2` for any new pack), then
+the archetype-specific required files.
 
-For `system-design`, write at least these files:
+For `system-design` at `schemaVersion: 2`, write at least these files:
 
 - `README.md`
 - `manifest.json`
 - `00-question-and-context.md`
 - `01-executive-summary.md`
-- `02-architecture.md`
-- `03-api-and-contracts.md`
-- `04-low-level-design.md`
-- `05-scaling-and-capacity.md`
-- `06-security-and-isolation.md`
-- `07-reliability-observability-and-failures.md`
-- `08-tradeoffs-and-alternatives.md`
-- `09-cross-questions.md`
-- `10-cheat-sheet.md`
-- `14-challenges-by-stage.md` (generated via the Chain-of-Thought Challenge Generation procedure below; this file is required for `system-design`, not optional)
+- `02-design-estimates.md`
+- `03-architecture.md`
+- `04-api-and-contracts.md`
+- `05-low-level-design.md`
+- `06-scaling-and-capacity.md`
+- `07-security-and-isolation.md`
+- `08-reliability-observability-and-failures.md`
+- `09-tradeoffs-and-alternatives.md`
+- `10-cross-questions.md`
+- `11-cheat-sheet.md`
+- `15-challenges-by-stage.md` (generated via the Chain-of-Thought Challenge Generation procedure below; this file is required for `system-design`, not optional)
 
 For `security-review`, write the required files listed in `design-packs/README.md`.
 
@@ -72,26 +74,55 @@ data models, protocol design, control plane and data plane separation, or cross-
 
 Place extended challenge material under `cross-exam/`, not in the numbered root file sequence.
 
+Packs created before 2026-05-17 used `schemaVersion: 1` (no design-estimates;
+architecture at `02`, challenges at `14`). Do not produce new v1 packs.
+
+## Design Estimates
+
+`02-design-estimates.md` is the interviewer's "frame the problem" expectation
+and must come before architecture. The file must include, in this order:
+
+1. **Use case and problem statement** — what is being solved and the business
+	 cost of not solving it. Anchor to the resume where possible.
+2. **Users and access patterns** — personas (developers, internal services,
+	 end users, automated pipelines, security reviewers) with operations and
+	 rough cadence per persona.
+3. **Existing options** — short comparison table of open source, commercial,
+	 and adjacent internal systems, with the specific gap that disqualifies each.
+4. **Why we are building it** — load-bearing reasons custom beats the
+	 alternatives (compliance, isolation, scale, cost, latency, integration).
+5. **Capacity and load estimates** — back-of-envelope arithmetic for users,
+	 peak QPS, payload size, storage growth, bandwidth, fan-out. Show the math.
+	 Mark assumptions explicitly when the resume does not pin the number.
+6. **Functional and non-functional requirements** — functional ops the system
+	 must support; non-functional targets for p50 / p99 latency, availability,
+	 durability, RTO / RPO, security posture, and explicit out-of-scope items.
+
+Keep it short and dense. Tables and bullets over prose. This file does not
+duplicate `05-low-level-design.md` or `06-scaling-and-capacity.md`; it sets the
+target those later files must hit.
+
 ## Parallel Decomposition
 
 Use parallel agents when available.
 
 Minimum lanes:
 
-1. system architecture
-2. API and contract design
-3. low-level design and state machine
-4. scale and cost
-5. security and isolation
-6. reliability and debugging
-7. skeptical interviewer follow-ups
-8. stage-scoped challenge generation (consumes lanes 1-7; runs after them)
+1. design estimates (use case, personas, existing options, build-vs-buy, capacity model)
+2. system architecture
+3. API and contract design
+4. low-level design and state machine
+5. scale and cost
+6. security and isolation
+7. reliability and debugging
+8. skeptical interviewer follow-ups
+9. stage-scoped challenge generation (consumes the prior lanes; runs after them)
 
 Each lane should return concise notes that are then synthesized into the final files.
 
 ## Chain-of-Thought Challenge Generation
 
-`14-challenges-by-stage.md` is a required deliverable for every `system-design`
+`15-challenges-by-stage.md` is a required deliverable for every `system-design`
 pack. To make the output reliable across runs, generate it with this explicit
 Chain-of-Thought procedure rather than free-form brainstorming.
 
@@ -171,8 +202,9 @@ If any item is unchecked, redo the relevant step before writing.
 ### Reference exemplar
 
 `design-packs/2026-05-17-distributed-finetuning-dataplane-internals/14-challenges-by-stage.md`
-is the canonical example of this procedure's output. Mirror its layout when in
-doubt.
+is the canonical example of this procedure's output (named `14-...` because
+that pack is `schemaVersion: 1`; under v2 the same content lives in
+`15-challenges-by-stage.md`). Mirror its layout when in doubt.
 
 ## Pack Quality Bar
 
@@ -191,6 +223,6 @@ doubt.
 - Do not collapse everything into a single summary file.
 - Do not update a pack based on recency heuristics.
 - Do not omit API or LLD details when the prompt includes workflows, jobs, control planes, or orchestration.
-- Do not skip `14-challenges-by-stage.md` for `system-design` packs; it is required.
+- Do not skip `15-challenges-by-stage.md` for `system-design` packs; it is required.
 - Do not generate the challenges file by listing problems and rating after the fact; follow the Chain-of-Thought order or quality drops.
 - Do not give the same (S, F, D) triple to many challenges in a row; that signals the inner CoT was skipped.

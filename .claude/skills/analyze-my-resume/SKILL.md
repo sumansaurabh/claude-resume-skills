@@ -96,43 +96,82 @@ The output should feel like a principal engineer answer, not a generic tutorial:
 
 Use parallel agents whenever possible. Default lanes:
 
-1. Architecture lane: end-to-end request flow, component map, control flow.
-2. API and LLD lane: public APIs, internal contracts, state machines, schemas, component interfaces.
-3. Scale lane: capacity model, quotas, bottlenecks, backpressure, cost controls.
-4. Security lane: isolation, identity, secrets, trust boundaries, threat model.
-5. Reliability lane: retries, checkpointing, failure handling, observability.
-6. Cross-exam lane: skeptical interviewer questions, traps, and strong rebuttals.
-7. Leadership lane: roadmap, tradeoffs, business framing, why this mattered.
-8. Challenge lane: produces `14-challenges-by-stage.md` using the Chain-of-Thought Challenge Generation procedure below. Runs after lanes 1-7 because it consumes their findings.
+1. Design-estimates lane: use case, personas, existing options, build-vs-buy, capacity and load estimates, functional and non-functional requirements. Produces `02-design-estimates.md`.
+2. Architecture lane: end-to-end request flow, component map, control flow.
+3. API and LLD lane: public APIs, internal contracts, state machines, schemas, component interfaces.
+4. Scale lane: capacity model, quotas, bottlenecks, backpressure, cost controls.
+5. Security lane: isolation, identity, secrets, trust boundaries, threat model.
+6. Reliability lane: retries, checkpointing, failure handling, observability.
+7. Cross-exam lane: skeptical interviewer questions, traps, and strong rebuttals.
+8. Leadership lane: roadmap, tradeoffs, business framing, why this mattered.
+9. Challenge lane: produces `15-challenges-by-stage.md` (v2 numbering) using the Chain-of-Thought Challenge Generation procedure below. Runs after the other lanes because it consumes their findings.
 
 If agent support is unavailable, do the same reasoning sequentially and note the fallback.
 
 ## Required Output Files
 
-For `system-design`, create at least these files:
+New packs must use `schemaVersion: 2`. For `system-design` at v2, create at least these files:
 
 - `README.md`: one-screen overview and file map.
-- `manifest.json`: pack metadata, archetype, question, hash, and grounding confidence.
+- `manifest.json`: pack metadata, archetype, question, hash, and grounding confidence. Set `schemaVersion` to `2`.
 - `00-question-and-context.md`: original question, scope, assumptions, and resume anchors used.
 - `01-executive-summary.md`: the short, strong version of the answer.
-- `02-architecture.md`: end-to-end architecture and major components.
-- `03-api-and-contracts.md`: external APIs, internal contracts, request flows, idempotency, and error model.
-- `04-low-level-design.md`: service decomposition, classes or modules, state machines, schemas, and component interactions.
-- `05-scaling-and-capacity.md`: throughput model, bottlenecks, quotas, and growth plan.
-- `06-security-and-isolation.md`: threat model, identity, network boundaries, and secret handling.
-- `07-reliability-observability-and-failures.md`: retries, failure modes, logs, metrics, traces, and recovery.
-- `08-tradeoffs-and-alternatives.md`: rejected options and why.
-- `09-cross-questions.md`: challenging follow-ups and best answers.
-- `10-cheat-sheet.md`: concise talking points for interview delivery.
-- `14-challenges-by-stage.md`: stage-scoped, rated engineering challenges. Generated using the **Chain-of-Thought Challenge Generation** procedure below. This file is a default for every system-design pack, not an optional add-on.
+- `02-design-estimates.md`: upfront framing — use case and problem statement, user personas and access patterns, existing options and build-vs-buy, why we are building it, and back-of-envelope capacity and load estimates (QPS, storage, growth, latency / availability / durability targets). See the **Design Estimates** section below for required structure.
+- `03-architecture.md`: end-to-end architecture and major components.
+- `04-api-and-contracts.md`: external APIs, internal contracts, request flows, idempotency, and error model.
+- `05-low-level-design.md`: service decomposition, classes or modules, state machines, schemas, and component interactions.
+- `06-scaling-and-capacity.md`: throughput model, bottlenecks, quotas, and growth plan.
+- `07-security-and-isolation.md`: threat model, identity, network boundaries, and secret handling.
+- `08-reliability-observability-and-failures.md`: retries, failure modes, logs, metrics, traces, and recovery.
+- `09-tradeoffs-and-alternatives.md`: rejected options and why.
+- `10-cross-questions.md`: challenging follow-ups and best answers.
+- `11-cheat-sheet.md`: concise talking points for interview delivery.
+- `15-challenges-by-stage.md`: stage-scoped, rated engineering challenges. Generated using the **Chain-of-Thought Challenge Generation** procedure below. This file is a default for every system-design pack, not an optional add-on.
 
 Optional root files include:
 
-- `11-control-plane-vs-data-plane.md`
-- `12-state-machine-and-workflows.md`
-- `13-data-model-and-storage.md`
-- `15-leadership-and-business-framing.md`
-- `16-risk-register.md`
+- `12-control-plane-vs-data-plane.md`
+- `13-state-machine-and-workflows.md`
+- `14-data-model-and-storage.md`
+- `16-leadership-and-business-framing.md`
+- `17-risk-register.md`
+- `18-debugging-playbooks.md`
+
+Packs created before 2026-05-17 use `schemaVersion: 1`, which omits design-estimates and keeps architecture at `02`. Do not produce new v1 packs.
+
+## Design Estimates
+
+`02-design-estimates.md` is the interviewer's "frame the problem" expectation
+and must come before architecture. Skipping it lands the architecture without
+context. The file must include these subsections, in this order:
+
+1. **Use case and problem statement.** One short paragraph naming the concrete
+	 problem and the cost of not solving it. Tie the framing to a resume anchor
+	 if the question came from the candidate's experience.
+2. **Users and access patterns.** Enumerate user personas (developers, internal
+	 services, end users, automated pipelines, security or compliance reviewers)
+	 with the operations each one performs and rough cadence. Distinguish
+	 first-party vs third-party callers when relevant.
+3. **Existing options.** A short comparison table of open source projects,
+	 commercial products, and adjacent internal systems that could plausibly
+	 solve the problem, with the specific gap that disqualifies each.
+4. **Why we are building it.** Two to four bullets naming the load-bearing
+	 reasons a custom system beats the alternatives (compliance, isolation,
+	 scale, cost, latency, integration, sovereignty). These must connect back
+	 to the gaps in the previous section.
+5. **Capacity and load estimates.** Back-of-envelope numbers — users, peak QPS,
+	 average payload size, storage growth per month, bandwidth, fan-out — with
+	 the arithmetic shown, not just the answers. Pick numbers consistent with
+	 the resume scale claims; if those numbers are not on the resume, mark them
+	 as assumptions.
+6. **Functional and non-functional requirements.** Bulleted list. Functional
+	 covers the core operations the system must support; non-functional covers
+	 latency targets (p50 / p99), availability (e.g., 99.9%), durability,
+	 RTO / RPO, security and compliance posture, and explicit out-of-scope
+	 items.
+
+Keep this file short and dense — it is the framing, not the implementation.
+Tables and bullets are preferred over prose.
 
 For `security-review`, create the required root files defined in `design-packs/README.md`.
 
@@ -172,7 +211,7 @@ The pack should explicitly cover:
 
 ## Chain-of-Thought Challenge Generation
 
-Every `system-design` pack must include `14-challenges-by-stage.md`. This file is
+Every `system-design` pack must include `15-challenges-by-stage.md`. This file is
 **not** an optional appendix: it is the deliverable that demonstrates the
 candidate has thought about what actually goes wrong when you build the system,
 not just the happy path. To generate it reliably, follow this Chain-of-Thought
@@ -285,7 +324,9 @@ If any box is unchecked, redo the relevant step before writing.
 ### Worked exemplar
 
 The pack at `design-packs/2026-05-17-distributed-finetuning-dataplane-internals/`
-contains a reference `14-challenges-by-stage.md` produced by this procedure.
+contains a reference challenges-by-stage file produced by this procedure (named
+`14-challenges-by-stage.md` because that pack is `schemaVersion: 1`; under v2
+the same content lives in `15-challenges-by-stage.md`).
 When in doubt about format or rigor, mirror that file's structure (stage
 heading, stage truth, numbered challenges with `C{stage}.{n}` IDs, rating
 block, prose justification, top-10 leaderboard, meta-observations).
@@ -300,5 +341,5 @@ block, prose justification, top-10 leaderboard, meta-observations).
 - Do not generate generic architecture that is not anchored in the resume.
 - Do not claim specifics without adequate anchors.
 - Do not omit cross-questions or rebuttals.
-- Do not produce `14-challenges-by-stage.md` by enumerating challenges first and rating after; the Chain-of-Thought order in this file is load-bearing for quality.
+- Do not produce `15-challenges-by-stage.md` by enumerating challenges first and rating after; the Chain-of-Thought order in this file is load-bearing for quality.
 - Do not let the three rating axes converge to the same number for many challenges in a row; that means the CoT was skipped.

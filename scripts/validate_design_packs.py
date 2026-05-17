@@ -12,8 +12,8 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKS_DIR = ROOT / "design-packs"
 PACK_DIR_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}-")
 
-ARCHETYPE_REQUIRED_FILES = {
-    "system-design": {
+SYSTEM_DESIGN_REQUIRED_BY_VERSION = {
+    1: {
         "README.md",
         "manifest.json",
         "00-question-and-context.md",
@@ -28,18 +28,45 @@ ARCHETYPE_REQUIRED_FILES = {
         "09-cross-questions.md",
         "10-cheat-sheet.md",
     },
-    "security-review": {
+    2: {
         "README.md",
         "manifest.json",
         "00-question-and-context.md",
         "01-executive-summary.md",
-        "02-vulnerability-classes.md",
-        "03-tooling-and-configuration.md",
-        "04-threat-model-connection.md",
-        "05-cross-questions.md",
-        "06-cheat-sheet.md",
+        "02-design-estimates.md",
+        "03-architecture.md",
+        "04-api-and-contracts.md",
+        "05-low-level-design.md",
+        "06-scaling-and-capacity.md",
+        "07-security-and-isolation.md",
+        "08-reliability-observability-and-failures.md",
+        "09-tradeoffs-and-alternatives.md",
+        "10-cross-questions.md",
+        "11-cheat-sheet.md",
     },
 }
+
+SECURITY_REVIEW_REQUIRED = {
+    "README.md",
+    "manifest.json",
+    "00-question-and-context.md",
+    "01-executive-summary.md",
+    "02-vulnerability-classes.md",
+    "03-tooling-and-configuration.md",
+    "04-threat-model-connection.md",
+    "05-cross-questions.md",
+    "06-cheat-sheet.md",
+}
+
+SUPPORTED_SCHEMA_VERSIONS = {1, 2}
+
+
+def required_files_for(archetype: str, schema_version: int) -> set[str] | None:
+    if archetype == "system-design":
+        return SYSTEM_DESIGN_REQUIRED_BY_VERSION.get(schema_version)
+    if archetype == "security-review":
+        return SECURITY_REVIEW_REQUIRED
+    return None
 
 CROSS_EXAM_REQUIRED_FILES = {
     "README.md",
@@ -51,11 +78,18 @@ CROSS_EXAM_REQUIRED_FILES = {
 }
 
 BANNED_ROOT_FILES = {
+    # v1 numbering: cross-exam content must live under cross-exam/
     "11-api-and-lld-pushback.md",
     "12-scale-stressors.md",
     "13-security-pushback.md",
     "14-leadership-and-business-pushback.md",
     "15-fast-rebuttals.md",
+    # v2 numbering: same rule, shifted by one
+    "12-api-and-lld-pushback.md",
+    "13-scale-stressors.md",
+    "14-security-pushback.md",
+    "15-leadership-and-business-pushback.md",
+    "16-fast-rebuttals.md",
 }
 
 REQUIRED_MANIFEST_KEYS = {
@@ -98,8 +132,14 @@ def validate_manifest(pack_dir: Path) -> tuple[dict | None, list[str]]:
         errors.append(f"{pack_dir.name}: manifest missing keys {', '.join(missing_keys)}")
 
     archetype = manifest.get("archetype")
-    if archetype not in ARCHETYPE_REQUIRED_FILES:
+    if archetype not in {"system-design", "security-review"}:
         errors.append(f"{pack_dir.name}: unsupported archetype {archetype!r}")
+
+    schema_version = manifest.get("schemaVersion")
+    if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+        errors.append(
+            f"{pack_dir.name}: unsupported schemaVersion {schema_version!r}; expected one of {sorted(SUPPORTED_SCHEMA_VERSIONS)}"
+        )
 
     slug = manifest.get("slug")
     if isinstance(slug, str) and not pack_dir.name.endswith(slug):
@@ -143,7 +183,13 @@ def validate_manifest(pack_dir: Path) -> tuple[dict | None, list[str]]:
 def validate_files(pack_dir: Path, manifest: dict) -> list[str]:
     errors: list[str] = []
     archetype = manifest["archetype"]
-    required_files = ARCHETYPE_REQUIRED_FILES[archetype]
+    schema_version = manifest.get("schemaVersion")
+    required_files = required_files_for(archetype, schema_version) if isinstance(schema_version, int) else None
+    if required_files is None:
+        errors.append(
+            f"{pack_dir.name}: cannot determine required files for archetype={archetype!r} schemaVersion={schema_version!r}"
+        )
+        return errors
     root_files = {path.name for path in pack_dir.iterdir() if path.is_file()}
 
     missing_files = sorted(required_files - root_files)
