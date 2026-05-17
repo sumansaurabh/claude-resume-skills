@@ -80,17 +80,58 @@ The output should feel like a principal engineer answer, not a generic tutorial:
 - include interviewer pushback and crisp rebuttals
 - avoid pretending to know confidential internal Microsoft implementation details
 
+## Agentic System Detection
+
+Before choosing lanes, determine whether the question describes or requires an **agentic system** — one where autonomous agents execute multi-step tasks, call tools, maintain memory, and hand off to other agents.
+
+A question is agentic when it contains at least two of the following signals:
+
+- mentions "agent", "multi-agent", "LangGraph", "LangChain", "AutoGen", "CrewAI", "WASM sandbox", "tool-calling", or "ReAct loop"
+- describes a system where a model must plan, execute, and iterate before returning a result
+- involves autonomous code execution, browser use, or tool orchestration on behalf of a user
+- involves supervisor/worker agent topologies, agent handoff, or agent memory
+
+When the question is agentic, set `isAgentic: true` in `manifest.json`, activate the two agentic-specific lanes (lanes 11 and 12 below), and run the **Agentic Design Estimates Checklist** inside the design-estimates lane before writing `02-design-estimates.md`.
+
+## Agentic Design Estimates Checklist
+
+When `isAgentic: true`, the design-estimates lane MUST reason through all 20 points below **before** writing `02-design-estimates.md`. Each point requires a concrete answer or an explicit assumption — "TBD" is not acceptable. The answers drive the architecture, capacity model, and graph structure that follow.
+
+1. **State persistence** — what agent state survives a crash or coordinator restart, and what is recomputed?
+2. **Idempotency of tool calls** — when a node re-executes after a retry, which tool calls are safe to repeat and which must be deduplicated via idempotency keys?
+3. **Cycle detection and loop prevention** — how does the graph detect and break infinite ReAct loops or back-edges that never converge?
+4. **Parallel subgraph execution and join semantics** — when two subgraphs run concurrently, what does the join node do if one subgraph fails, times out, or returns a partial result?
+5. **Conditional edge logic** — how is branching evaluated (model output, rule-based, score threshold), and who is responsible for the routing decision?
+6. **Human-in-the-loop interrupt and resume** — at which nodes can a human pause, inspect, or redirect execution, and how does the graph checkpoint before the interrupt?
+7. **Short-term, long-term, and episodic memory separation** — what lives in the run context, what is persisted to a vector store, and what is summarized into episodic snapshots?
+8. **Tool routing** — which agent node is authorized to call which tools, and how is that enforced at the graph level (not just in the prompt)?
+9. **Tool failure handling per node** — what is the retry policy when a tool returns an error, and when does the graph route to a fallback node vs halt the run?
+10. **Agent-to-agent communication protocol** — do agents share a mutable state object, pass messages on a queue, or write/read from a shared scratchpad, and what are the consistency guarantees?
+11. **Concurrent run isolation at 1M users** — how are agent runs isolated at the tenant boundary (separate threads, processes, WASM sandboxes, or ephemeral pods), and what prevents prompt or data bleed?
+12. **Latency budget per graph hop** — what is the p99 latency target for a single node execution, and what is the total latency budget for a full multi-hop run?
+13. **Checkpoint and resume from mid-graph** — can a run resume from an arbitrary intermediate node after a failure, or only from the start?
+14. **Versioning of graph definitions during live traffic** — when the agent graph schema changes (new node, deleted edge), how are in-flight runs that were started under the old schema handled?
+15. **Multi-tenant isolation** — what prevents one tenant's agent run from reading another tenant's tool outputs, memory, or intermediate state?
+16. **Prompt injection through tool outputs** — if an external tool (web search, code executor, API call) returns adversarial content, what sanitization layer prevents it from hijacking the agent's next action?
+17. **Token budget enforcement per run** — how is per-run token spend tracked and capped, and what does the graph do when a run approaches the limit mid-execution?
+18. **Partial execution failure and rollback semantics** — if a node at step N of an M-step plan fails with side effects already applied (e.g., a file written, an email sent), what is the compensation logic?
+19. **Observability: tracing a stuck or looping graph** — what does the on-call engineer look at when a run appears to be hung, and how is a specific graph hop identified as the bottleneck?
+20. **Scale model** — what is the expected peak concurrent graph runs, average fan-out per planner node, and where is the coordinator bottleneck under that load?
+
+After answering all 20 points, use the answers to populate the capacity estimates, functional requirements, and non-functional requirements subsections of `02-design-estimates.md`. Mark any point answered by assumption rather than resume evidence.
+
 ## Default Workflow
 
 1. Read the core context files and extract the strongest resume anchors for the question.
 2. Classify the request and choose a supported archetype.
-3. Compute the normalized `questionHash`.
-4. Reuse a pack only if the folder was explicitly named or an exact manifest hash match exists.
-5. Otherwise create a new pack folder in `design-packs/YYYY-MM-DD-short-topic-slug/`.
-6. Write `manifest.json` before writing the rest of the pack.
-7. Fan out the seven parallel agent lanes when the Agent or Task tool is available.
-8. Synthesize the agent results into a coherent file set.
-9. Write the files, then return a short summary with the created folder path.
+3. Detect whether the question is agentic (see **Agentic System Detection**). If yes, set `isAgentic: true` in the manifest plan and activate lanes 11 and 12.
+4. Compute the normalized `questionHash`.
+5. Reuse a pack only if the folder was explicitly named or an exact manifest hash match exists.
+6. Otherwise create a new pack folder in `design-packs/YYYY-MM-DD-short-topic-slug/`.
+7. Write `manifest.json` before writing the rest of the pack.
+8. Fan out the parallel agent lanes when the Agent or Task tool is available.
+9. Synthesize the agent results into a coherent file set.
+10. Write the files, then return a short summary with the created folder path.
 
 ## Parallel Agent Lanes
 
@@ -106,6 +147,8 @@ Use parallel agents whenever possible. Default lanes:
 8. Leadership lane: roadmap, tradeoffs, business framing, why this mattered.
 9. Load-balancer and fleet-sizing lane: edge / internal load-balancer topology, AZ spread, health checks, sticky session policy, TLS termination, blue-green / canary plumbing, plus per-tier AWS instance sizing anchored on the **m8g** family. Produces the **Load Balancer and Edge Topology** and **AWS Node Sizing per Tier** sections inside `03-architecture.md` (or a sibling `12-control-plane-vs-data-plane.md` if the architecture file is already large). Follow the **Load Balancer Configuration** section below for LB knobs and the **Instance sizing** subsection inside Design Estimates for the m8g reference and fleet-count formula. Every tier in the architecture diagram must have: (a) a named LB pattern from the combination table, (b) a chosen instance size, (c) fleet count with the `ceil(peak / per_instance × headroom)` arithmetic shown, and (d) a monthly cost anchor.
 10. Challenge lane: produces `15-challenges-by-stage.md` (v2 numbering) using the Chain-of-Thought Challenge Generation procedure below. Runs after the other lanes because it consumes their findings.
+11. **Agentic graph topology lane** *(only when `isAgentic: true`)*: produces `19-agentic-graph-structure.md` Layer 1 content — node type taxonomy, edge type taxonomy, a full Mermaid graph of the design, cycle detection strategy, and the supervisor/worker/tool-caller hierarchy. Runs in parallel with the architecture lane and feeds lane 12.
+12. **Agentic per-node state lane** *(only when `isAgentic: true`)*: produces `19-agentic-graph-structure.md` Layer 2 content — per-node state shape (what is checkpointed at each node), edge condition logic (how each conditional branch is evaluated), parallel-join semantics, and human-in-the-loop interrupt points. Runs after lane 11 because it consumes the node inventory from that lane. Merges output with lane 11 into a single `19-agentic-graph-structure.md` file.
 
 If agent support is unavailable, do the same reasoning sequentially and note the fallback.
 
@@ -137,6 +180,23 @@ Optional root files include:
 - `16-leadership-and-business-framing.md`
 - `17-risk-register.md`
 - `18-debugging-playbooks.md`
+
+**Agentic packs only** (`isAgentic: true` in manifest) must also include:
+
+- `19-agentic-graph-structure.md`: two-layer deep-dive into the agent graph.
+  - **Layer 1 — Graph Topology**: node type taxonomy (planner, executor, critic, router,
+    tool-caller, human-in-loop, aggregator), edge type taxonomy (sequential,
+    conditional, parallel-fork, parallel-join, back-edge with guard), the full
+    Mermaid `graph TD` or `stateDiagram-v2` for this specific design, and the
+    supervisor/worker/tool-caller hierarchy. Use Mermaid node IDs that match the
+    service or component names from `03-architecture.md`.
+  - **Layer 2 — Per-Node State and Edge Conditions**: for every node in the graph,
+    specify the state shape that is checkpointed (keys, types, whether ephemeral or
+    durable), the condition logic on each outgoing edge (model score, rule, regex,
+    or schema validator), join semantics for parallel-fork outputs (all-of, any-of,
+    majority-vote, or first-success), and the interrupt/resume contract for any
+    human-in-the-loop node (what is frozen, what the human sees, how the run
+    resumes with the human's decision injected).
 
 Packs created before 2026-05-17 use `schemaVersion: 1`, which omits design-estimates and keeps architecture at `02`. Do not produce new v1 packs.
 

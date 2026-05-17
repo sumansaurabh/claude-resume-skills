@@ -37,6 +37,32 @@ Use this shape:
 }
 ```
 
+For agentic system packs, add `"isAgentic": true` to the manifest:
+
+```json
+{
+	"schemaVersion": 2,
+	"archetype": "system-design",
+	"isAgentic": true,
+	"slug": "agentic-code-execution-platform",
+	"createdAt": "2026-05-17",
+	"question": "Design the agentic layer for a no-code AI platform...",
+	"questionHash": "sha256:...",
+	"company": "BlackBox",
+	"primarySkill": "/analyze-my-resume",
+	"sourceFiles": ["resume.txt", "blackbox-experience.md"],
+	"grounding": {
+		"confidence": "high",
+		"strongAnchors": 3,
+		"supportingAnchors": 2
+	}
+}
+```
+
+`isAgentic: true` activates agentic-specific lanes in `/analyze-my-resume` and
+makes `19-agentic-graph-structure.md` a required file. It also enables
+`/critical-agent` to run the three-phase validation gate on the pack.
+
 `questionHash` is the SHA-256 of the question after trimming leading and trailing
 whitespace and collapsing internal whitespace runs to a single space.
 
@@ -102,6 +128,22 @@ Add more files when the question needs them, for example:
 - `16-leadership-and-business-framing.md`
 - `17-risk-register.md`
 - `18-debugging-playbooks.md`
+
+#### Agentic-system conditional required files (v2, `isAgentic: true`)
+
+When `manifest.json` contains `"isAgentic": true`, the following file is also
+**required** (not optional):
+
+- `19-agentic-graph-structure.md`: two-layer deep-dive into the agent graph.
+  Must contain:
+  - **Layer 1 — Graph Topology**: node type taxonomy, edge type taxonomy, a
+    full Mermaid diagram of the agent graph, and the supervisor/worker hierarchy.
+  - **Layer 2 — Per-Node State and Edge Conditions**: per-node checkpoint state
+    shape, conditional edge logic, parallel-join semantics, and human-in-the-loop
+    interrupt/resume contracts.
+- `20-critical-agent-approval.md` *(written by `/critical-agent` only)*: the
+  approval artifact produced after the three-phase critic + PE validation gate
+  passes. This file is never written manually.
 
 #### Required root files (v1, legacy)
 

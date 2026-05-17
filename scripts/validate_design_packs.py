@@ -92,6 +92,8 @@ BANNED_ROOT_FILES = {
     "16-fast-rebuttals.md",
 }
 
+AGENTIC_REQUIRED_FILE = "19-agentic-graph-structure.md"
+
 REQUIRED_MANIFEST_KEYS = {
     "schemaVersion",
     "archetype",
@@ -191,6 +193,9 @@ def validate_files(pack_dir: Path, manifest: dict) -> list[str]:
         )
         return errors
     root_files = {path.name for path in pack_dir.iterdir() if path.is_file()}
+
+    if manifest.get("isAgentic") is True:
+        required_files = required_files | {AGENTIC_REQUIRED_FILE}
 
     missing_files = sorted(required_files - root_files)
     if missing_files:
