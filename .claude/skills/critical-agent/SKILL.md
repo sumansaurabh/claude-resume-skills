@@ -43,6 +43,8 @@ Before starting, confirm:
 2. The target pack's `manifest.json` exists and contains `"isAgentic": true`.
 3. `19-agentic-graph-structure.md` is present in the pack folder.
 4. `20-memory-layer-design.md` is present in the pack folder.
+5. If `manifest.json` contains `"hasKnowledgeBase": true`, then
+   `22-ingestion-pipeline.md` must also be present in the pack folder.
 
 If any check fails, print the relevant message and halt — do not proceed:
 
@@ -57,6 +59,10 @@ If any check fails, print the relevant message and halt — do not proceed:
 - `20-memory-layer-design.md` missing → "The pack is missing
   `20-memory-layer-design.md`. Re-run `/analyze-my-resume` to generate the
   memory layer design before critiquing."
+- `22-ingestion-pipeline.md` missing (when `hasKnowledgeBase: true`) → "The
+  pack declares `hasKnowledgeBase: true` but is missing `22-ingestion-pipeline.md`.
+  Re-run `/analyze-my-resume` to generate the ingestion pipeline design before
+  critiquing."
 
 ## Phase 1: Critic Agent
 

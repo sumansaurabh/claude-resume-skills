@@ -176,11 +176,80 @@ Lane 13 runs concurrently with lanes 11 and 12. It does not depend on their outp
 must not block waiting for them. The file it produces (`20-memory-layer-design.md`) is
 standalone — it should not require the reader to cross-reference `19-agentic-graph-structure.md`.
 
+## Ingestion Pipeline Checklist
+
+When `isAgentic: true` AND `hasKnowledgeBase: true`, Lane 14 must answer all 15 points
+below before writing `22-ingestion-pipeline.md`. Each point must be a concrete subsection.
+"Not applicable" requires a one-sentence justification.
+
+RAG-as-tool-call (agent explicitly invokes a `search()` tool) lives in
+`04-api-and-contracts.md` and `05-low-level-design.md` — not here. This file covers
+the **write path**: how external content flows into the stores the agent reads from.
+
+1. **Ingestion triggers** — what initiates ingestion: user upload event, webhook from
+   an external system, scheduled crawler, API push, or real-time event stream. State
+   whether ingestion is synchronous (caller waits for indexing) or asynchronous
+   (caller gets an async job ID).
+2. **Chunking strategy** — fixed-size, sentence-boundary, semantic, hierarchical, or
+   document-structure-aware chunking. State chunk size (tokens), overlap (tokens), and
+   the rationale for the choice relative to the retrieval use case.
+3. **Embedding pipeline** — which model embeds chunks, batching strategy (batch size,
+   throughput target), and whether embedding is CPU or GPU. **This model must match
+   the embedding model named in `20-memory-layer-design.md` point 6.** If they differ,
+   flag it explicitly and explain how the inconsistency is resolved.
+4. **Index write path** — how embedded chunks reach the vector store: synchronous
+   direct write, async queue-backed (Kafka, SQS), or streaming. State what happens
+   on write failure: retry policy, dead-letter destination, and whether the document
+   is partially or fully visible during a write.
+5. **Deduplication** — how duplicate or near-duplicate content is detected: content
+   hash (exact), MinHash (near-duplicate), or semantic similarity threshold. State
+   the action taken on a detected duplicate: skip, merge, or replace.
+6. **Document versioning** — when a document is updated, how its previous chunks are
+   invalidated and replaced in the index. State whether old chunks are tombstoned
+   (soft delete) or physically removed, and the staleness window between update and
+   old chunks expiring from query results.
+7. **Re-indexing on embedding model upgrade** — when the embedding model changes
+   (new model, dimension change), describe the re-indexing strategy: full re-index
+   offline, lazy re-index on next retrieval miss, or dual-index with version tagging.
+   State how query correctness is maintained during the transition window.
+8. **Freshness and TTL** — how indexed content that should expire is identified and
+   evicted. State whether TTL is set at ingestion time (per-document metadata) or
+   centrally (policy-driven), and what triggers a re-crawl or re-ingest.
+9. **Ingestion throughput and latency** — peak documents/sec the pipeline must handle,
+   p99 latency from document arrival to queryable in the index, and queue depth under
+   peak load. Show the arithmetic anchored on the capacity model in `02-design-estimates.md`.
+10. **Multi-tenant isolation in the index** — how one tenant's ingested content is
+    isolated from another's: namespace prefix, separate index per tenant, row-level
+    filter enforced at query time, or hybrid. State the enforcement point and the
+    failure mode if isolation is bypassed.
+11. **Content filtering and safety** — what pre-processing happens before content is
+    indexed: PII detection and redaction, malicious content or prompt-injection
+    screening, format validation, and size limits. State what happens to content
+    that fails a filter (reject, quarantine, or partial ingest).
+12. **Ingestion observability** — which metrics and logs exist for: ingestion lag
+    (time from trigger to queryable), failure rate per document type, dead-letter
+    queue depth, and index size growth. State the alert threshold for each.
+13. **Scale model** — estimated document count at 1M users, total vector index size
+    (GB), monthly storage cost, monthly embedding compute cost, and growth rate.
+    Show the arithmetic. Flag any tier where cost grows super-linearly with users.
+14. **Error handling and dead-letter** — full error taxonomy: embedding failure,
+    index write failure, chunking error, filter rejection. Per error type: retry
+    count, backoff, dead-letter destination, and whether the user is notified.
+15. **Access control on ingested content** — who can query which content. State
+    whether ACLs are enforced at ingestion time (content tagged with tenant/user
+    scope at index time) or at query time (filter injected into every retrieval
+    call). Explain the failure mode if the ACL enforcement point is bypassed.
+
+Lane 14 runs concurrently with lanes 11–13. The embedding model consistency check
+(point 3 vs `20-memory-layer-design.md` point 6) is the only cross-lane dependency —
+note the inconsistency in the file if it exists; do not block lane completion waiting
+for lane 13 to finish. The file it produces (`22-ingestion-pipeline.md`) is standalone.
+
 ## Default Workflow
 
 1. Read the core context files and extract the strongest resume anchors for the question.
 2. Classify the request and choose a supported archetype.
-3. Detect whether the question is agentic (see **Agentic System Detection**). If yes, set `isAgentic: true` in the manifest plan and activate lanes 11, 12, and 13.
+3. Detect whether the question is agentic (see **Agentic System Detection**). If yes, set `isAgentic: true` in the manifest plan and activate lanes 11, 12, and 13. If the system also has a knowledge base (user-uploaded content, crawled docs, product data), set `hasKnowledgeBase: true` and activate lane 14.
 4. Compute the normalized `questionHash`.
 5. Reuse a pack only if the folder was explicitly named or an exact manifest hash match exists.
 6. Otherwise create a new pack folder in `design-packs/YYYY-MM-DD-short-topic-slug/`.
@@ -206,6 +275,7 @@ Use parallel agents whenever possible. Default lanes:
 11. **Agentic graph topology lane** *(only when `isAgentic: true`)*: produces `19-agentic-graph-structure.md` Layer 1 content — node type taxonomy, edge type taxonomy, a full Mermaid graph of the design, cycle detection strategy, and the supervisor/worker/tool-caller hierarchy. Runs in parallel with the architecture lane and feeds lane 12.
 12. **Agentic per-node state lane** *(only when `isAgentic: true`)*: produces `19-agentic-graph-structure.md` Layer 2 content — per-node state shape (what is checkpointed at each node), edge condition logic (how each conditional branch is evaluated), parallel-join semantics, and human-in-the-loop interrupt points. Runs after lane 11 because it consumes the node inventory from that lane. Merges output with lane 11 into a single `19-agentic-graph-structure.md` file.
 13. **Memory layer lane** *(only when `isAgentic: true`)*: produces `20-memory-layer-design.md`. Runs in parallel with lanes 11 and 12. Must answer the **Memory Layer Checklist** (see below) before writing the file. Covers memory taxonomy, storage backend selection, retrieval strategy, context budget allocation, eviction and consolidation policy, cross-tenant isolation, memory poisoning defenses, scale model, and observability.
+14. **Ingestion pipeline lane** *(only when `isAgentic: true` AND `hasKnowledgeBase: true`)*: produces `22-ingestion-pipeline.md`. Runs in parallel with lanes 11–13. Must answer the **Ingestion Pipeline Checklist** (see below) before writing the file. Covers document ingestion triggers, chunking, embedding pipeline, index write path, deduplication, versioning, re-indexing on model upgrade, freshness/TTL, multi-tenant index isolation, content filtering, scale model, error handling, and access control on ingested content. The embedding model named here must match the model named in `20-memory-layer-design.md` point 6 — if they differ, flag the inconsistency explicitly.
 
 If agent support is unavailable, do the same reasoning sequentially and note the fallback.
 
@@ -260,6 +330,15 @@ Optional root files include:
   all 15 memory layer points as discrete subsections — not as a paragraph summary.
   Treat it as a separate, self-contained design document: it should be readable
   without cross-referencing `19-agentic-graph-structure.md`.
+
+- `22-ingestion-pipeline.md` *(required only when `hasKnowledgeBase: true`)*:
+  standalone deep-dive into the document ingestion and indexing pipeline — the
+  write path that feeds the stores the memory layer reads from. Generated by
+  Lane 14 using the **Ingestion Pipeline Checklist** below. Must cover all 15
+  ingestion points as discrete subsections. RAG-as-tool-call (agent invoking a
+  `search()` tool explicitly) is NOT covered here — that lives in
+  `04-api-and-contracts.md`. This file covers the data pipeline that makes
+  content available for retrieval.
 
 Packs created before 2026-05-17 use `schemaVersion: 1`, which omits design-estimates and keeps architecture at `02`. Do not produce new v1 packs.
 
