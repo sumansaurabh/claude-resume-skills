@@ -41,10 +41,10 @@ Before starting, confirm:
 1. A `design-packs/` folder is explicitly named, OR the user described a topic
    that matches exactly one existing pack's `manifest.json` (via `questionHash`).
 2. The target pack's `manifest.json` exists and contains `"isAgentic": true`.
-3. `19-agentic-graph-structure.md` is present in the pack folder.
-4. `20-memory-layer-design.md` is present in the pack folder.
+3. `12-agentic-graph-structure.md` is present in the pack folder.
+4. `13-memory-layer-design.md` is present in the pack folder.
 5. If `manifest.json` contains `"hasKnowledgeBase": true`, then
-   `22-ingestion-pipeline.md` must also be present in the pack folder.
+   `14-ingestion-pipeline.md` must also be present in the pack folder.
 
 If any check fails, print the relevant message and halt — do not proceed:
 
@@ -53,14 +53,14 @@ If any check fails, print the relevant message and halt — do not proceed:
 - Pack exists but `isAgentic` is missing or false → "This pack is not marked as
   an agentic system (`isAgentic: true` not set). This skill is only for agentic
   designs."
-- `19-agentic-graph-structure.md` missing → "The pack is missing
-  `19-agentic-graph-structure.md`. Re-run `/analyze-my-resume` to regenerate
+- `12-agentic-graph-structure.md` missing → "The pack is missing
+  `12-agentic-graph-structure.md`. Re-run `/analyze-my-resume` to regenerate
   the agentic graph layer before critiquing."
-- `20-memory-layer-design.md` missing → "The pack is missing
-  `20-memory-layer-design.md`. Re-run `/analyze-my-resume` to generate the
+- `13-memory-layer-design.md` missing → "The pack is missing
+  `13-memory-layer-design.md`. Re-run `/analyze-my-resume` to generate the
   memory layer design before critiquing."
-- `22-ingestion-pipeline.md` missing (when `hasKnowledgeBase: true`) → "The
-  pack declares `hasKnowledgeBase: true` but is missing `22-ingestion-pipeline.md`.
+- `14-ingestion-pipeline.md` missing (when `hasKnowledgeBase: true`) → "The
+  pack declares `hasKnowledgeBase: true` but is missing `14-ingestion-pipeline.md`.
   Re-run `/analyze-my-resume` to generate the ingestion pipeline design before
   critiquing."
 
@@ -134,7 +134,7 @@ If fewer than 4 axes pass, this is a **Scale Gate FAIL** regardless of the 20-po
 
 ### Memory Layer Evaluation
 
-After the 1M-User Scale Gate, the Critic must evaluate `20-memory-layer-design.md`
+After the 1M-User Scale Gate, the Critic must evaluate `13-memory-layer-design.md`
 independently using the 15-point memory layer rubric below. Apply the same
 `PASS | PARTIAL | FAIL` verdict per point with one sentence of evidence.
 
@@ -163,15 +163,15 @@ evaluation is a Phase 1 halt — same rule as the agentic rubric.
 ### Ingestion Pipeline Evaluation *(only when `hasKnowledgeBase: true`)*
 
 If `manifest.json` contains `"hasKnowledgeBase": true`, the Critic must evaluate
-`22-ingestion-pipeline.md` using the 15-point ingestion rubric below. Apply the
+`14-ingestion-pipeline.md` using the 15-point ingestion rubric below. Apply the
 same `PASS | PARTIAL | FAIL` verdict per point with one sentence of evidence.
 
 This evaluation is **separate** from both the agentic and memory rubrics. A
 single `FAIL` here is a Phase 1 halt — same rule as the other rubrics.
 
 Additionally, the Critic must check the **embedding model consistency rule**:
-the model named in `22-ingestion-pipeline.md` point 3 must match the model
-named in `20-memory-layer-design.md` point 6. If they differ and no migration
+the model named in `14-ingestion-pipeline.md` point 3 must match the model
+named in `13-memory-layer-design.md` point 6. If they differ and no migration
 strategy is documented, this is an automatic `FAIL` on point 3 of the ingestion
 rubric regardless of what the file says.
 
@@ -237,17 +237,17 @@ PARTIAL, and the Scale Gate result). This keeps the PE's judgment independent.
 > 0 FAIL. [If hasKnowledgeBase: true]: Ingestion pipeline rubric — R PASS,
 > S PARTIAL, 0 FAIL. All PARTIAL items are: [list PARTIALs grouped by section].
 >
-> Read the full design pack independently, including `19-agentic-graph-structure.md`,
-> `20-memory-layer-design.md`, and (if present) `22-ingestion-pipeline.md`.
+> Read the full design pack independently, including `12-agentic-graph-structure.md`,
+> `13-memory-layer-design.md`, and (if present) `14-ingestion-pipeline.md`.
 > Then answer these seven questions:
 >
-> 1. Is the agentic graph structure (`19-agentic-graph-structure.md`) specific
+> 1. Is the agentic graph structure (`12-agentic-graph-structure.md`) specific
 >    enough that an engineer could implement it without ambiguity? If not, what
 >    is the first ambiguous decision?
-> 2. Is the memory layer design (`20-memory-layer-design.md`) specific enough
+> 2. Is the memory layer design (`13-memory-layer-design.md`) specific enough
 >    to implement without ambiguity? Are the retrieval strategy, isolation
 >    boundary, and scale model credible? If not, what is the first gap?
-> 3. If `22-ingestion-pipeline.md` is present: does the ingestion pipeline close
+> 3. If `14-ingestion-pipeline.md` is present: does the ingestion pipeline close
 >    the loop between the write path and the memory layer's read path? Is the
 >    embedding model consistent? Is the throughput model credible at 1M users?
 >    If not present, skip this question.
@@ -280,7 +280,7 @@ The PE Agent returns `APPROVED`. Print the full rationale and concern list.
 
 Only execute this phase when Phase 1 and Phase 2 both passed.
 
-Write `21-critical-agent-approval.md` into the pack folder with this structure:
+Write `20-critical-agent-approval.md` into the pack folder with this structure:
 
 ```markdown
 # Critical Agent Approval
@@ -336,7 +336,7 @@ After writing the file, print a short summary:
 ```
 /critical-agent APPROVED
 Pack: design-packs/<folder>
-Approval artifact: 21-critical-agent-approval.md
+Approval artifact: 20-critical-agent-approval.md
 Remaining obligations: <count of PARTIALs + PE concerns>
 ```
 
@@ -348,7 +348,7 @@ Remaining obligations: <count of PARTIALs + PE concerns>
   is worthless.
 - **Never skip a FAIL to proceed.** A single FAIL in the 20-point rubric is a
   hard stop regardless of how strong the rest of the design is.
-- **Never write `21-critical-agent-approval.md` unless Phase 3 conditions are met.**
+- **Never write `20-critical-agent-approval.md` unless Phase 3 conditions are met.**
   Do not create a partial or draft version of the approval artifact.
 - **The approval artifact is not a guarantee.** It is a record that an automated
   gate passed. Human engineering review is still required before production deployment.

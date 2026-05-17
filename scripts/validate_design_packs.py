@@ -93,11 +93,11 @@ BANNED_ROOT_FILES = {
 }
 
 AGENTIC_REQUIRED_FILES = {
-    "19-agentic-graph-structure.md",
-    "20-memory-layer-design.md",
+    "12-agentic-graph-structure.md",
+    "13-memory-layer-design.md",
 }
 
-KNOWLEDGE_BASE_REQUIRED_FILE = "22-ingestion-pipeline.md"
+KNOWLEDGE_BASE_REQUIRED_FILE = "14-ingestion-pipeline.md"
 
 REQUIRED_MANIFEST_KEYS = {
     "schemaVersion",

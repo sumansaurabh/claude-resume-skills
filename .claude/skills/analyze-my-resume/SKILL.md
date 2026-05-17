@@ -123,7 +123,7 @@ After answering all 20 points, use the answers to populate the capacity estimate
 ## Memory Layer Checklist
 
 When `isAgentic: true`, Lane 13 must answer all 15 points below before writing
-`20-memory-layer-design.md`. Each point must be a concrete subsection in the file —
+`13-memory-layer-design.md`. Each point must be a concrete subsection in the file —
 not a paragraph mention inside a larger section. "Not applicable" requires a one-sentence
 justification; silence is not acceptable.
 
@@ -173,13 +173,13 @@ justification; silence is not acceptable.
     in-flight or archived memories.
 
 Lane 13 runs concurrently with lanes 11 and 12. It does not depend on their output and
-must not block waiting for them. The file it produces (`20-memory-layer-design.md`) is
-standalone — it should not require the reader to cross-reference `19-agentic-graph-structure.md`.
+must not block waiting for them. The file it produces (`13-memory-layer-design.md`) is
+standalone — it should not require the reader to cross-reference `12-agentic-graph-structure.md`.
 
 ## Ingestion Pipeline Checklist
 
 When `isAgentic: true` AND `hasKnowledgeBase: true`, Lane 14 must answer all 15 points
-below before writing `22-ingestion-pipeline.md`. Each point must be a concrete subsection.
+below before writing `14-ingestion-pipeline.md`. Each point must be a concrete subsection.
 "Not applicable" requires a one-sentence justification.
 
 RAG-as-tool-call (agent explicitly invokes a `search()` tool) lives in
@@ -195,7 +195,7 @@ the **write path**: how external content flows into the stores the agent reads f
    the rationale for the choice relative to the retrieval use case.
 3. **Embedding pipeline** — which model embeds chunks, batching strategy (batch size,
    throughput target), and whether embedding is CPU or GPU. **This model must match
-   the embedding model named in `20-memory-layer-design.md` point 6.** If they differ,
+   the embedding model named in `13-memory-layer-design.md` point 6.** If they differ,
    flag it explicitly and explain how the inconsistency is resolved.
 4. **Index write path** — how embedded chunks reach the vector store: synchronous
    direct write, async queue-backed (Kafka, SQS), or streaming. State what happens
@@ -241,9 +241,9 @@ the **write path**: how external content flows into the stores the agent reads f
     call). Explain the failure mode if the ACL enforcement point is bypassed.
 
 Lane 14 runs concurrently with lanes 11–13. The embedding model consistency check
-(point 3 vs `20-memory-layer-design.md` point 6) is the only cross-lane dependency —
+(point 3 vs `13-memory-layer-design.md` point 6) is the only cross-lane dependency —
 note the inconsistency in the file if it exists; do not block lane completion waiting
-for lane 13 to finish. The file it produces (`22-ingestion-pipeline.md`) is standalone.
+for lane 13 to finish. The file it produces (`14-ingestion-pipeline.md`) is standalone.
 
 ## Default Workflow
 
@@ -272,10 +272,10 @@ Use parallel agents whenever possible. Default lanes:
 8. Leadership lane: roadmap, tradeoffs, business framing, why this mattered.
 9. Load-balancer and fleet-sizing lane: edge / internal load-balancer topology, AZ spread, health checks, sticky session policy, TLS termination, blue-green / canary plumbing, plus per-tier AWS instance sizing anchored on the **m8g** family. Produces the **Load Balancer and Edge Topology** and **AWS Node Sizing per Tier** sections inside `03-architecture.md` (or a sibling `12-control-plane-vs-data-plane.md` if the architecture file is already large). Follow the **Load Balancer Configuration** section below for LB knobs and the **Instance sizing** subsection inside Design Estimates for the m8g reference and fleet-count formula. Every tier in the architecture diagram must have: (a) a named LB pattern from the combination table, (b) a chosen instance size, (c) fleet count with the `ceil(peak / per_instance × headroom)` arithmetic shown, and (d) a monthly cost anchor.
 10. Challenge lane: produces `15-challenges-by-stage.md` (v2 numbering) using the Chain-of-Thought Challenge Generation procedure below. Runs after the other lanes because it consumes their findings.
-11. **Agentic graph topology lane** *(only when `isAgentic: true`)*: produces `19-agentic-graph-structure.md` Layer 1 content — node type taxonomy, edge type taxonomy, a full Mermaid graph of the design, cycle detection strategy, and the supervisor/worker/tool-caller hierarchy. Runs in parallel with the architecture lane and feeds lane 12.
-12. **Agentic per-node state lane** *(only when `isAgentic: true`)*: produces `19-agentic-graph-structure.md` Layer 2 content — per-node state shape (what is checkpointed at each node), edge condition logic (how each conditional branch is evaluated), parallel-join semantics, and human-in-the-loop interrupt points. Runs after lane 11 because it consumes the node inventory from that lane. Merges output with lane 11 into a single `19-agentic-graph-structure.md` file.
-13. **Memory layer lane** *(only when `isAgentic: true`)*: produces `20-memory-layer-design.md`. Runs in parallel with lanes 11 and 12. Must answer the **Memory Layer Checklist** (see below) before writing the file. Covers memory taxonomy, storage backend selection, retrieval strategy, context budget allocation, eviction and consolidation policy, cross-tenant isolation, memory poisoning defenses, scale model, and observability.
-14. **Ingestion pipeline lane** *(only when `isAgentic: true` AND `hasKnowledgeBase: true`)*: produces `22-ingestion-pipeline.md`. Runs in parallel with lanes 11–13. Must answer the **Ingestion Pipeline Checklist** (see below) before writing the file. Covers document ingestion triggers, chunking, embedding pipeline, index write path, deduplication, versioning, re-indexing on model upgrade, freshness/TTL, multi-tenant index isolation, content filtering, scale model, error handling, and access control on ingested content. The embedding model named here must match the model named in `20-memory-layer-design.md` point 6 — if they differ, flag the inconsistency explicitly.
+11. **Agentic graph topology lane** *(only when `isAgentic: true`)*: produces `12-agentic-graph-structure.md` Layer 1 content — node type taxonomy, edge type taxonomy, a full Mermaid graph of the design, cycle detection strategy, and the supervisor/worker/tool-caller hierarchy. Runs in parallel with the architecture lane and feeds lane 12.
+12. **Agentic per-node state lane** *(only when `isAgentic: true`)*: produces `12-agentic-graph-structure.md` Layer 2 content — per-node state shape (what is checkpointed at each node), edge condition logic (how each conditional branch is evaluated), parallel-join semantics, and human-in-the-loop interrupt points. Runs after lane 11 because it consumes the node inventory from that lane. Merges output with lane 11 into a single `12-agentic-graph-structure.md` file.
+13. **Memory layer lane** *(only when `isAgentic: true`)*: produces `13-memory-layer-design.md`. Runs in parallel with lanes 11 and 12. Must answer the **Memory Layer Checklist** (see below) before writing the file. Covers memory taxonomy, storage backend selection, retrieval strategy, context budget allocation, eviction and consolidation policy, cross-tenant isolation, memory poisoning defenses, scale model, and observability.
+14. **Ingestion pipeline lane** *(only when `isAgentic: true` AND `hasKnowledgeBase: true`)*: produces `14-ingestion-pipeline.md`. Runs in parallel with lanes 11–13. Must answer the **Ingestion Pipeline Checklist** (see below) before writing the file. Covers document ingestion triggers, chunking, embedding pipeline, index write path, deduplication, versioning, re-indexing on model upgrade, freshness/TTL, multi-tenant index isolation, content filtering, scale model, error handling, and access control on ingested content. The embedding model named here must match the model named in `13-memory-layer-design.md` point 6 — if they differ, flag the inconsistency explicitly.
 
 If agent support is unavailable, do the same reasoning sequentially and note the fallback.
 
@@ -299,18 +299,18 @@ New packs must use `schemaVersion: 2`. For `system-design` at v2, create at leas
 - `11-cheat-sheet.md`: concise talking points for interview delivery.
 - `15-challenges-by-stage.md`: stage-scoped, rated engineering challenges. Generated using the **Chain-of-Thought Challenge Generation** procedure below. This file is a default for every system-design pack, not an optional add-on.
 
-Optional root files include:
+Optional root files include (use 16+ for agentic packs; 12–14 are reserved for agentic deep-dives):
 
-- `12-control-plane-vs-data-plane.md`
-- `13-state-machine-and-workflows.md`
-- `14-data-model-and-storage.md`
-- `16-leadership-and-business-framing.md`
-- `17-risk-register.md`
-- `18-debugging-playbooks.md`
+- `16-control-plane-vs-data-plane.md`
+- `17-state-machine-and-workflows.md`
+- `18-data-model-and-storage.md`
+- `19-leadership-and-business-framing.md`
+- `21-risk-register.md`
+- `22-debugging-playbooks.md`
 
 **Agentic packs only** (`isAgentic: true` in manifest) must also include:
 
-- `19-agentic-graph-structure.md`: two-layer deep-dive into the agent graph.
+- `12-agentic-graph-structure.md`: two-layer deep-dive into the agent graph.
   - **Layer 1 — Graph Topology**: node type taxonomy (planner, executor, critic, router,
     tool-caller, human-in-loop, aggregator), edge type taxonomy (sequential,
     conditional, parallel-fork, parallel-join, back-edge with guard), the full
@@ -325,13 +325,13 @@ Optional root files include:
     human-in-the-loop node (what is frozen, what the human sees, how the run
     resumes with the human's decision injected).
 
-- `20-memory-layer-design.md`: standalone deep-dive into the memory subsystem.
+- `13-memory-layer-design.md`: standalone deep-dive into the memory subsystem.
   Generated by Lane 13 using the **Memory Layer Checklist** below. Must cover
   all 15 memory layer points as discrete subsections — not as a paragraph summary.
   Treat it as a separate, self-contained design document: it should be readable
-  without cross-referencing `19-agentic-graph-structure.md`.
+  without cross-referencing `12-agentic-graph-structure.md`.
 
-- `22-ingestion-pipeline.md` *(required only when `hasKnowledgeBase: true`)*:
+- `14-ingestion-pipeline.md` *(required only when `hasKnowledgeBase: true`)*:
   standalone deep-dive into the document ingestion and indexing pipeline — the
   write path that feeds the stores the memory layer reads from. Generated by
   Lane 14 using the **Ingestion Pipeline Checklist** below. Must cover all 15
