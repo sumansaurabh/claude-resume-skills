@@ -104,7 +104,8 @@ Use parallel agents whenever possible. Default lanes:
 6. Reliability lane: retries, checkpointing, failure handling, observability.
 7. Cross-exam lane: skeptical interviewer questions, traps, and strong rebuttals.
 8. Leadership lane: roadmap, tradeoffs, business framing, why this mattered.
-9. Challenge lane: produces `15-challenges-by-stage.md` (v2 numbering) using the Chain-of-Thought Challenge Generation procedure below. Runs after the other lanes because it consumes their findings.
+9. Load-balancer and fleet-sizing lane: edge / internal load-balancer topology, AZ spread, health checks, sticky session policy, TLS termination, blue-green / canary plumbing, plus per-tier AWS instance sizing anchored on the **m8g** family. Produces the **Load Balancer and Edge Topology** and **AWS Node Sizing per Tier** sections inside `03-architecture.md` (or a sibling `12-control-plane-vs-data-plane.md` if the architecture file is already large). Follow the **Load Balancer Configuration** section below for LB knobs and the **Instance sizing** subsection inside Design Estimates for the m8g reference and fleet-count formula. Every tier in the architecture diagram must have: (a) a named LB pattern from the combination table, (b) a chosen instance size, (c) fleet count with the `ceil(peak / per_instance × headroom)` arithmetic shown, and (d) a monthly cost anchor.
+10. Challenge lane: produces `15-challenges-by-stage.md` (v2 numbering) using the Chain-of-Thought Challenge Generation procedure below. Runs after the other lanes because it consumes their findings.
 
 If agent support is unavailable, do the same reasoning sequentially and note the fallback.
 
