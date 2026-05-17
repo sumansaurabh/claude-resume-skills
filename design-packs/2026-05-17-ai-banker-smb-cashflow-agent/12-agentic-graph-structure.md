@@ -546,6 +546,25 @@ Tool proxies are deterministic wrappers; they hold almost no state of their own.
 
 The JWT itself is never written to a checkpoint — only the `kid`. This is the same secret-handling rule as the BlackBox tool gateway (blackbox-experience.md #6, #19): credentials are materialized in one place and never serialized into agent state.
 
+#### 1.5.1 Per-Tool-Class Retry, Backoff, and Circuit-Breaker Policy
+
+Tool failure handling is **classified by tool semantics**, not a single global policy. The proxy reads the class from the tool registry on every call. The breaker is owned by the gateway (`GW`) and read by the proxy via `circuit_breaker_state` (see table above).
+
+| Tool class | Examples | Read/Write | Retry budget | Backoff | Per-call timeout | Breaker thresholds (open / half-open probe / close) | On final failure |
+|---|---|---|---|---|---|---|---|
+| `read_idempotent_fast` | `bank.list_tx`, `gst.get_filing_status` | R | 3 | 200ms → 600ms → 1.8s (jitter ±20%) | 2s | error rate > 5% over 60s OR p99 > 4s for 2 min / probe 1 req every 30s / 5 consecutive successes | Return `tool_call.status=cached_fallback` from short-term cache if age ≤ 5 min; else `tool_call.status=tool_error`, agent degrades confidence |
+| `read_idempotent_slow` | `ledger.aggregate_pl`, `forecast.run_ml_model` | R | 2 | 1s → 5s | 30s | error rate > 10% over 5 min OR p99 > 45s / probe 1 req every 2 min / 3 successes | `tool_error`, force JOIN to `degrade_on_partial` |
+| `write_with_idempotency_key` | `payment.initiate`, `invoice.send_reminder` | W | 1 retry **only if** prior attempt returned a *retryable* class (`network_timeout`, `5xx`); never retry on `4xx` | 2s fixed | 10s | error rate > 2% over 5 min / probe DISABLED — manual close only / N/A | Saga compensation invoked (`refund_initiated_payment`, etc.); HITL alert raised; run halts with `terminal_status=compensated` |
+| `write_no_idempotency` (legacy/rare) | `email.send_marketing` (non-financial) | W | 0 | — | 5s | error rate > 5% / probe 1 req every 5 min / 3 successes | `tool_error`, agent surfaces "could not send" to user; no retry, no compensation needed (no money moved) |
+| `mutating_external_irreversible` | `lender.submit_loan_application_final` | W | 0 | — | 15s | error rate > 1% over 10 min / probe DISABLED — manual close only / N/A | Escalate to HITL immediately; never auto-retry; oncall pages |
+
+**Cross-cutting rules:**
+
+- All retries respect the run's remaining `dollar_budget_remaining` and `token_budget_remaining`; the proxy refuses to retry if either is < 5% of starting budget (prevents retry storms inflating cost on doomed runs).
+- The breaker is keyed `(tenant_id, tool_name)` — a single tenant DoSing a downstream cannot open the breaker for other tenants. Cross-tenant aggregate breaker exists at the gateway with a 10× higher threshold as a last-resort fuse.
+- Write-tool retries always reuse the same `idempotency_key`; the downstream is contractually required to return the original outcome (verified at vendor onboarding).
+- A `tool_call.status=cached_fallback` is allowed to satisfy a node's evidence requirement but is tagged `evidence_freshness=stale` on the joined output — the CRITIC downgrades confidence on any answer built from stale evidence.
+
 ### 1.6 `JOIN_FORECAST` and `JOIN_ANSWER` (Aggregators)
 
 | Key | Type | Durability | Notes |
