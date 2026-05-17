@@ -6,6 +6,75 @@ Resume anchors: BlackBox memory persistence and durable execution (resume L52-54
 
 ---
 
+## Overview Diagram
+
+End-to-end memory topology. Solid edges are writes, dotted edges are reads. Agent node names match `12-agentic-graph-structure.md`. The embedding model is a shared node so the consistency contract with `14-ingestion-pipeline.md` point 3 is visible without scrolling. The tenant boundary wraps every per-tenant store and labels the enforcement point — Postgres RLS, pgvector tenant_id filter injected by `memory-service`, and Redis per-client ACL.
+
+```mermaid
+graph LR
+  subgraph AGENTS["Agent Nodes — names from 12-agentic-graph-structure.md"]
+    SUP[SUP]
+    SPEC["Specialists<br/>AR_AGENT · AP_AGENT · PAYROLL_AGENT<br/>TAX_AGENT · LENDER_AGENT<br/>ANOMALY_AGENT · FCST_AGENT"]
+    OUT_GUARD[OUT_GUARD]
+    MEMORY_SCRIBE[MEMORY_SCRIBE]
+  end
+
+  subgraph TYPES["Memory Types — point 1"]
+    WORKING([Working / per-run])
+    SEMANTIC([Long-term semantic<br/>business profile])
+    EPISODIC([Long-term episodic<br/>past decisions])
+    PROCEDURAL([Procedural<br/>per-business heuristics])
+    DOMAIN([Domain knowledge<br/>GST · RBI · lender])
+    AUDIT([Audit / replay])
+  end
+
+  EMB{{"text-embedding-3-large · 3072d<br/>pinned via EmbeddingService<br/>MUST match 14-ingestion-pipeline.md point 3"}}
+
+  subgraph TENANT["Tenant N boundary — point 9<br/>Postgres RLS on tenant_id · pgvector tenant_id filter injected by memory-service · Redis per-client ACL"]
+    REDIS[("Redis Cluster<br/>working hot + query cache")]
+    PG[("Postgres<br/>profile · procedural · audit hot 90d · episodic metadata")]
+    PGV[("pgvector HNSW<br/>M=32 efSearch=64<br/>episodic · domain")]
+    S3[("S3 WORM 7y<br/>audit cold")]
+  end
+
+  %% Writes — solid (point 3 triggers)
+  SUP -- "write user-explicit" --> SEMANTIC
+  SUP -- "write per hop" --> WORKING
+  SPEC -- "write per hop" --> WORKING
+  OUT_GUARD -- "write per hop" --> WORKING
+  SUP -- "audit synchronous" --> AUDIT
+  SPEC -- "audit synchronous" --> AUDIT
+  MEMORY_SCRIBE -- "async ~30s · importance ≥ 0.4" --> EPISODIC
+  MEMORY_SCRIBE -- "stable preference" --> SEMANTIC
+  MEMORY_SCRIBE -- "weekly batch" --> PROCEDURAL
+
+  %% Reads — dotted
+  SUP -. "top-k recall" .-> EPISODIC
+  SUP -. "profile" .-> SEMANTIC
+  SUP -. "prefs" .-> PROCEDURAL
+  OUT_GUARD -. "prefs · style" .-> PROCEDURAL
+  SPEC -. "on demand" .-> SEMANTIC
+  SPEC -. "GST · RBI · lender" .-> DOMAIN
+  SPEC -. "variance context" .-> EPISODIC
+
+  %% Type → store mapping (point 2)
+  WORKING --> REDIS
+  WORKING -- "durable checkpoint" --> PG
+  SEMANTIC --> PG
+  EPISODIC --> PGV
+  EPISODIC -. "row metadata" .-> PG
+  PROCEDURAL --> PG
+  DOMAIN --> PGV
+  DOMAIN -. "hot lookup" .-> REDIS
+  AUDIT --> PG
+  AUDIT -- "tier after 90d" --> S3
+
+  %% Embedding model touches every vector-backed type (point 6)
+  EMB --> PGV
+```
+
+---
+
 ## 1. Memory taxonomy
 
 Six memory types, each with distinct read/write paths through the agent graph.

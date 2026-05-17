@@ -6,6 +6,114 @@ Anchors used throughout: BlackBox stack includes `Guardrails` and `Langfuse` (re
 
 ---
 
+## Overview Diagram
+
+End-to-end enforcement pipeline: every check a request crosses on its way from the user to a side effect and back. Each guardrail node is labeled with the specific checks it runs (not "guardrail"). HITL escalation, the fail-mode behavior from point 14, and the scoped Owner+MFA bypass from point 11 are drawn as explicit edges so the protection contract is visible without re-reading 15 prose points. Planner / specialist / tool node names match `12-agentic-graph-structure.md`.
+
+```mermaid
+graph TD
+  USER([User input · chat · WhatsApp · push])
+  USER_OUT([User-visible response])
+  HITL["Human Review · HITL card<br/>signed approval link · resumable DAG"]
+  POLICY{{"Policy Config — point 12<br/>per-tenant OPA bundles + classifier versions<br/>Redis cache key (tenant_id, policy_version) · 5-min TTL<br/>≤ 50 custom rules per tenant"}}
+
+  subgraph IN["IN_GUARD — point 1 · parallel · p99 50ms"]
+    IN_JB["Jailbreak / injection<br/>DeBERTa fine-tuned · 15ms"]
+    IN_TOX["Toxicity EN/HI/TA · 10ms"]
+    IN_PII["PII redact PAN · Aadhaar · OTP · 8ms"]
+    IN_LEN["Length cap 4K · <1ms"]
+    IN_DOM["Off-domain intent gate · 20ms"]
+    IN_AB["Tenant abuse score · 1h rolling"]
+  end
+
+  SUP[SUP · supervisor · plan + route · no direct tools]
+
+  subgraph SPECIALISTS["Tier 2 specialists — names from 12-agentic-graph-structure.md"]
+    AR[AR_AGENT]
+    AP[AP_AGENT]
+    PAY[PAYROLL_AGENT]
+    TAX[TAX_AGENT]
+    LEND[LENDER_AGENT]
+    ANOM[ANOMALY_AGENT]
+    FCST[FCST_AGENT]
+  end
+
+  TOOL_PROXY["TOOL_PROXY — capability-scoped JWT<br/>(one per specialist)"]
+
+  subgraph TCV["Tool-call validator — point 3 · at GW gateway · p99 ~20ms each"]
+    TCV_RBAC["Capability RBAC<br/>allowed_tools claim"]
+    TCV_SCHEMA["Param JSON Schema<br/>additionalProperties=false"]
+    TCV_BOUNDS["Per-tenant bounds<br/>max_payment · allowed_channels"]
+    TCV_RATE["Rate limit<br/>5/run · 60/min/tenant"]
+    TCV_ANOM["Anomaly detect<br/>3× repeat · 20+ fan-out · reverse order"]
+  end
+
+  TOOL[(Tool service · bank · accounting · GST · lender · payroll · notify)]
+
+  subgraph TOS["Tool-output sanitizer — point 8 · highest-risk injection surface"]
+    TOS_NORM["NFKC + strip control · bidi · tag-block"]
+    TOS_DELIM["Wrap delimiters + system instruction<br/>untrusted-data marker"]
+    TOS_CLF["DeBERTa injection classifier on output<br/>+ finance-domain second pass on vendor/memo/desc fields"]
+    TOS_QUAR[("tool_output_quarantine · 30d<br/>negative cache by (tool, args_hash)")]
+  end
+
+  EXP_LLM[EXP_LLM · structured → NL]
+  CRITIC[CRITIC · reflection + rework signal]
+
+  subgraph OUT["OUT_GUARD — point 2 · p99 150ms"]
+    OUT_POL["Policy compliance<br/>RBI/SEBI · mandatory disclaimers · 40ms"]
+    OUT_HAL["Hallucination gate · long pole<br/>provenance ledger over numeric claims · 60ms"]
+    OUT_CONF["Confidentiality scan<br/>prompt · plan steps · cross-tenant ids · 25ms"]
+    OUT_LANG["Multilingual safety EN/HI/TA · 30ms"]
+    OUT_TONE["Tone / format / channel sanitize · <5ms"]
+  end
+
+  %% --- Happy path ---
+  USER --> IN
+  IN --> SUP
+  SUP --> SPECIALISTS
+  SPECIALISTS --> TOOL_PROXY
+  TOOL_PROXY --> TCV
+  TCV --> TOOL
+  TOOL --> TOS
+  TOS_NORM --> TOS_DELIM
+  TOS_DELIM --> TOS_CLF
+  TOS_CLF -- "clean" --> SUP
+  TOS_CLF -- "injection-suspect" --> TOS_QUAR
+  SPECIALISTS -- "structured outputs" --> EXP_LLM
+  EXP_LLM --> CRITIC
+  CRITIC -- "ok" --> OUT
+  CRITIC -- "needs_rework" --> SUP
+  OUT --> USER_OUT
+
+  %% --- Policy config feeds every check (point 12) ---
+  POLICY -.-> IN
+  POLICY -.-> TCV
+  POLICY -.-> OUT
+
+  %% --- Escalation / HITL (point 4) ---
+  IN -- "HARD-BLOCK after 25 hits/hr" --> HITL
+  TCV_RBAC -- "capability violation · halt + freeze JWT" --> HITL
+  TCV_ANOM -- "3× repeat · reverse-order · fan-out>20" --> HITL
+  OUT_POL -- "2nd policy violation" --> HITL
+  OUT_HAL -- "max-1-retry fails" --> HITL
+  SUP -- "payment >₹50K · GST file · loan accept · vendor add" --> HITL
+  ANOM -- "amount >3σ OR risk_score >0.8" --> HITL
+
+  %% --- Fail-mode edges (point 14) ---
+  OUT_HAL -. "FAIL-CLOSED · service down" .-> USER_OUT
+  TCV_RBAC -. "FAIL-CLOSED · service down" .-> USER_OUT
+  TCV_BOUNDS -. "FAIL-CLOSED · payment threshold" .-> USER_OUT
+  IN_JB -. "FAIL-CLOSED · regex-only fallback" .-> USER_OUT
+  OUT_POL -. "FAIL-CLOSED · static disclaimer" .-> USER_OUT
+  OUT_TONE -. "FAIL-DEGRADE · canned templates" .-> USER_OUT
+
+  %% --- Scoped bypass (point 11) — Owner+MFA, single tool-call, never for non_bypassable set ---
+  USER -. "Owner+MFA bypass token · HMAC · 60s TTL · single-use · NEVER for hard-rule set" .-> TCV
+```
+
+---
+
 ## 1. Input guardrail pipeline
 
 Synchronous checks on user input before it reaches the supervisor. Implemented as the `IN_GUARD` node in the LangGraph DAG; independent checks fan out in parallel inside the node.

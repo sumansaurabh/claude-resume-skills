@@ -6,6 +6,85 @@ Pipeline DNA is anchored on two prior systems on the resume: the **BlackBox LLMO
 
 ---
 
+## Overview Diagram
+
+End-to-end write path, top to bottom from trigger to query-visible state. Every failure class in point 14 has an explicit edge into a DLQ destination so the failure surface is readable at a glance. The embedding model node name is **identical** to `13-memory-layer-design.md` point 6 — a divergence in the diagram alone is enough to fail the in-loop critic. The tenant boundary wraps the index targets and labels the four-layer enforcement from point 10.
+
+```mermaid
+graph TD
+  subgraph TRIG["Triggers — point 1"]
+    BANK[Bank webhook<br/>AA · Plaid · direct bank push]
+    ACCT[Accounting OAuth + webhook<br/>Tally · Zoho Books]
+    PAYR[Payroll webhook<br/>RazorpayX · Gusto]
+    GST[GST / IT portal<br/>daily scheduled scrape]
+    INV[Invoice upload<br/>PDF · image · email-in]
+    VENDOR[Vendor / customer master<br/>CSV bulk + webhook deltas]
+    DOM[Domain knowledge<br/>GST rates · RBI calendar · lender catalog]
+  end
+
+  RAW[("Kafka ingest.raw.* · 64 partitions · ack=all · repl=3 · 7d retention")]
+  CHUNKER["Chunker pod<br/>per-type strategy point 2"]
+  CHUNKED[("Kafka ingest.chunked · 24h retention")]
+
+  EMB_WORK["Embedding worker<br/>batched 64/req · 30K/sec aggregate peak"]
+  EMB{{"text-embedding-3-large · 3072d<br/>OpenAI primary · bge-large-en-v1.5 1024d fallback<br/>MUST match 13-memory-layer-design.md point 6 — enforced by EmbeddingService"}}
+
+  DEDUP{"Dedup gate — point 5<br/>SHA-256 · (vendor,inv_no) · MinHash · cosine"}
+  FILT{"Content filter — point 11<br/>PII (PAN · Aadhaar · OTP) · injection classifier<br/>MIME allow-list · 25MB · ClamAV · OCR gVisor sandbox"}
+  OUTBOX["2PC outbox writer — point 4<br/>Postgres tx + outbox row → drainer UPSERTs pgvector"]
+
+  subgraph TENANT["Tenant N — isolation point 10<br/>(1) pgvector namespace per tenant_id<br/>(2) business_id required metadata filter on every chunk<br/>(3) Postgres RLS keyed on app.tenant_id<br/>(4) all access via EmbeddingService + VectorStore wrappers · CI lint blocks raw connections"]
+    PG[("Postgres<br/>structured rows · doc versioning · tombstones 30d grace")]
+    PGV[("pgvector HNSW<br/>queryable · p99 60s arrival → queryable")]
+  end
+
+  DLQ[("DLQ topics — ingest.dlq.{embed.ratelimit · embed.transient · embed.bad_input · index · pg · chunk · ocr · schema · quota}")]
+  QUAR[("ingest.quarantine · 24h hold · admin review")]
+  USER_NOTIF[/"User notice<br/>manual entry required · billing · 4xx upload reject"/]
+  SYNC_REJECT[/"Sync 4xx<br/>size · format · virus"/]
+
+  BANK --> RAW
+  ACCT --> RAW
+  PAYR --> RAW
+  GST --> RAW
+  INV --> RAW
+  VENDOR --> RAW
+  DOM --> RAW
+
+  RAW --> CHUNKER
+  CHUNKER -- "chunking error (malformed doc · parser exception)" --> DLQ
+  CHUNKER --> CHUNKED
+  CHUNKED --> EMB_WORK
+  EMB --> EMB_WORK
+
+  EMB_WORK -- "embedding API 429 ratelimit (5× retry)" --> DLQ
+  EMB_WORK -- "embedding API 5xx transient (3× exp backoff)" --> DLQ
+  EMB_WORK -- "embedding API 4xx bad input (empty · oversize)" --> DLQ
+  EMB_WORK --> DEDUP
+
+  DEDUP -- "exact match — drop / merge (per point 5 matrix)" --> PG
+  DEDUP --> FILT
+
+  FILT -- "size · format — pre-ingest" --> SYNC_REJECT
+  FILT -- "virus · ClamAV hit" --> SYNC_REJECT
+  FILT -- "OCR failure (2× linear · 5s)" --> DLQ
+  FILT -- "injection-suspect — 24h hold" --> QUAR
+  FILT -- "webhook schema mismatch (upstream contract break)" --> DLQ
+  FILT -- "tenant quota exceeded" --> DLQ
+  FILT --> OUTBOX
+
+  OUTBOX -- "vector index write failure (3× exp · circuit breaker)" --> DLQ
+  OUTBOX -- "Postgres write failure — SEV-high page" --> DLQ
+  OUTBOX --> PG
+  OUTBOX --> PGV
+
+  DLQ -. "user-facing on bad_input · OCR · quota" .-> USER_NOTIF
+  QUAR -. "admin-only review" .-> USER_NOTIF
+  SYNC_REJECT -. "synchronous response" .-> USER_NOTIF
+```
+
+---
+
 ## 1. Ingestion triggers
 
 The system has 7 ingestion sources. Each is classified by trigger pattern, sync/async, and SLO from arrival → queryable by the agent.
