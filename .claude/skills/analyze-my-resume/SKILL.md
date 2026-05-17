@@ -120,11 +120,67 @@ When `isAgentic: true`, the design-estimates lane MUST reason through all 20 poi
 
 After answering all 20 points, use the answers to populate the capacity estimates, functional requirements, and non-functional requirements subsections of `02-design-estimates.md`. Mark any point answered by assumption rather than resume evidence.
 
+## Memory Layer Checklist
+
+When `isAgentic: true`, Lane 13 must answer all 15 points below before writing
+`20-memory-layer-design.md`. Each point must be a concrete subsection in the file —
+not a paragraph mention inside a larger section. "Not applicable" requires a one-sentence
+justification; silence is not acceptable.
+
+1. **Memory taxonomy** — enumerate each memory type in the system (working/short-term,
+   long-term semantic, episodic, procedural/skill), state its purpose, and identify which
+   agent nodes read and write each type.
+2. **Storage backend per type** — for each memory type, name the backing store (Redis,
+   Postgres, Pinecone, Weaviate, pgvector, in-process dict, etc.) and justify the choice
+   against at least one alternative.
+3. **Write triggers** — specify exactly when memory is written: after every agent turn,
+   after task completion, on explicit save instruction, when an importance score exceeds a
+   threshold, or on a scheduled flush. State who decides (the model, a rule, or the user).
+4. **Retrieval strategy** — describe how relevant memories are surfaced: semantic vector
+   search, recency ranking, importance scoring, BM25 keyword, or a hybrid. State the
+   similarity threshold or top-K cutoff and what happens when no memory clears the bar.
+5. **Context window budget allocation** — how many tokens are reserved for retrieved
+   memories in the prompt, how the budget is split across memory types, and what the
+   eviction order is when retrieved memories exceed the budget.
+6. **Embedding model selection and consistency** — which model produces embeddings, what
+   the vector dimension is, and what happens to stored embeddings when the model is
+   upgraded (re-indexing strategy or version tagging).
+7. **Memory eviction and TTL** — what expires (and when), what is retained indefinitely,
+   and who sets the policy (system default, per-tenant config, or per-user preference).
+8. **Memory consolidation** — describe how short-term memories are promoted to long-term:
+   summarization cadence, importance-scoring function, and the merge or de-duplication
+   strategy when new memories conflict with stored ones.
+9. **Cross-tenant memory isolation** — explain the isolation boundary that prevents one
+   tenant's agent from retrieving another tenant's stored memories. Name the enforcement
+   mechanism (namespace prefix, row-level security, separate index, or separate store).
+10. **Memory poisoning and injection via retrieval** — if adversarial or malformed content
+    was stored in memory (e.g., from a previous tool output), what sanitization layer
+    prevents it from hijacking the next agent turn when retrieved.
+11. **Memory staleness detection** — how outdated memories are identified (timestamp-based,
+    contradiction detection, confidence decay) and what action is taken: suppress, flag,
+    update, or delete.
+12. **Retrieval latency budget** — state the p99 retrieval target (e.g., <50 ms) and show
+    how it fits within the per-hop latency budget from the agentic design. Name the index
+    type (HNSW, IVF-Flat, etc.) and the approximate-vs-exact tradeoff made.
+13. **Memory at scale** — estimate storage growth rate per active user per day, total
+    index size at 1M users, and retrieval latency degradation under that load. Show the
+    arithmetic.
+14. **Memory observability and debugging** — describe what an on-call engineer looks at
+    when a run retrieved the wrong memory or missed a relevant one: which logs, metrics,
+    or trace spans are present, and what the remediation path is.
+15. **Memory schema versioning** — what happens when the embedding dimension changes, a
+    memory type is added or removed, or the schema of a stored memory object changes for
+    in-flight or archived memories.
+
+Lane 13 runs concurrently with lanes 11 and 12. It does not depend on their output and
+must not block waiting for them. The file it produces (`20-memory-layer-design.md`) is
+standalone — it should not require the reader to cross-reference `19-agentic-graph-structure.md`.
+
 ## Default Workflow
 
 1. Read the core context files and extract the strongest resume anchors for the question.
 2. Classify the request and choose a supported archetype.
-3. Detect whether the question is agentic (see **Agentic System Detection**). If yes, set `isAgentic: true` in the manifest plan and activate lanes 11 and 12.
+3. Detect whether the question is agentic (see **Agentic System Detection**). If yes, set `isAgentic: true` in the manifest plan and activate lanes 11, 12, and 13.
 4. Compute the normalized `questionHash`.
 5. Reuse a pack only if the folder was explicitly named or an exact manifest hash match exists.
 6. Otherwise create a new pack folder in `design-packs/YYYY-MM-DD-short-topic-slug/`.
@@ -149,6 +205,7 @@ Use parallel agents whenever possible. Default lanes:
 10. Challenge lane: produces `15-challenges-by-stage.md` (v2 numbering) using the Chain-of-Thought Challenge Generation procedure below. Runs after the other lanes because it consumes their findings.
 11. **Agentic graph topology lane** *(only when `isAgentic: true`)*: produces `19-agentic-graph-structure.md` Layer 1 content — node type taxonomy, edge type taxonomy, a full Mermaid graph of the design, cycle detection strategy, and the supervisor/worker/tool-caller hierarchy. Runs in parallel with the architecture lane and feeds lane 12.
 12. **Agentic per-node state lane** *(only when `isAgentic: true`)*: produces `19-agentic-graph-structure.md` Layer 2 content — per-node state shape (what is checkpointed at each node), edge condition logic (how each conditional branch is evaluated), parallel-join semantics, and human-in-the-loop interrupt points. Runs after lane 11 because it consumes the node inventory from that lane. Merges output with lane 11 into a single `19-agentic-graph-structure.md` file.
+13. **Memory layer lane** *(only when `isAgentic: true`)*: produces `20-memory-layer-design.md`. Runs in parallel with lanes 11 and 12. Must answer the **Memory Layer Checklist** (see below) before writing the file. Covers memory taxonomy, storage backend selection, retrieval strategy, context budget allocation, eviction and consolidation policy, cross-tenant isolation, memory poisoning defenses, scale model, and observability.
 
 If agent support is unavailable, do the same reasoning sequentially and note the fallback.
 
@@ -197,6 +254,12 @@ Optional root files include:
     majority-vote, or first-success), and the interrupt/resume contract for any
     human-in-the-loop node (what is frozen, what the human sees, how the run
     resumes with the human's decision injected).
+
+- `20-memory-layer-design.md`: standalone deep-dive into the memory subsystem.
+  Generated by Lane 13 using the **Memory Layer Checklist** below. Must cover
+  all 15 memory layer points as discrete subsections — not as a paragraph summary.
+  Treat it as a separate, self-contained design document: it should be readable
+  without cross-referencing `19-agentic-graph-structure.md`.
 
 Packs created before 2026-05-17 use `schemaVersion: 1`, which omits design-estimates and keeps architecture at `02`. Do not produce new v1 packs.
 

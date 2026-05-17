@@ -2,12 +2,12 @@
 name: critical-agent
 description: |
   Three-phase gate that pressure-tests an agentic system design pack before
-  approving it. Phase 1: a Critic agent evaluates the design against all 20
-  agentic design points and the 1M-user scale gate. Phase 2 (only if Phase 1
-  passes): a Principal Engineer agent independently validates the design for
-  production readiness. Only when both agents approve does the skill write the
-  final approval artifact and allow downstream work to proceed. Halts with
-  explicit blocking objections on any failure.
+  approving it. Phase 1: a Critic agent evaluates both the agentic layer (20-point
+  rubric + 1M-user scale gate) and the memory layer (15-point rubric) independently.
+  Phase 2 (only if Phase 1 passes): a Principal Engineer agent independently
+  validates the full design for production readiness. Only when both agents approve
+  does the skill write the final approval artifact. Halts with explicit blocking
+  objections on any failure.
 allowed-tools:
   - Read
   - Write
@@ -42,8 +42,9 @@ Before starting, confirm:
    that matches exactly one existing pack's `manifest.json` (via `questionHash`).
 2. The target pack's `manifest.json` exists and contains `"isAgentic": true`.
 3. `19-agentic-graph-structure.md` is present in the pack folder.
+4. `20-memory-layer-design.md` is present in the pack folder.
 
-If any check fails:
+If any check fails, print the relevant message and halt — do not proceed:
 
 - Missing pack → "No design pack found. Run `/analyze-my-resume` first, then
   re-invoke `/critical-agent` with the pack folder path."
@@ -53,8 +54,9 @@ If any check fails:
 - `19-agentic-graph-structure.md` missing → "The pack is missing
   `19-agentic-graph-structure.md`. Re-run `/analyze-my-resume` to regenerate
   the agentic graph layer before critiquing."
-
-Halt after printing the relevant message. Do not proceed.
+- `20-memory-layer-design.md` missing → "The pack is missing
+  `20-memory-layer-design.md`. Re-run `/analyze-my-resume` to generate the
+  memory layer design before critiquing."
 
 ## Phase 1: Critic Agent
 
@@ -124,12 +126,41 @@ it "can scale":
 
 If fewer than 4 axes pass, this is a **Scale Gate FAIL** regardless of the 20-point scores.
 
+### Memory Layer Evaluation
+
+After the 1M-User Scale Gate, the Critic must evaluate `20-memory-layer-design.md`
+independently using the 15-point memory layer rubric below. Apply the same
+`PASS | PARTIAL | FAIL` verdict per point with one sentence of evidence.
+
+This evaluation is **separate** from the 20-point agentic rubric. A design can
+pass all 20 agentic points and still fail here. A single `FAIL` in the memory
+evaluation is a Phase 1 halt — same rule as the agentic rubric.
+
+| # | Memory Layer Point |
+|---|---|
+| 1 | Memory taxonomy — each type named, purpose stated, nodes that read/write identified |
+| 2 | Storage backend per type — named store with justification against one alternative |
+| 3 | Write triggers — exact condition stated, decision-maker identified |
+| 4 | Retrieval strategy — algorithm named, similarity threshold or top-K stated, no-match behavior defined |
+| 5 | Context window budget allocation — token reservation stated, split across types, eviction order defined |
+| 6 | Embedding model and consistency — model named, dimension stated, upgrade/re-indexing strategy present |
+| 7 | Eviction and TTL — what expires, when, and policy owner stated |
+| 8 | Memory consolidation — cadence, importance function, and conflict-merge strategy described |
+| 9 | Cross-tenant memory isolation — isolation boundary named and enforcement mechanism explained |
+| 10 | Memory poisoning defense — sanitization layer for adversarial stored content described |
+| 11 | Staleness detection — detection method and remediation action stated |
+| 12 | Retrieval latency budget — p99 target stated and fits within the per-hop agentic latency budget |
+| 13 | Memory at scale — storage growth rate, index size at 1M users, latency degradation under load with arithmetic |
+| 14 | Memory observability — specific logs, metrics, or traces named for wrong-retrieval debugging |
+| 15 | Schema versioning — strategy for embedding dimension change or memory object schema migration stated |
+
 ### Phase 1 Halt Condition
 
-If the Critic's report contains **any `FAIL`** among the 20 points **OR** a
-**Scale Gate FAIL**:
+If the Critic's report contains **any `FAIL`** among the 20 agentic points, a
+**Scale Gate FAIL**, or **any `FAIL`** among the 15 memory layer points:
 
-1. Print the full critic report with all FAIL and PARTIAL items highlighted.
+1. Print the full critic report with all FAIL and PARTIAL items highlighted,
+   grouped by section (agentic rubric / scale gate / memory layer).
 2. Print: "Phase 1 FAILED. The following blocking objections must be addressed
    before this design can proceed to Principal Engineer validation."
 3. List each FAIL item with a one-sentence remediation hint.
@@ -140,11 +171,11 @@ and re-invoke `/critical-agent`.
 
 ### Phase 1 Pass Condition
 
-Phase 1 passes when **all 20 points are PASS or PARTIAL** and **at least 4 of 5
-Scale Gate axes pass**.
+Phase 1 passes when **all 20 agentic points are PASS or PARTIAL**, **at least 4
+of 5 Scale Gate axes pass**, and **all 15 memory layer points are PASS or PARTIAL**.
 
-PARTIAL is not a halt — it is a warning. Print all PARTIAL items prominently
-before continuing. The Principal Engineer in Phase 2 will see them.
+PARTIAL is not a halt — it is a warning. Print all PARTIAL items prominently,
+grouped by section. The Principal Engineer in Phase 2 will see them.
 
 ## Phase 2: Principal Engineer Validation Agent
 
@@ -157,21 +188,29 @@ PARTIAL, and the Scale Gate result). This keeps the PE's judgment independent.
 > of a design pack. You are NOT a yes-man — you approve only when the design
 > is genuinely production-ready.
 >
-> You have been told the Critic found N points PASS, M points PARTIAL, and 0
-> FAILs. Scale gate passed on K of 5 axes. The PARTIAL items are: [list them].
+> You have been told: Critic agentic rubric — N PASS, M PARTIAL, 0 FAIL.
+> Scale gate — K of 5 axes passed. Memory layer rubric — P PASS, Q PARTIAL,
+> 0 FAIL. All PARTIAL items are: [list agentic PARTIALs and memory PARTIALs
+> grouped separately].
 >
-> Read the full design pack independently. Then answer these five questions:
+> Read the full design pack independently, including both
+> `19-agentic-graph-structure.md` and `20-memory-layer-design.md`. Then answer
+> these six questions:
 >
 > 1. Is the agentic graph structure (`19-agentic-graph-structure.md`) specific
 >    enough that an engineer could implement it without ambiguity? If not, what
 >    is the first ambiguous decision?
-> 2. Are the PARTIAL items from the Critic genuinely acceptable gaps for an MVP,
+> 2. Is the memory layer design (`20-memory-layer-design.md`) specific enough
+>    to implement without ambiguity? Are the retrieval strategy, isolation
+>    boundary, and scale model credible? If not, what is the first gap?
+> 3. Are the PARTIAL items from the Critic genuinely acceptable gaps for an MVP,
 >    or are any of them blockers for a production launch at 1M users?
-> 3. Does the architecture show a credible path to operating this system at 1M
->    users — not just stating it scales, but showing the fleet, queue depth,
->    isolation boundary, and cost model?
-> 4. Are there any gaps the Critic missed that you consider blocking?
-> 5. Would you sign off on this design as ready for implementation?
+> 4. Does the combined agentic + memory design show a credible path to operating
+>    at 1M users — fleet, queue depth, isolation boundary, cost model, and
+>    memory index scale all addressed?
+> 5. Are there any gaps the Critic missed in either layer that you consider
+>    blocking?
+> 6. Would you sign off on this design as ready for implementation?
 >
 > Return your verdict as: `APPROVED` or `REJECTED`.
 > Follow it with a one-paragraph rationale and a bullet list of any remaining
@@ -194,7 +233,7 @@ The PE Agent returns `APPROVED`. Print the full rationale and concern list.
 
 Only execute this phase when Phase 1 and Phase 2 both passed.
 
-Write `20-critical-agent-approval.md` into the pack folder with this structure:
+Write `21-critical-agent-approval.md` into the pack folder with this structure:
 
 ```markdown
 # Critical Agent Approval
@@ -205,12 +244,20 @@ Write `20-critical-agent-approval.md` into the pack folder with this structure:
 
 ## Phase 1: Critic Verdict
 
-- 20-point evaluation: N PASS, M PARTIAL, 0 FAIL
+### Agentic Layer (20-point rubric)
+- Result: N PASS, M PARTIAL, 0 FAIL
 - Scale gate: K / 5 axes passed
+
+### Memory Layer (15-point rubric)
+- Result: P PASS, Q PARTIAL, 0 FAIL
 
 ### PARTIAL Items (must be addressed before GA)
 
-<list each PARTIAL with its remediation note>
+**Agentic layer PARTIALs:**
+<list each agentic PARTIAL with its remediation note>
+
+**Memory layer PARTIALs:**
+<list each memory PARTIAL with its remediation note>
 
 ## Phase 2: Principal Engineer Verdict
 
@@ -236,7 +283,7 @@ After writing the file, print a short summary:
 ```
 /critical-agent APPROVED
 Pack: design-packs/<folder>
-Approval artifact: 20-critical-agent-approval.md
+Approval artifact: 21-critical-agent-approval.md
 Remaining obligations: <count of PARTIALs + PE concerns>
 ```
 
@@ -248,7 +295,7 @@ Remaining obligations: <count of PARTIALs + PE concerns>
   is worthless.
 - **Never skip a FAIL to proceed.** A single FAIL in the 20-point rubric is a
   hard stop regardless of how strong the rest of the design is.
-- **Never write `20-critical-agent-approval.md` unless Phase 3 conditions are met.**
+- **Never write `21-critical-agent-approval.md` unless Phase 3 conditions are met.**
   Do not create a partial or draft version of the approval artifact.
 - **The approval artifact is not a guarantee.** It is a record that an automated
   gate passed. Human engineering review is still required before production deployment.
