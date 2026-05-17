@@ -16,6 +16,9 @@
   const btnToc = document.getElementById('btn-toc');
   const searchInput = document.getElementById('search-input');
   const welcomeStats = document.getElementById('welcome-stats');
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const sidebarOverlay = document.getElementById('sidebar-overlay');
+  const sidebar = document.getElementById('sidebar');
 
   let treeData = [];
   let currentPath = null;
@@ -38,7 +41,6 @@
   });
 
   // ─── Sidebar resize ───
-  const sidebar = document.getElementById('sidebar');
   const resizeHandle = document.getElementById('sidebar-resize');
   const savedWidth = localStorage.getItem('md-renderer-sidebar-width');
   if (savedWidth) sidebar.style.width = savedWidth + 'px';
@@ -64,6 +66,24 @@
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   });
+
+  // ─── Mobile Sidebar Toggle ───
+  function toggleMobileSidebar(show) {
+    if (show) {
+      sidebar.classList.add('open');
+      sidebarOverlay.classList.add('active');
+    } else {
+      sidebar.classList.remove('open');
+      sidebarOverlay.classList.remove('active');
+    }
+  }
+
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', () => toggleMobileSidebar(true));
+  }
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', () => toggleMobileSidebar(false));
+  }
 
   // ─── Mermaid init ───
   mermaid.initialize({
@@ -230,6 +250,9 @@
         history.pushState(null, '', newHash);
       }
     }
+
+    // Close mobile sidebar if open
+    toggleMobileSidebar(false);
 
     // Update active state in tree
     document.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));

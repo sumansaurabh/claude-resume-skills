@@ -38,6 +38,9 @@
 
 <body>
   <div id="app">
+    <!-- Sidebar overlay for mobile -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
     <!-- Sidebar -->
     <aside id="sidebar">
       <div class="sidebar-header">
@@ -87,6 +90,19 @@
 
     <!-- Main Content -->
     <main id="content-area">
+      <!-- Mobile Header -->
+      <div id="mobile-header" class="mobile-header">
+        <button id="mobile-menu-btn" class="toolbar-btn" title="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <span class="mobile-title">Design Packs</span>
+        <div style="width: 20px;"></div> <!-- Spacer for flex centering -->
+      </div>
+
       <div id="welcome-screen" class="welcome">
         <div class="welcome-icon">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
