@@ -32,7 +32,7 @@ graph LR
 
   subgraph TENANT["Tenant N boundary — point 9<br/>Postgres RLS on tenant_id · pgvector tenant_id filter injected by memory-service · Redis per-client ACL"]
     REDIS[("Redis Cluster<br/>working hot + query cache")]
-    PG[("Postgres<br/>profile · procedural · audit hot 90d · episodic metadata")]
+    PG[("Postgres<br/>run_state checkpointer · LangGraph durable state<br/>+ profile · procedural · audit hot 90d · episodic metadata<br/>build plan → 17-graph-store.md")]
     PGV[("pgvector HNSW<br/>M=32 efSearch=64<br/>episodic · domain")]
     S3[("S3 WORM 7y<br/>audit cold")]
   end

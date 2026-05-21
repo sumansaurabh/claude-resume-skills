@@ -23,6 +23,7 @@ A multi-agent cashflow intelligence platform that behaves like a real small-busi
 | 14 | `14-ingestion-pipeline.md` | Bank/accounting/payroll/tax connectors, CDC, ledger normalization, embeddings |
 | 15 | `15-guardrails.md` | Input/output filters, action policy gates, human-in-the-loop on writes, PII scrubbers |
 | 16 | `16-challenges-by-stage.md` | Failure modes by lifecycle stage (ingest → reason → act → observe) |
+| 17 | `17-graph-store.md` | Durable LangGraph state store — `run_state` / `agent_checkpoint` build plan, two state classes, lease + resume, hop-batch checkpointing, schema versioning |
 
 ## Resume anchors
 
