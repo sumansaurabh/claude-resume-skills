@@ -576,6 +576,13 @@ The HITLGate is a real LangGraph **interrupt** — not a polling sleep, not a fl
 
 Layer 2 will spell out the exact state diff, the idempotency token, the deduplication of duplicate approval events, the expiry policy (defaulting to 7 days for high-risk CFO chains), and the multi-approver quorum logic.
 
+> **Checkpoint implementation.** The physical "how" of the LangGraph checkpoint
+> — Postgres schema, write/read lifecycle, run-lease split-brain protection,
+> tenant DEK encryption, crash recovery vs HITL pause flavors, and a worked
+> end-to-end trace of a run that crashes and recovers — lives in
+> `12a-checkpoint-implementation.md`. Layer 2 in this file specifies the
+> *contract*; 12a specifies the *machinery*.
+
 ---
 
 ## 9. Where Tool RBAC is enforced at the graph layer
