@@ -14,32 +14,28 @@ It's a **B2C orchestrator** where anyone can create their own agent. When someon
 
 The expected deliverable includes a Mermaid diagram showing how all components - agents, memory (deep-diving memory), connectors, skills, and orchestrator - interact with each other.
 
-## Scope
+## Functional and non-functional requirements
 
-In scope:
+### Functional
 
-- B2C self-serve agent authoring (persona, connectors, skills, memory).
-- Agent runtime that executes a persona end-to-end across MCP, OAuth/token connectors, RAG retrieval, custom skills, and memory reads/writes.
-- A catalog where agents can be discovered, forked, and run by other users.
-- Multi-tenant isolation at the user level (consumer scale, not enterprise tenant scale).
-- Memory subsystem with working / episodic / semantic / procedural memory.
-- Skill execution sandbox modeled on Claude skills syntax (scripts + metadata).
-- Connector trust boundary (OAuth scope, MCP capability filtering, token storage).
-- Orchestrator graph (planner, router, executor, critic, HITL).
+- **Persona authoring**: editor with prompt, voice settings, model preference, safety filter selection; live preview.
+- **Connector management**: install MCP servers from a registry; OAuth handshake for Gmail/Slack/Drive/GitHub/Notion; scoped token vault; per-agent connector allowlist.
+- **Skill authoring**: upload Claude-Skill markdown + scripts; lint + dry-run in sandbox; version per-skill.
+- **Agent run**: streamed chat, tool-call visualization, mid-run pause/resume, HITL approval gates.
+- **Catalog browse**: search (semantic + keyword), filter by category/connectors-needed/rating, preview, fork-with-memory or fork-without-memory.
+- **Fork**: deep-copy persona+skills+connectors-manifest; optional memory carryover (user choice + GDPR-clean).
+- **Memory inspect/export**: user can see their per-agent memory, edit/delete entries, export as JSON (GDPR Article 20).
+- **Author analytics + payout**: per-agent runs, tokens, revenue, churn.
+- **Trust & safety**: kill switch per agent, moderation queue for catalog submissions.
 
-Out of scope (called out, not designed in depth):
+### Non-functional
 
-- Billing and metering UX.
-- Mobile app surface (assumed web-first, mobile reuses the same API).
-- Custom on-prem deployment (this is a B2C SaaS, not enterprise self-hosted).
-- Fine-tuning user-specific models (we use prompt + memory, not weight updates).
-- Voice-mode inference. Out-of-scope for v1; the architecture should not preclude it.
-
-## Assumptions
-
-- **Scale target**: 1M registered users, 100K weekly actives, 10K agents created, peak ~5K concurrent agent runs. Anchored on a B2C platform pattern; not a resume number, marked as assumption.
-- **Models**: At launch, route across Claude (Sonnet, Haiku), GPT-4o, Gemini Pro. 
-- **Cost target**: Average cost per agent run < $0.05 at p50.
-- **Compliance**: SOC-2 Type II within 12 months of launch, GDPR from day one.
-- **Skill execution model**: Claude skills are markdown files with frontmatter + optional scripts. Scripts run in a WASM + Docker + Firecracker sandbox.
-- **Memory cost**: Each user costs ~50 MB of memory storage at steady state (vectors + episodic snapshots + procedural).
+- **Latency**: p50 first-token **1.5s**, p99 first-token **4s**, p99 full-run **30s** for an 8-hop graph. *(Assumption: aligned with Custom-GPT-class expectations; not directly anchored on a resume number.)*
+- **Availability**: **99.9%** monthly (43.8 min/month error budget) for orchestrator + gateway; **99.5%** for catalog (degraded read-only mode acceptable).
+- **Durability**: **99.999999999%** (11 nines) for memory + skill artifacts (S3 + cross-region replication).
+- **RTO**: **30 min** for orchestrator failover (multi-AZ); **2h** for full-region failover.
+- **RPO**: **5 min** for memory + checkpoints (Postgres WAL ship + S3 PITR).
+- **Compliance**: GDPR (data export, right-to-delete, EU region option) within 6 months; **SOC-2 Type II within 12 months**, anchored on prior SOC-2 work via WASM sandbox isolation (resume.txt:49-50).
+- **Multi-tenant isolation**: row-level security in Postgres, per-tenant vector namespace, per-run WASM isolate; reusing patterns from multi-tenant K8s + VNet isolation at Microsoft (resume.txt:87-89).
+- **Observability**: every run is traceable end-to-end via OTel; deterministic replay supported on a sampled basis. Anchored on 50M spans/day mesh and 60% MTTR reduction (resume.txt:58-59).
+- **Cost guardrails**: per-user soft cap (free 50K tokens/day, pro 500K/day), platform-wide hard cap to avoid runaway LLM spend, automatic fallback to cheap-model on cap breach.

@@ -28,16 +28,83 @@
   const themeToggle = document.getElementById('theme-toggle');
   let currentTheme = localStorage.getItem('md-renderer-theme') || 'dark';
 
+  function getMermaidConfig(theme) {
+    const sharedConfig = {
+      startOnLoad: false,
+      flowchart: { htmlLabels: true, curve: 'basis' },
+      sequence: { mirrorActors: false },
+    };
+
+    if (theme === 'light') {
+      return {
+        ...sharedConfig,
+        theme: 'default',
+        themeVariables: {
+          darkMode: false,
+          background: '#ffffff',
+          lineColor: '#5c5f77',
+          textColor: '#1e1e2e',
+          primaryTextColor: '#1e1e2e',
+          secondaryTextColor: '#1e1e2e',
+          tertiaryTextColor: '#1e1e2e',
+          actorTextColor: '#1e1e2e',
+          actorBorder: '#bcc0cc',
+          signalColor: '#5c5f77',
+          signalTextColor: '#4c4f69',
+          labelBoxBkgColor: '#ffffff',
+          labelBoxBorderColor: '#bcc0cc',
+          activationBkgColor: '#dce0e8',
+          activationBorderColor: '#7c7f93',
+          loopTextColor: '#4c4f69',
+          noteTextColor: '#4c4f69',
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '13px',
+        },
+      };
+    }
+
+    return {
+      ...sharedConfig,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#252636',
+        primaryColor: '#3b3d56',
+        primaryTextColor: '#cdd6f4',
+        primaryBorderColor: '#45475a',
+        lineColor: '#7f849c',
+        secondaryColor: '#313244',
+        tertiaryColor: '#2a2b3d',
+        actorTextColor: '#cdd6f4',
+        signalTextColor: '#cdd6f4',
+        noteTextColor: '#cdd6f4',
+        labelBoxBkgColor: '#2a2b3d',
+        labelBoxBorderColor: '#45475a',
+        fontFamily: 'Inter, sans-serif',
+        fontSize: '13px',
+      },
+    };
+  }
+
+  function configureMermaid(theme) {
+    mermaid.initialize(getMermaidConfig(theme));
+  }
+
   function applyTheme(theme) {
     currentTheme = theme;
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('md-renderer-theme', theme);
+    configureMermaid(theme);
   }
 
   applyTheme(currentTheme);
 
   themeToggle.addEventListener('click', () => {
     applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+
+    if (currentPath) {
+      loadFile(currentPath, true);
+    }
   });
 
   // ─── Sidebar resize ───
@@ -84,26 +151,6 @@
   if (sidebarOverlay) {
     sidebarOverlay.addEventListener('click', () => toggleMobileSidebar(false));
   }
-
-  // ─── Mermaid init ───
-  mermaid.initialize({
-    startOnLoad: false,
-    theme: 'dark',
-    themeVariables: {
-      darkMode: true,
-      background: '#252636',
-      primaryColor: '#3b3d56',
-      primaryTextColor: '#cdd6f4',
-      primaryBorderColor: '#45475a',
-      lineColor: '#7f849c',
-      secondaryColor: '#313244',
-      tertiaryColor: '#2a2b3d',
-      fontFamily: 'Inter, sans-serif',
-      fontSize: '13px',
-    },
-    flowchart: { htmlLabels: true, curve: 'basis' },
-    sequence: { mirrorActors: false },
-  });
 
   // ─── Marked config with custom renderer ───
   const renderer = new marked.Renderer();
@@ -318,6 +365,7 @@
   }
 
   async function renderMarkdown(content) {
+    configureMermaid(currentTheme);
     mermaidIdCounter = 0;
     const html = marked.parse(content);
     markdownBody.innerHTML = html;
