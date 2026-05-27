@@ -165,34 +165,5 @@ boundary has a guardrail node on it.** User → Planner, Planner → Router, Too
 Broker, Broker → Blackboard, RAG → Blackboard, Memory Read → Blackboard, Memory Write
 → Store, Aggregator → User. There is no privileged path that bypasses the
 GuardrailService, and every guardrail decision flows into the same TelemetryMesh →
-Clickhouse + WORM bucket pipeline (`resume.txt:55-57`) so audit, eval, and incident
+Clickhouse + WORM bucket pipeline so audit, eval, and incident
 response all share one substrate.
-
----
-
-## 15.17 Tying it back to the resume anchors
-
-- The WASM sandbox plane (`resume.txt:49-50`, `blackbox-experience.md` points 3-5)
-  is the substrate for §15.5 (skill-exec guardrails). The behavioral caps in §15.5.1
-  are sized from the 1M+ daily executions traffic profile I shipped to SOC-2.
-- The Guardrails technology family (`resume.txt:60-61`) is the platform expression
-  of GuardrailService here: input/plan/tool/skill/retrieval/memory/output as discrete
-  enforcement points, each with its own classifier or rule engine, all writing to the
-  same telemetry mesh.
-- The LangGraph agent runtime (`resume.txt:51-54`, `blackbox-experience.md` point 4)
-  defines the node-graph topology that the GuardrailGate plugs into; the in-loop
-  critic pattern there is the same shape as the plan-stage guardrail's "review the
-  whole DAG before executing" stance in §15.3.
-- The OpenTelemetry-based ingestion mesh (`resume.txt:55-57`, `blackbox-experience.md`
-  point 19) is the audit substrate (§15.12). Deterministic replay for postmortem
-  (60% MTTR reduction) carries over directly: same span shape, same Clickhouse,
-  augmented with a WORM bucket for SOC-2 evidence.
-- The cross-encoder reranker rollout pattern (`resume.txt:60`, `blackbox-experience.md`
-  point 5) is the shadow-then-promote process in §15.15.4 - never deploy a model
-  decision into the critical path without a parallel-shadow phase.
-
-The principal-engineer point: behavioral guardrails are not a single filter at the
-edge. They are a coordinated set of enforcement nodes positioned at every trust
-boundary, sharing one telemetry substrate, one policy bundle, and one evaluation
-discipline. The platform's safety story is the *graph* of those nodes, not any single
-one of them.

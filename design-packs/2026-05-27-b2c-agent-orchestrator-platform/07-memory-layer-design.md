@@ -192,7 +192,7 @@ Auto-merging two contradictory facts via LLM ("user used to prefer Python but no
 
 ---
 
-## 4. Memory hygiene (point 10 of 15)
+## 4. Memory hygiene
 
 A nightly `MemoryHygieneJob` per user shard performs:
 
@@ -216,42 +216,25 @@ The hygiene job emits per-user metrics: `facts.deduped`, `facts.pruned`, `facts.
 
 ---
 
-## 11. Cross-agent memory boundaries (point 11 of 15)
+## 5. Cross-agent memory boundaries
 
 A Custom-GPT-style platform has multiple agents per user. The default is strict isolation: user U's "Recipe Agent" cannot see what U's "Tax Agent" remembers. This matters for both privacy (the tax agent shouldn't know about dietary preferences) and prompt economy (we'd blow the context window).
 
-### 11.1 Default: per-(user, agent) scoping
-
-All read path queries filter `agent_id`. SemanticMemory facts are written with the specific agent that produced them. Procedures are agent-scoped.
-
-### 11.2 Opt-in: personal cross-agent namespace
-
-Users can opt into a `*personal*` SemanticMemory namespace via a setting. Facts written there (or promoted there explicitly via a user gesture: "remember this everywhere") are queried alongside per-agent facts:
-
-```sql
-WHERE user_id = $1 AND (agent_id = $2 OR agent_id = :PERSONAL_AGENT_UUID)
-```
-
-The opt-in is loud (a one-time modal explaining "this shared brain will be visible to all your agents") and revocable (revoking moves facts back to the agent where they were originally written; if origin is ambiguous, they're deleted with a tombstone).
-
-### 11.3 Never cross-user
-
-There is no across-users sharing under any flag. The 64-partition layout and the GuardrailService cross-check make accidental leakage structurally hard. Marketing and product have asked for "people who used this agent also remembered…" - explicitly out of scope; rejected in `09-tradeoffs-and-alternatives.md`.
 
 ---
 
-## 12. Privacy / erasure (point 12 of 15)
+## 6. Privacy / erasure (point 12 of 15)
 
 GDPR Article 17 (right to erasure) is a contract, not a feature flag.
 
-### 12.1 The erasure API
+### 6.1 The erasure API
 
 ```
 DELETE /v1/users/{user_id}/memory
 Authorization: Bearer <admin-or-user-token>
 ```
 
-### 12.2 The cascade
+### 6.2 The cascade
 
 A single `MemoryService.eraseUser(user_id)` call performs, in a saga:
 
@@ -262,52 +245,41 @@ A single `MemoryService.eraseUser(user_id)` call performs, in a saga:
 5. **Outbox + event bus** - write `user.erased` event so any downstream consumer (analytics, billing) can clean up.
 6. **Tombstone** - write `audit.erasures(user_id, requested_at, completed_at, operator, ticket_id)`. The tombstone is *never* deleted; it's how we prove erasure during audits.
 
-### 12.3 Verifying erasure
-
-A nightly `ErasureVerifier` job samples tombstoned users and runs `SELECT COUNT(*) FROM ... WHERE user_id = ...` across every table. Any non-zero result pages on-call.
-
-### 12.4 What about model weights?
-
-We do *not* fine-tune on user data. SemanticMemory facts are stored as data, not baked into model weights. This is a deliberate architectural choice that makes erasure tractable - fine-tuning would require either expensive unlearning or model rollback, neither of which is GDPR-defensible at our scale.
-
 ---
 
 
-## 14. Failure modes (point 14 of 15)
+## 7. Failure modes
 
 Memory failures must *degrade*, not *crash*. The user should always get *some* answer.
 
-### 14.1 Redis unavailable
+### 7.1 Redis unavailable
 
 WorkingMemory is gone → the run becomes stateless for in-flight nodes. Behavior:
 
-### 14.2 Pgvector down
+### 7.2 Pgvector down
 
 SemanticMemory is gone:
 - Read path: skip SemanticMemory injection. Planner sees only WorkingMemory + EpisodicMemory + ProceduralMemory.
 - Write path: queue fact-write jobs in the outbox; drain when Pgvector returns.
-- Banner to the user: subtle indicator "personalization temporarily limited."
-- OTel: `mem.degraded=true, mem.reason="pgvector_unavailable"`.
 
-### 14.3 Postgres down (EpisodicMemory)
+### 7.3 Postgres down (EpisodicMemory)
 
 This is the most severe - we cannot guarantee replay, and we lose the durability anchor for the write path.
 - Read path: degrade further (skip cross-run episodic).
 - Write path: the agent run **fails fast** (returns 503 to the user) because we will not produce a turn whose transcript we cannot persist. This is the one place we choose strong consistency over availability.
-- Banner: "service temporarily unavailable."
 
-### 14.4 Partial writes (outbox pattern)
+### 7.4 Partial writes (outbox pattern)
 
 The MemoryWriter must write to (a) Pgvector `semantic_facts`, (b) Redis hot cache, (c) OTel sink, (d) ProceduralMemory counters. These cannot all be one transaction.
 
 Solution: single Postgres tx writes `semantic_facts` + a row to `mem_outbox`. A separate `OutboxDispatcher` reads `mem_outbox`, fans out to Redis / OTel / Procedures, deletes the outbox row on ack. Idempotency keys make redelivery safe. The Pgvector write is the source of truth; everything else is a derivable replica.
 
-### 14.5 Embedder service down
+### 7.5 Embedder service down
 
 Read path: skip dense scoring, fall back to bm25-only top-k. Recall drops ~12 pp but the user still gets relevant facts.
 Write path: queue fact-extraction jobs; drain when embedder returns. Stale facts go in with a `pending_embedding` flag and are embedded later.
 
-### 14.6 Fact extractor LLM down or rate-limited
+### 7.6 Fact extractor LLM down or rate-limited
 
 Skip extraction for the turn. We lose one turn's worth of semantic-memory growth - not catastrophic. Counter alert if extraction success rate dips below 95% over 1h.
 
