@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "archetype": "system-design",
+  "isAgentic": true,
+  "hasKnowledgeBase": true,
+  "slug": "b2c-agent-orchestrator-platform",
+  "createdAt": "2026-05-27",
+  "question": "I want to create a web-based ai-agent orchestrator + catalog of agents something similar to what openai has built, probably custom-gpt. It's a B2C orchestrator where anyone can create their own agent. Now, when someone is creating an agent, what they can do is define a persona of that particular agent, and after that they can define what all connectors it can connect to. It could be MCP connectors. It could be token-based connectors, like it could connect to Gmail, it could connect to Slack, and then divide what all information is present in these places and use it for reasoning and sending information. it can connect to Rag databases and others. Additionally, it can have its skills using the claude skills syntax with scripts that can run in the skills and all of that. Additionally, it can have memory layer as well to store different sorts of memory data. So when you are building this or deep diving into this, use a mermaid diagram to elaborate on how all the different components + agents + memory (deep-diving memory) interact with each other.",
+  "questionHash": "sha256:8da9cfabbf6f4fff79b851c54906fd27b102c369e36d196e25fc9412848213c7",
+  "company": "BlackBox + Microsoft (synthesized)",
+  "primarySkill": "/analyze-my-resume",
+  "sourceFiles": ["resume.txt", "blackbox-experience.md", "microsoft-experience.md"],
+  "grounding": {
+    "confidence": "high",
+    "strongAnchors": 6,
+    "supportingAnchors": 4
+  },
+  "anchors": {
+    "strong": [
+      "BlackBox: LangGraph/LangChain-based ReAct agent runtimes with DAG orchestration, tool-calling, durable execution supporting 10K+ agent runs/day (resume.txt:51-52)",
+      "BlackBox: Golang-backed WASM sandbox plane isolating 1M+ daily zero-shot code executions, SOC-2 compliance (resume.txt:49-50)",
+      "BlackBox: Graph workflow engine with DAG execution, checkpointing, retry semantics, memory persistence (resume.txt:53-54)",
+      "BlackBox: Model router orchestration across Claude/GPT/Grok with capability-aware routing, 1B+ tokens/month (resume.txt:55-56)",
+      "BlackBox: LLMOps telemetry mesh ingesting 50M spans/day, 2.5TB+ monthly trace data, deterministic replay, 60% MTTR reduction (resume.txt:58-59)",
+      "Microsoft: Secure multi-tenant ML infrastructure on Kubernetes + Azure with VNet isolation, gang scheduling, identity boundaries (resume.txt:87-89)"
+    ],
+    "supporting": [
+      "Microsoft: AutoML job orchestration at 15M+ jobs/month with 200K+ users via SDK and UI (resume.txt:90-92)",
+      "Microsoft: TunDRA QUIC protocol in Rust powering 1M+ compute instances (resume.txt:97-98)",
+      "BlackBox: Technologies — RAG, ReACT, Embeddings, VectorDB, Sandbox, Cross-encoder, Langfuse, Guardrails, HNSW, bm25, Clickhouse, OpenTelemetry (resume.txt:60-61)",
+      "ShareChat: Real-time bidding infrastructure with 40M DAU and 22 user attributes for segmentation (resume.txt:111-114)"
+    ]
+  }
+}
