@@ -768,6 +768,23 @@ body.sidebar-resizing {
   height: auto !important;
 }
 
+.markdown-body .mermaid-container svg foreignObject div,
+.markdown-body .mermaid-container svg foreignObject span,
+.markdown-body .mermaid-container svg foreignObject p,
+.markdown-body .mermaid-container svg foreignObject a,
+.markdown-body .mermaid-container svg foreignObject strong,
+.markdown-body .mermaid-container svg foreignObject em,
+.markdown-body .mermaid-container svg foreignObject code {
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
 /* Expand button on mermaid containers */
 .mermaid-expand-btn {
   position: absolute;
