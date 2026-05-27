@@ -1,12 +1,12 @@
-# 02 — Design Estimates: AI Banker for SMB Owners
+# 02 - Design Estimates: AI Banker for SMB Owners
 
-Cashflow intelligence agent that behaves like a real SMB banker — answers Q&A, runs forecasts, executes payment actions with HITL gates, and pulls multi-source financial data. Target: 1M SMBs.
+Cashflow intelligence agent that behaves like a real SMB banker - answers Q&A, runs forecasts, executes payment actions with HITL gates, and pulls multi-source financial data. Target: 1M SMBs.
 
 ---
 
 ## 1. Use case and problem statement
 
-SMB owners in India and global emerging markets lack a CFO or banker partner. Cashflow decisions are made ad-hoc from spreadsheets, WhatsApp screenshots, and a bookkeeper's WhatsApp PDF. The downstream cost is brutal: **40–50% of SMB failures cite cashflow management as root cause** — surprise payroll shortfalls, 90+ day receivables, missed GST deadlines, over-leveraged working-capital loans. None of the existing apps (Khatabook, Tally, RazorpayX) act like a banker; they're books or rails, not advisors. We are building a conversational agent that consolidates bank + accounting + payroll + tax + lender data and takes action under approval gates. Reuses the agentic platform pattern shipped at BlackBox: LangGraph ReAct runtime, durable DAG, model router, telemetry mesh (`resume.txt L51-54`, `blackbox-experience.md #6-15`).
+SMB owners in India and global emerging markets lack a CFO or banker partner. Cashflow decisions are made ad-hoc from spreadsheets, WhatsApp screenshots, and a bookkeeper's WhatsApp PDF. The downstream cost is brutal: **40–50% of SMB failures cite cashflow management as root cause** - surprise payroll shortfalls, 90+ day receivables, missed GST deadlines, over-leveraged working-capital loans. None of the existing apps (Khatabook, Tally, RazorpayX) act like a banker; they're books or rails, not advisors. We are building a conversational agent that consolidates bank + accounting + payroll + tax + lender data and takes action under approval gates. Reuses the agentic platform pattern shipped at BlackBox: LangGraph ReAct runtime, durable DAG, model router, telemetry mesh (`resume.txt L51-54`, `blackbox-experience.md #6-15`).
 
 ---
 
@@ -43,7 +43,7 @@ Access pattern shape: 80% reads (Q&A, dashboards), 15% ingestion writes, 5% high
 
 ## 4. Why we are building it
 
-- **Agentic action surface, not just reports.** Banker behavior = "send the reminder", "delay this payment", "draft the loan ask" — actions, not PDFs. Built on the ReAct + DAG pattern shipped at BlackBox (`blackbox-experience.md #7-13`).
+- **Agentic action surface, not just reports.** Banker behavior = "send the reminder", "delay this payment", "draft the loan ask" - actions, not PDFs. Built on the ReAct + DAG pattern shipped at BlackBox (`blackbox-experience.md #7-13`).
 - **Cross-source consolidation.** Bank + accounting + payroll + GST + lender in one tenant graph; no vertical incumbent owns the join.
 - **Audit-grade explainability.** Every recommendation has a trace: source records, retrieved memory, model used, prompt hash, tool calls. Re-uses the deterministic-replay telemetry pattern from BlackBox 50M spans/day (`resume.txt L58-59`, `blackbox-experience.md #20`).
 - **Multi-tenant agent infra at scale.** BlackBox runs 10K agent runs/day across enterprise tenants today; the same primitives scale horizontally to 1M SMBs (`resume.txt L51-52`).
@@ -52,7 +52,7 @@ Access pattern shape: 80% reads (Q&A, dashboards), 15% ingestion writes, 5% high
 
 ## 5. Capacity and load estimates
 
-### 5.1 Agentic checklist — load-bearing answers
+### 5.1 Agentic checklist - load-bearing answers
 
 The 20 points were reasoned through to set capacity. The load-bearing decisions:
 
@@ -77,7 +77,7 @@ The 20 points were reasoned through to set capacity. The load-bearing decisions:
 | 17 | Per-run token budget = 50K (configurable); 80% → compaction mode; hard cap → halt + summary | Bounds worst-case LLM cost |
 | 18 | Saga pattern for write tools: every side-effect tool has compensation (`refund_initiated_payment`, `recall_invoice_reminder`); coordinator invokes on failure | Adds saga-log writes in Postgres |
 | 19 | OTel trace per run, span per node, hop-counter metric, time-in-node histogram; **MTTD SLO for stuck/looping run = 60s p95** via two alarms: `time_in_node > 30s` (per-node stall) and `hop_counter_rate == 0 for 45s` (graph-level stall), both wired to PagerDuty SEV-3 with run_id deep-link to the Grafana trace view | ClickHouse spans sized in §5.4; alarms are stateless ClickHouse queries on the span stream |
-| 20 | Peak = 50K concurrent runs (5% of 1M MAU in 30-min peak); fan-out 3 (supervisor → ~3 specialists); supervisor concurrency = bottleneck; size for 10K supervisor RPS. **Backpressure ladder:** (a) supervisor input queue (Redis Streams) hard-capped at 20K depth (2× steady-state); (b) at 70% depth → admission-controller starts shedding non-priority intents (proactive alerts, memory-only Q&A) with HTTP 503 + retry-after; (c) at 90% depth → shed all but P0 (payments/HITL resumes); (d) HPA triggers a +50% supervisor pod scale-out at 60% sustained CPU for 90s OR queue-depth > 12K for 60s, whichever fires first; (e) circuit-open on supervisor returns a cached "service degraded — please retry in 60s" reply to user, never enqueues silently | Drives full fleet in §5.4; admission-controller is a 50-line sidecar on the supervisor pod |
+| 20 | Peak = 50K concurrent runs (5% of 1M MAU in 30-min peak); fan-out 3 (supervisor → ~3 specialists); supervisor concurrency = bottleneck; size for 10K supervisor RPS. **Backpressure ladder:** (a) supervisor input queue (Redis Streams) hard-capped at 20K depth (2× steady-state); (b) at 70% depth → admission-controller starts shedding non-priority intents (proactive alerts, memory-only Q&A) with HTTP 503 + retry-after; (c) at 90% depth → shed all but P0 (payments/HITL resumes); (d) HPA triggers a +50% supervisor pod scale-out at 60% sustained CPU for 90s OR queue-depth > 12K for 60s, whichever fires first; (e) circuit-open on supervisor returns a cached "service degraded - please retry in 60s" reply to user, never enqueues silently | Drives full fleet in §5.4; admission-controller is a 50-line sidecar on the supervisor pod |
 
 ### 5.2 Subscriber funnel and run volume
 
@@ -98,7 +98,7 @@ The 20 points were reasoned through to set capacity. The load-bearing decisions:
 - = 250,000 / 1,800s = **~140 LLM RPS sustained peak** (provision for 2× burst = 280 RPS)
 - Avg 3K tokens/call × 250K calls = 750M tokens / 30 min
 - Hourly: 750M × 2 = 1.5B tokens/hour at peak; averaged over month: ~18B tokens/month
-- BlackBox baseline: 1B tokens/month (`resume.txt L55-56`). **18× scale** — flag as ASSUMPTION.
+- BlackBox baseline: 1B tokens/month (`resume.txt L55-56`). **18× scale** - flag as ASSUMPTION.
 
 **Storage growth per SMB per day.**
 
@@ -130,16 +130,16 @@ Anchor prices (AWS US-East On-Demand): m8g.2xl ~$0.32/hr, m8g.4xl ~$0.64/hr, m8g
 | Forecast engine (Python+numpy) | c8g.4xlarge | 10 | 160 | 320 GB | CPU-bound numeric; **deviation from m8g** (compute-optimized lower RAM cost) | ~$4,100 |
 | Ingestion workers (parse/normalize) | m8g.4xlarge | 20 | 320 | 1.28 TB | Burstable; bank statements, accounting CSV, JSON webhooks | ~$9,200 |
 | OCR workers (paper invoices) | g6.xlarge | 4 | 16 | 64 GB | GPU for layout-aware OCR | ~$2,300 |
-| Postgres (Aurora — run state + biz data) | r8g.4xlarge | 6 | 192 | 1.5 TB | 3 writer regions + 3 read replicas; **deviation: memory-bound** | ~$4,100 |
+| Postgres (Aurora - run state + biz data) | r8g.4xlarge | 6 | 192 | 1.5 TB | 3 writer regions + 3 read replicas; **deviation: memory-bound** | ~$4,100 |
 | Redis (run cache, idempotency, session) | m8g.2xlarge | 6 (cluster) | 48 | 192 GB | 6-shard cluster, 1 replica each | ~$1,400 |
 | Vector store (pgvector / Qdrant) | r8g.8xlarge | 8 | 512 | 4 TB | io2 NVMe; tenant-namespaced; 18B vectors/yr addressable | ~$11,000 |
 | Kafka (event bus) | m8g.4xlarge | 9 | 144 | 576 GB | 3 brokers × 3 AZ; ingestion + saga + telemetry topics | ~$4,100 |
 | ClickHouse (telemetry) | m8g.16xlarge | 6 | 384 | 1.5 TB | Anchored on BlackBox 50M spans/day pattern (`blackbox-experience.md #20`); SMB peak ~80M spans/day | ~$11,000 |
 | **Compute + storage subtotal** | | | | | | **~$114,000 / month** |
-| LLM inference (managed Claude/GPT, mixed) | — | — | — | — | 18B tokens × ~$20/M tokens blended | **~$360,000 / month** |
+| LLM inference (managed Claude/GPT, mixed) | - | - | - | - | 18B tokens × ~$20/M tokens blended | **~$360,000 / month** |
 | **Grand total at 1M MAU peak** | | | | | | **~$475K / month** |
 
-Compute fits the predicted "$80K–$120K compute + $300K–$500K LLM tokens" envelope. LLM tokens dominate ~3:1 — first-order optimization target is router + compaction (BlackBox model router pattern, `resume.txt L55-56`).
+Compute fits the predicted "$80K–$120K compute + $300K–$500K LLM tokens" envelope. LLM tokens dominate ~3:1 - first-order optimization target is router + compaction (BlackBox model router pattern, `resume.txt L55-56`).
 
 ---
 
@@ -148,25 +148,25 @@ Compute fits the predicted "$80K–$120K compute + $300K–$500K LLM tokens" env
 ### 6.1 Functional
 
 - **Conversational Q&A** over cashflow, AR/AP, payroll, taxes, runway, vendor history.
-- **Proactive alerts** — cash-low threshold, invoice 30/60/90 day overdue, payroll T-3 risk, GST/TDS due, credit line utilization.
-- **Action execution with approval gates** — initiate payment, send reminder, draft loan ask, file GST return; HITL on irreversible / high-value.
-- **Forecast and scenario simulation** — "if I delay this payment 2 weeks", "if collection cycle improves 10 days".
+- **Proactive alerts** - cash-low threshold, invoice 30/60/90 day overdue, payroll T-3 risk, GST/TDS due, credit line utilization.
+- **Action execution with approval gates** - initiate payment, send reminder, draft loan ask, file GST return; HITL on irreversible / high-value.
+- **Forecast and scenario simulation** - "if I delay this payment 2 weeks", "if collection cycle improves 10 days".
 - **Lender connectivity** for working-capital loan applications with consented underwriting data pull.
-- **Multi-source ingestion** — bank (direct + AA), accounting (Tally/Zoho/QuickBooks), payroll (RazorpayX), tax/GST portals.
-- **Per-business memory and personalization** — vendor relationships, seasonal patterns, owner risk preference.
-- **Audit trail** — every recommendation and action has full lineage: source records, model, prompt hash, retrieved context, tool calls.
+- **Multi-source ingestion** - bank (direct + AA), accounting (Tally/Zoho/QuickBooks), payroll (RazorpayX), tax/GST portals.
+- **Per-business memory and personalization** - vendor relationships, seasonal patterns, owner risk preference.
+- **Audit trail** - every recommendation and action has full lineage: source records, model, prompt hash, retrieved context, tool calls.
 
 ### 6.2 Non-functional
 
 | Dimension | Target |
 |---|---|
-| Latency — simple Q&A | p50 2s, p95 6s, p99 12s |
-| Latency — forecast | p95 30s |
-| Latency — action confirmation | p99 5s |
-| Availability — control plane | 99.9% |
-| Availability — read APIs | 99.95% (degraded-read mode if writes down) |
-| Durability — transactional store | 99.999999999% (Aurora) |
-| Durability — object store | 11 9s |
+| Latency - simple Q&A | p50 2s, p95 6s, p99 12s |
+| Latency - forecast | p95 30s |
+| Latency - action confirmation | p99 5s |
+| Availability - control plane | 99.9% |
+| Availability - read APIs | 99.95% (degraded-read mode if writes down) |
+| Durability - transactional store | 99.999999999% (Aurora) |
+| Durability - object store | 11 9s |
 | RTO | 15 min |
 | RPO | 5 min |
 | Compliance | SOC-2 Type II, ISO 27001, RBI data localization (India), DPDP (India), GDPR (EU) |
@@ -185,9 +185,9 @@ Compute fits the predicted "$80K–$120K compute + $300K–$500K LLM tokens" env
 
 ## ASSUMPTIONS (called out)
 
-1. 1M MAU target — extrapolated from BlackBox 10K runs/day baseline (`resume.txt L52`); 27× scale.
-2. DAU/MAU = 30%, concurrent-peak = 5% MAU — typical SaaS-with-daily-utility; needs validation in beta.
-3. 8 runs/SMB/month — pre-launch guess; could be 3× higher if proactive alerts dominate.
-4. Avg 5 hops/run, 3K tokens/call — pattern from BlackBox runtime; SMB queries may be simpler.
-5. LLM blended cost $20/M tokens — assumes Sonnet-class default, Haiku-class for classification; will swing 2× with router quality.
-6. Compute headroom 1.5× — standard; HA + spike + canary deploys consume the rest.
+1. 1M MAU target - extrapolated from BlackBox 10K runs/day baseline (`resume.txt L52`); 27× scale.
+2. DAU/MAU = 30%, concurrent-peak = 5% MAU - typical SaaS-with-daily-utility; needs validation in beta.
+3. 8 runs/SMB/month - pre-launch guess; could be 3× higher if proactive alerts dominate.
+4. Avg 5 hops/run, 3K tokens/call - pattern from BlackBox runtime; SMB queries may be simpler.
+5. LLM blended cost $20/M tokens - assumes Sonnet-class default, Haiku-class for classification; will swing 2× with router quality.
+6. Compute headroom 1.5× - standard; HA + spike + canary deploys consume the rest.

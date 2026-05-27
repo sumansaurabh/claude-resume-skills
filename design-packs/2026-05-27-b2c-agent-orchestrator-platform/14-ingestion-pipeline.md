@@ -1,21 +1,21 @@
-# 14 — Ingestion Pipeline (RAG Corpora Write Path)
+# 14 - Ingestion Pipeline (RAG Corpora Write Path)
 
 > Companion file to `13-memory-layer-design.md`. That file owns the **read path**
 > and the four memory tiers (Working, Episodic, Semantic, Procedural). This file
-> owns the **write path** for the Semantic tier — specifically the user-uploaded
+> owns the **write path** for the Semantic tier - specifically the user-uploaded
 > RAG corpora that back a B2C agent. The two files share one canonical embedder
 > (`EmbedderTextV3`, 1024-dim) and one canonical vector store (`Pgvector`, HNSW
 > `m=16, ef_construction=200`). If those drift, retrieval breaks silently.
 >
 > Scope: a B2C agent orchestrator where each end user owns 1..N agents, each
 > agent owns 1..N corpora, and each corpus owns 1..N documents. Documents enter
-> through three channels — direct upload, URL crawl, and connector sync
+> through three channels - direct upload, URL crawl, and connector sync
 > (Gmail, Slack, Notion, etc.).
 >
 > Grounding:
-> - `resume.txt:60-61` — RAG, Embeddings, VectorDB, HNSW, bm25, Cross-encoder
-> - `resume.txt:58-59` — LLMOps telemetry mesh, 50M spans/day, 2.5TB/month
-> - `blackbox-experience.md` point 20 — telemetry mesh for deterministic replay
+> - `resume.txt:60-61` - RAG, Embeddings, VectorDB, HNSW, bm25, Cross-encoder
+> - `resume.txt:58-59` - LLMOps telemetry mesh, 50M spans/day, 2.5TB/month
+> - `blackbox-experience.md` point 20 - telemetry mesh for deterministic replay
 >
 > Audience: principal engineer interview. Tone: pragmatic, with numbers,
 > failure modes, and the boring trade-offs that matter at 1M users.
@@ -29,12 +29,12 @@ the user, the OrchestratorAPI authorizes the write against the target corpus,
 and the bytes land in **S3** with a content-addressed key. We then enqueue a
 job onto **Kafka** topic `ingest.{tenant_shard}` and respond `202 Accepted` to
 the user with a `document_id`. The IngestionPipeline consumer pulls the job,
-runs the byte stream through a fixed sequence — **safety scan → MIME parse →
+runs the byte stream through a fixed sequence - **safety scan → MIME parse →
 text extraction → chunker → PII filter → embedder → index writer → telemetry**
-— and commits chunks to **Pgvector** (HNSW) plus a **bm25** sidecar in the same
+- and commits chunks to **Pgvector** (HNSW) plus a **bm25** sidecar in the same
 Postgres. The **RAGRetriever**, owned by the AgentRuntime, reads from those
-exact stores at query time. Everything else — versioning, dedup, autoscale,
-ACLs — is plumbing that keeps this pipeline cheap, isolated, and idempotent.
+exact stores at query time. Everything else - versioning, dedup, autoscale,
+ACLs - is plumbing that keeps this pipeline cheap, isolated, and idempotent.
 
 ---
 
@@ -154,7 +154,7 @@ class Chunk:
 - **Splitter:** `RecursiveCharacterTextSplitter` with separators
   `["\n\n", "\n", ". ", " ", ""]`.
 
-Why 800 / 100? Empirically — across our internal eval set — recall@10 plateaus
+Why 800 / 100? Empirically - across our internal eval set - recall@10 plateaus
 between 600 and 1000 tokens for `EmbedderTextV3`. Below 400 we fragment
 arguments; above 1200 we dilute the embedding signal and pay more $/embed.
 Overlap of ~12% (100/800) is enough to bridge sentence-spanning facts without
@@ -191,8 +191,8 @@ structured-doc evals.
 
 ### 2.4 Late chunking (planned, not in v1)
 
-Late chunking — embedding the full doc once with a long-context embedder, then
-slicing the token-level hidden states — gives a 2-3 point recall lift. Not in
+Late chunking - embedding the full doc once with a long-context embedder, then
+slicing the token-level hidden states - gives a 2-3 point recall lift. Not in
 v1 because `EmbedderTextV3` is 8K context only and would require buying a new
 embedder license. Tracked as a deferred item, not a blocker.
 
@@ -200,7 +200,7 @@ embedder license. Tracked as a deferred item, not a blocker.
 
 ## 3. Embedding model
 
-**`EmbedderTextV3`** — **must match `13-memory-layer-design.md` point 5**.
+**`EmbedderTextV3`** - **must match `13-memory-layer-design.md` point 5**.
 
 | Property            | Value                                                |
 | ------------------- | ---------------------------------------------------- |
@@ -221,7 +221,7 @@ traffic goes through `ModelGateway` for three reasons:
 1. **One place to swap models.** When we move to `EmbedderTextV4`, every caller
    gets it after a feature-flag flip.
 2. **One place to enforce per-tenant quotas.** A runaway crawler cannot burn
-   the org's embedding budget — the gateway throttles at the tenant_id header.
+   the org's embedding budget - the gateway throttles at the tenant_id header.
 3. **One place to record cost and emit OTel spans.** This makes the cost
    attribution in section 12 trivial.
 
@@ -279,7 +279,7 @@ CREATE INDEX chunks_filter
 
 Notes:
 
-- `m=16, ef_construction=200` — matches the SemanticMemory index in
+- `m=16, ef_construction=200` - matches the SemanticMemory index in
   `13-memory-layer-design.md` exactly. Same recall/build-time trade-off.
 - `vector_ip_ops` (inner product) is valid because we L2-normalize at write
   time (section 3.1).
@@ -290,7 +290,7 @@ Notes:
 ### 4.2 BM25 sidecar
 
 The `tsvector` GIN index is the BM25 sidecar. We do not run a separate
-Elasticsearch cluster in v1 — Postgres `ts_rank_cd` is good enough for the
+Elasticsearch cluster in v1 - Postgres `ts_rank_cd` is good enough for the
 lexical leg of hybrid retrieval up to ~10M chunks per tenant, and operating
 one less stateful system is worth the eventual migration cost.
 
@@ -343,7 +343,7 @@ WHERE user_id = $u AND corpus_id = $c AND doc_hash = $h;
 
 If a row exists, we **skip embedding entirely** and link the new
 `document_id` to the existing chunks via a `document_aliases` table. The user
-still sees their upload land — we just don't pay to re-embed it.
+still sees their upload land - we just don't pay to re-embed it.
 
 This catches the dominant duplication case: the same PDF uploaded twice
 through two connectors (Gmail attachment + GDrive sync), and re-crawls of
@@ -369,7 +369,7 @@ skipped for embedding (we still index them in BM25 with the parent's
 embedding pointer, so lexical recall is preserved).
 
 Why bother? The Slack/Gmail connectors generate enormous near-duplicate volume
-— quote-reply chains, forwarded threads. Without near-dup dedup, ~30% of
+- quote-reply chains, forwarded threads. Without near-dup dedup, ~30% of
 ingestion cost is spent re-embedding "On Mon, ... wrote:" boilerplate.
 
 ### 5.3 Idempotency at the trigger boundary
@@ -414,7 +414,7 @@ index in section 4 makes this filter free.
 ### 6.3 Why keep old versions
 
 - Deterministic replay of agent transcripts (point 20 in
-  `blackbox-experience.md` — telemetry mesh for replay). If the agent answered
+  `blackbox-experience.md` - telemetry mesh for replay). If the agent answered
   using `doc_version=3`, the replay must hit `doc_version=3`, not the current
   version.
 - Soft-delete and rollback. Users who delete and immediately regret can
@@ -455,7 +455,7 @@ Playbook:
 5. **Retention.** Keep `chunks` for 30 days post-cutover. Drop it after.
 
 This is exactly the kind of migration the LLMOps telemetry mesh
-(`resume.txt:58-59`, `blackbox-experience.md` point 20) is designed for —
+(`resume.txt:58-59`, `blackbox-experience.md` point 20) is designed for -
 replay the last 7 days of agent traffic against both indexes and diff the
 outputs before flipping a single user.
 
@@ -463,7 +463,7 @@ outputs before flipping a single user.
 
 Changing `m` or `ef_construction` requires rebuilding HNSW in place. We use
 `REINDEX CONCURRENTLY` per partition, scheduled per tenant during their
-low-traffic window. No re-embedding needed — the vectors are unchanged.
+low-traffic window. No re-embedding needed - the vectors are unchanged.
 
 ### 7.3 Chunker change
 
@@ -497,7 +497,7 @@ Where `source.observed_at` is:
 
 - Upload: the Gateway-side timestamp on the `POST`.
 - Webhook: the timestamp in the webhook payload.
-- Poll: the timestamp of the *resource*, not of the poll. (Critical — measuring
+- Poll: the timestamp of the *resource*, not of the poll. (Critical - measuring
   from poll-start hides the polling interval and makes the dashboard lie.)
 
 Lag is computed at chunk-commit time and emitted as an OTel histogram. We
@@ -511,8 +511,8 @@ to OrchestratorAPI) until status flips to `INDEXED`. Most clients show a
 spinner; chat clients show "Indexing your file…" inline in the agent thread
 and gate the next message until status is `INDEXED` or 60s timeout.
 
-This is the right trade. The alternative — pretending the document is
-queryable the instant the upload returns — produces "where is my file?"
+This is the right trade. The alternative - pretending the document is
+queryable the instant the upload returns - produces "where is my file?"
 support tickets and erodes trust faster than a visible spinner ever does.
 
 ---
@@ -533,7 +533,7 @@ or ~$175K/year. Recoverable inside the B2C subscription with a 60% margin.
 ### 9.2 Peak
 
 Peak is 10× steady. We size for 100 GB/day, 150M chunks/day, 120B
-tokens/day. Peak driver is enterprise-trial seeding — a single trial may
+tokens/day. Peak driver is enterprise-trial seeding - a single trial may
 bulk-import a multi-GB knowledge base in the first hour.
 
 ### 9.3 Embedding budget
@@ -557,7 +557,7 @@ within headroom.
 ## 10. Multi-tenant isolation
 
 Two-tier isolation model. The split is driven by data volume, not customer
-tier — heavy free users get hard isolation; light paid users share.
+tier - heavy free users get hard isolation; light paid users share.
 
 ### 10.1 Long tail (>99% of users)
 
@@ -566,7 +566,7 @@ tier — heavy free users get hard isolation; light paid users share.
 - Every query carries `WHERE user_id = $u` and the partial index makes this
   filter free.
 - `RLS` (Postgres row-level security) is enabled as a defense-in-depth check
-  — even if the OrchestratorAPI forgets the filter, RLS blocks the read.
+  - even if the OrchestratorAPI forgets the filter, RLS blocks the read.
 
 ### 10.2 Heavy users (top 1%, >1 GB stored)
 
@@ -602,7 +602,7 @@ ingestion volume.
 ## 11. Content filtering
 
 Every byte that enters the system passes through three pre-embedding gates,
-in this order. Order matters — we don't pay to chunk content we'll reject.
+in this order. Order matters - we don't pay to chunk content we'll reject.
 
 ### 11.1 Gate 1: MIME and size (Gateway)
 
@@ -622,16 +622,16 @@ is streamed through `clamd` before any extraction. Infected files:
   with a 30-day TTL.
 - The document row flips to `status=REJECTED_MALWARE`.
 - A WebHook fires to the user's email and the tenant's admin (if enterprise).
-- A counter increments — three rejections in 24h locks the upload endpoint
+- A counter increments - three rejections in 24h locks the upload endpoint
   for that user for 1h.
 
 ### 11.3 Gate 3: PII redaction (post-extract, pre-embed)
 
 Two-pass PII filter:
 
-1. **Regex pass** — emails, phone numbers, SSNs, credit cards, AWS keys,
+1. **Regex pass** - emails, phone numbers, SSNs, credit cards, AWS keys,
    private keys. Cheap, runs on every chunk.
-2. **ML PII detector** — a small NER model that catches names, addresses,
+2. **ML PII detector** - a small NER model that catches names, addresses,
    medical conditions, etc. Runs on chunks that the regex pass flagged
    *or* that the user enabled "strict PII" for at the corpus level.
 
@@ -643,9 +643,9 @@ endpoint.
 
 Why redact pre-embedding? Two reasons:
 
-1. **Embedding leakage** — embeddings of PII can be partially inverted. Not
+1. **Embedding leakage** - embeddings of PII can be partially inverted. Not
    embedding PII is the only robust mitigation.
-2. **Cross-tenant search safety** — if we ever build a global federated
+2. **Cross-tenant search safety** - if we ever build a global federated
    search (we won't, but engineering should plan as if we might), redacted
    chunks are inherently safer to expose.
 
@@ -695,8 +695,8 @@ Tail-based sampling at the TelemetryMesh collector:
 - **100%** of spans where `ingest.embed_latency_ms > p99` (auto-computed).
 - **10%** of OK spans, stratified by tenant so small tenants stay observable.
 
-At our volume — projected ~50M ingestion spans/day at steady state, sized
-identically to the telemetry mesh's resume-anchored 50M spans/day — this
+At our volume - projected ~50M ingestion spans/day at steady state, sized
+identically to the telemetry mesh's resume-anchored 50M spans/day - this
 keeps Clickhouse storage growth around 2.5 TB/month, matching the resume
 anchor exactly.
 
@@ -716,7 +716,7 @@ anchor exactly.
 
 ### 13.1 Kafka topology
 
-- Topic: `ingest.{0..255}` — 256 logical topics, hash-keyed by `tenant_shard`.
+- Topic: `ingest.{0..255}` - 256 logical topics, hash-keyed by `tenant_shard`.
 - Per topic: 8 partitions. Total partitions: 2048.
 - Replication factor: 3. `min.insync.replicas = 2`.
 - Retention: 7 days. (Replays beyond 7 days come from the `ingest_jobs` table,
@@ -754,7 +754,7 @@ async build:
   confirmed, so users don't see half-indexed corpora.
 
 If dense-visibility lag exceeds 5 min, the doc is considered failed and is
-retried — this protects us from the case where HNSW build silently hangs on
+retried - this protects us from the case where HNSW build silently hangs on
 a degenerate vector.
 
 ---
@@ -768,7 +768,7 @@ that makes this safe.
 
 Every job carries `idempotency_key = sha256(doc_hash || corpus_id)`. The
 `ingest_jobs` table has a UNIQUE constraint on this key. Re-delivery is a
-no-op — the second consumer hits the unique violation, logs INFO, ACKs the
+no-op - the second consumer hits the unique violation, logs INFO, ACKs the
 Kafka message, and moves on.
 
 ### 14.2 Retryable failures
@@ -804,7 +804,7 @@ notifies the user.
 A document with 100 chunks where 3 fail to embed is **still committed** with
 97 chunks. The 3 failures are recorded on the document row as
 `partial_failures: [{ordinal: 42, reason: "embed_429_exhausted"}, ...]`.
-This is intentional — for most B2C documents, 97% retrieval coverage is
+This is intentional - for most B2C documents, 97% retrieval coverage is
 better than 0% coverage while we wait for one stubborn chunk.
 
 The user-visible status flips to `INDEXED_PARTIAL` rather than `INDEXED`, and
@@ -870,7 +870,7 @@ When user A shares corpus `c_7` with user B:
 2. A row appears in user B's `shared_with_me` materialized view (refreshed
    every 60s).
 3. If user A revokes, the row is deleted **and** an in-process cache bust
-   message goes out on `ratchet.acl_invalidate` — RAGRetriever pods listen
+   message goes out on `ratchet.acl_invalidate` - RAGRetriever pods listen
    for this and evict per-user permission caches within ~1s.
 
 ### 15.5 Public corpora
@@ -963,7 +963,7 @@ flowchart LR
 ## 17. Cross-references and contracts honored
 
 This file does not stand alone. The following invariants are load-bearing
-across the design pack — if any one drifts, the pack is internally
+across the design pack - if any one drifts, the pack is internally
 inconsistent.
 
 | Invariant                                              | Where else it lives                                  |
@@ -995,10 +995,10 @@ These are deliberate punts, not oversights. They get listed under
 4. **GDPR right-to-erasure**: hard-delete from HNSW is expensive (graph
    surgery). V1 uses soft-delete + 30-day GC. EU tenants on enterprise tier
    get a synchronous purge path that triggers a partition `REINDEX
-   CONCURRENTLY` — outside the steady-state SLO, executed during the
+   CONCURRENTLY` - outside the steady-state SLO, executed during the
    tenant's low-traffic window. Open question for legal: is 30 days
    acceptable for the long tail?
-5. **Embedding model fine-tuning per tenant** — heavy tenants will want it,
+5. **Embedding model fine-tuning per tenant** - heavy tenants will want it,
    v1 says no because it breaks the cross-tenant cache. Revisit in V2.
 
 ---

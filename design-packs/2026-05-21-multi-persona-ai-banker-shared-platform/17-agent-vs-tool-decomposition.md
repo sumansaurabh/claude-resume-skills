@@ -1,16 +1,16 @@
-# 17 — Agent vs Tool vs Node: Decomposition Rationale
+# 17 - Agent vs Tool vs Node: Decomposition Rationale
 
 > **Purpose.** This file is a reasoning guide, not a spec. It explains *why* every
 > agent in this pack exists, what makes it earn being an agent (versus being a
 > tool, a single node, or a parameter on another agent), and how to decide for
 > any future capability whether to build an agent, a tool, or just a node.
 >
-> Read this when you find yourself asking *"should this be a subagent?"* — the
+> Read this when you find yourself asking *"should this be a subagent?"* - the
 > answer is usually "no" and this file gives you the framework to know why.
 
 ---
 
-## 1. The three categories — sharp definitions
+## 1. The three categories - sharp definitions
 
 A multi-agent runtime has three primitive building blocks. The architecture only
 stays sane if you put each piece of work into the right one.
@@ -35,20 +35,20 @@ become an agent. Catch it early.
 
 ### 1.2 Node
 
-A **node** is a single graph step that does one thing — typically a fixed
+A **node** is a single graph step that does one thing - typically a fixed
 sequence of operations that don't require LLM reasoning to decide the next move.
 Nodes are the bones of the graph; agents are nodes that happen to reason.
 
 Nodes that aren't agents in this pack:
-- `IntakeAndPersona` — load tenant, persona, entitlements; no choice to make.
-- `ContextBuilder` — load memory tiers and KB chunks per a fixed policy.
-- `Router` — match a predicate, dispatch. Pure switch statement.
-- `Aggregator` — merge sub-states by fixed rules.
-- `PersonaAdapter` — one-shot tone re-write LLM call (single prompt, no planning).
-- `HITLGate` — checkpoint and pause; control-flow only.
-- `Terminator` — finalize the response envelope.
-- `CalcInvoker` — wraps the deterministic Calc Service; passes through.
-- `ToolCaller` — wraps the Tool Router; passes through.
+- `IntakeAndPersona` - load tenant, persona, entitlements; no choice to make.
+- `ContextBuilder` - load memory tiers and KB chunks per a fixed policy.
+- `Router` - match a predicate, dispatch. Pure switch statement.
+- `Aggregator` - merge sub-states by fixed rules.
+- `PersonaAdapter` - one-shot tone re-write LLM call (single prompt, no planning).
+- `HITLGate` - checkpoint and pause; control-flow only.
+- `Terminator` - finalize the response envelope.
+- `CalcInvoker` - wraps the deterministic Calc Service; passes through.
+- `ToolCaller` - wraps the Tool Router; passes through.
 
 These are nodes. None of them earn being called an "agent" because none of them
 need to plan-and-revise.
@@ -61,24 +61,24 @@ multiple tools (possibly in different orders for different inputs), may re-plan
 when an observation contradicts its assumption, and synthesizes a result.
 
 The bar is honest: if the work can be done with a fixed pipeline of tool calls,
-it's not an agent — it's a sequence of nodes. If the choice of next tool depends
+it's not an agent - it's a sequence of nodes. If the choice of next tool depends
 on what the previous tool returned, it's an agent.
 
 ### 1.4 The orchestrator (supervisor)
 
-There is exactly **one** orchestrator per platform — the supervisor that runs
+There is exactly **one** orchestrator per platform - the supervisor that runs
 the LangGraph topology, dispatches to subagents, holds the durable run state,
 manages HITL pauses, handles checkpointing, enforces budgets and hop caps.
 
 Creating a second orchestrator is almost always the wrong answer. Personas, new
-verticals, new regulators — none of these justify a second orchestrator. They
+verticals, new regulators - none of these justify a second orchestrator. They
 get expressed as parameters, policy bundles, persona-compiles, or new
 subagents on the existing orchestrator. The reasoning for one shared
 orchestrator is in `01-executive-summary.md` and isn't repeated here.
 
 ---
 
-## 2. The decision framework — when to build what
+## 2. The decision framework - when to build what
 
 Use this in order. Stop at the first one that fits.
 
@@ -89,7 +89,7 @@ schema transforms, lookups, format conversion) → **tool**, not agent.
 
 > *Example:* "Compute weeks-to-cash-zero given balance, weekly burn, expected
 > inflows." This is arithmetic. It lives in the Calc Service. The LLM never
-> does this — it calls a tool that does. Hallucinated arithmetic in banking
+> does this - it calls a tool that does. Hallucinated arithmetic in banking
 > is unrecoverable, which is why the **deterministic boundary** is a hard
 > wall (`01-executive-summary.md`, `15-guardrails.md`).
 
@@ -115,7 +115,7 @@ fixed-shape transform). Don't build an agent for work that doesn't reason.
 > invoices?" decision is reasoning over intermediate results. That makes it
 > an agent.
 
-### 2.4 If you've decided it's an agent — is the reasoning skill reusable across audiences?
+### 2.4 If you've decided it's an agent - is the reasoning skill reusable across audiences?
 
 If yes (same skill serves Retail, SME, CFO with parameter tweaks) →
 **capability subagent** (decomposition axis = capability).
@@ -123,12 +123,12 @@ If yes (same skill serves Retail, SME, CFO with parameter tweaks) →
 If no (the skill genuinely only makes sense for one audience) → check again,
 because this is rare. Most "persona-specific" reasoning turns out to be the
 same reasoning with a different audience parameter. If you're sure, it's a
-persona-scoped subagent — but the burden of proof is on you to defend why.
+persona-scoped subagent - but the burden of proof is on you to defend why.
 
 > *Why the burden of proof is on you:* persona-decomposition forces
 > duplication of every capability across personas. CashflowForecaster needs to
 > live in RetailAgent (for runway), SMEAgent (for payroll cushion), and
-> CFOAgent (for treasury position) — three implementations, three eval suites,
+> CFOAgent (for treasury position) - three implementations, three eval suites,
 > three sets of prompt drift. See §6 for the full anti-pattern.
 
 ### 2.5 If the reasoning genuinely varies by audience, is it tone or is it logic?
@@ -140,7 +140,7 @@ IntakeAndPersona, consumed by existing agents.
 
 Logic differences (the actual *reasoning chain* is different per persona) → only
 *now* might you consider a persona-scoped agent. In this pack, there is no
-single specialist where the reasoning chain genuinely differs per persona — every
+single specialist where the reasoning chain genuinely differs per persona - every
 case turned out to be tone + threshold + RBAC. That's why no persona-scoped
 agents exist.
 
@@ -184,17 +184,17 @@ agents exist.
 
 ---
 
-## 4. Walking every agent in this pack — why it exists
+## 4. Walking every agent in this pack - why it exists
 
 For each specialist, the rationale is structured as:
 
-- **What it does** — one-paragraph description
-- **Why it earns being an agent** — the plan-act-observe loop it runs
-- **What tools it calls** — the deterministic primitives it composes
-- **Why it's not just a tool** — the reasoning that can't live in a tool
-- **Why it's not just a node** — the iteration that can't live in a fixed pipeline
-- **Why it's not persona-forked** — the same skill serving multiple audiences
-- **The collapse case** — under what change would it become a tool or node
+- **What it does** - one-paragraph description
+- **Why it earns being an agent** - the plan-act-observe loop it runs
+- **What tools it calls** - the deterministic primitives it composes
+- **Why it's not just a tool** - the reasoning that can't live in a tool
+- **Why it's not just a node** - the iteration that can't live in a fixed pipeline
+- **Why it's not persona-forked** - the same skill serving multiple audiences
+- **The collapse case** - under what change would it become a tool or node
 
 ### 4.1 CashflowForecaster
 
@@ -250,7 +250,7 @@ reference with the user's history (is this a one-time event or pattern?) →
 check fatigue cooldown (has the user been nudged about this category in the
 last N days?) → pick a nudge tier (silent / educational / actionable) → draft
 the message with citations. Multi-step, with branching on intermediate
-results. Borderline — could be one fat prompt with all the rules — but the
+results. Borderline - could be one fat prompt with all the rules - but the
 iteration is real once you add the fatigue check and the pattern-vs-event
 classification.
 
@@ -263,12 +263,12 @@ pattern-vs-event call, and the specificity calibration ("you spent 12K on
 food this month" vs "your weekend takeout is up 40% vs your 90-day baseline").
 None of those land cleanly in a single tool.
 
-**Why it's not just a node.** Same reason — the right next call (fatigue
+**Why it's not just a node.** Same reason - the right next call (fatigue
 check, history lookup) depends on what the budget check returned.
 
 **Why it's not persona-forked.** SpendingCoach is currently Retail-only by
-compile (CFO doesn't get coached on spending). But the *skill* — classify,
-threshold, calibrate nudge, draft — would be identical if we ever launched a
+compile (CFO doesn't get coached on spending). But the *skill* - classify,
+threshold, calibrate nudge, draft - would be identical if we ever launched a
 "Junior Banker" persona. We'd extend the persona compile, not duplicate the
 agent.
 
@@ -295,12 +295,12 @@ skips the FX branch entirely).
 
 **Why it's not just a tool.** No single tool composes multi-entity sweep
 recommendations against FX exposure against upcoming obligations. That's
-synthesis across heterogeneous signals — agent work.
+synthesis across heterogeneous signals - agent work.
 
-**Why it's not just a node.** Same — branch-depends-on-result.
+**Why it's not just a node.** Same - branch-depends-on-result.
 
 **Why it's not persona-forked.** It's only compiled for CFO. But the reason
-isn't that "this is CFO logic" — it's that Retail and SME don't have
+isn't that "this is CFO logic" - it's that Retail and SME don't have
 multi-entity treasury, so the tools wouldn't return anything. If we ever
 launched "SME Treasury Lite" (single-entity sweeps), the same agent would
 serve it with a parameter.
@@ -318,14 +318,14 @@ pull bank balance and reserves → pull expected inflows by date → for each
 inflow, assess timing confidence (overdue invoice? historical on-time rate?) →
 run Calc.payroll_coverage with weighted-inflow scenarios → identify the
 specific risk drivers → recommend either "you're fine," "you're tight,
-here's why," or "you need to act — here's what." The right inflows to
+here's why," or "you need to act - here's what." The right inflows to
 re-weight depend on what the AR data shows.
 
 **What tools it calls.** `payroll.next_run`, `bank.balance`,
 `accounting.invoices_outstanding`, `accounting.ar_aging`,
 `Calc.payroll_coverage`, `Calc.scenario_band`.
 
-**Why it's not just a tool.** A tool can answer "balance >= payroll?" — a
+**Why it's not just a tool.** A tool can answer "balance >= payroll?" - a
 toy. The real question requires assessing inflow timing risk, which is a
 reasoning step over historical AR behavior.
 
@@ -336,7 +336,7 @@ identical; the only difference is CFO might be asking about a sub-entity (one
 extra parameter for entity_id).
 
 **The collapse case.** If we drop AR-timing risk assessment, this becomes a
-tool. We'd ship a product that lies confidently — bad.
+tool. We'd ship a product that lies confidently - bad.
 
 ### 4.5 AnomalyExplainer
 
@@ -348,8 +348,8 @@ what happened in plain language, with attribution and recommended next step.
 sequence?) → for each candidate type, run the right cross-reference: new
 merchant → check merchant database + user's historical merchants; unusual
 amount → check user's spend distribution for the category; rapid sequence →
-check fraud signals → decide between "benign — here's why," "worth
-confirming," "likely fraud — recommend action." The cross-reference to run
+check fraud signals → decide between "benign - here's why," "worth
+confirming," "likely fraud - recommend action." The cross-reference to run
 depends on the anomaly classification.
 
 **What tools it calls.** `bank.transaction_details`, `merchant.lookup`,
@@ -367,7 +367,7 @@ persona. CFO gets it in different tone via PersonaAdapter; the reasoning is
 the same.
 
 **The collapse case.** If we only ever say "this transaction is unusual,"
-this collapses to a tool. We'd ship a product that flags without explaining —
+this collapses to a tool. We'd ship a product that flags without explaining -
 useless.
 
 ### 4.6 InvoiceARAgent
@@ -403,7 +403,7 @@ schedule, this collapses to a tool + cron.
 query: decides which collections to hit, how to rewrite the query, how to
 rerank, and when to abandon retrieval as low-value.
 
-**Why it earns being an agent.** Naive RAG is a node — embed query, search,
+**Why it earns being an agent.** Naive RAG is a node - embed query, search,
 return top-K. RetrievalAgent does more: classify the query intent → decide
 whether memory (user history) or KB (regulatory/contract corpus) or both →
 rewrite the query for each (HyDE-style expansion for KB; canonicalization for
@@ -419,7 +419,7 @@ decision is reasoning over intermediate results.
 
 **Why it's not just a node.** Single-shot RAG is a node and would be cheaper.
 The agent earns its weight when the query is genuinely ambiguous or when the
-first retrieval misses — common enough in financial advisory contexts that
+first retrieval misses - common enough in financial advisory contexts that
 the iteration pays for itself.
 
 **Why it's not persona-forked.** Identical reasoning for all personas; only
@@ -475,7 +475,7 @@ decide how much to hedge based on aggregated confidence → draft → check that
 all monetary claims trace to Calc outputs (provenance) → revise if not. The
 provenance check + revise step is the reasoning loop.
 
-**What tools it calls.** None directly — it composes over `partial_outputs`
+**What tools it calls.** None directly - it composes over `partial_outputs`
 and `calc_results` already in state.
 
 **Why it's not just a tool.** Composition over heterogeneous specialist
@@ -488,7 +488,7 @@ reasoning. Without it, this is a node.
 tone comes downstream from PersonaAdapter.
 
 **The collapse case.** Drop the provenance check; this becomes a node. We'd
-ship advisories with un-grounded numbers — the deterministic boundary fails
+ship advisories with un-grounded numbers - the deterministic boundary fails
 silently, the prep guide's #1 sin.
 
 ### 4.10 ApprovalCoordinator
@@ -548,7 +548,7 @@ score; this becomes a tool. The plan-revise-replan loop in the graph
 plan of specialist calls.
 
 **Why it earns being an agent (workflow-class).** Single LLM call producing
-a plan — could be a node. Earns agent status because Critic can reject a
+a plan - could be a node. Earns agent status because Critic can reject a
 plan and Planner re-runs with revision guidance, and because Planner can
 return an empty plan (refusal) when no specialist is appropriate. The
 revise-on-Critic-rejection loop is the reasoning.
@@ -562,7 +562,7 @@ We'd lose plan-quality recovery.
 
 ---
 
-## 5. Walking the *non-agent* nodes — why they aren't agents
+## 5. Walking the *non-agent* nodes - why they aren't agents
 
 For balance, here's why each non-agent node is correctly a node.
 
@@ -572,7 +572,7 @@ For balance, here's why each non-agent node is correctly a node.
 | **ContextBuilder** | Loads memory tiers and KB chunks per a fixed policy. If reasoning about *what to retrieve* is needed, it delegates to RetrievalAgent. |
 | **Router** | Pure switch statement over typed state. No reasoning, just dispatch. |
 | **CalcInvoker** | Wraps the Calc Service. The reasoning about *which formula to call* lives in the calling specialist, not here. |
-| **ToolCaller** | Wraps the Tool Router. Same as above — reasoning lives upstream. |
+| **ToolCaller** | Wraps the Tool Router. Same as above - reasoning lives upstream. |
 | **PersonaAdapter** | Single LLM call with persona-conditional prompt. No follow-up reasoning, no tool calls. |
 | **HITLGate** | Pure control flow: checkpoint, pause, emit event. No reasoning. |
 | **HITLResume** | Pure control flow: receive approval event, update state, route back. No reasoning. |
@@ -584,7 +584,7 @@ For balance, here's why each non-agent node is correctly a node.
 
 If any of these grow a "decide what to do next based on what we just saw"
 loop, they should be promoted to agents or have the new reasoning extracted
-into one. Be alert for this drift — it's how nodes silently become god-nodes.
+into one. Be alert for this drift - it's how nodes silently become god-nodes.
 
 ---
 
@@ -667,7 +667,7 @@ create the agent.
    can't plan, observe, and re-plan in one shot for non-trivial cases.")*
 5. **Is this reasoning reusable across at least two personas?**
    *(If yes → capability subagent. If no → think harder; almost always yes.)*
-6. **What's the collapse case — under what change would this become a tool
+6. **What's the collapse case - under what change would this become a tool
    or a node?**
    *(If you can't name a meaningful product loss, it probably shouldn't be
    an agent to begin with.)*
@@ -687,9 +687,9 @@ Pin this to your monitor:
 | Multi-step, choice of next step depends on prior result | **Capability subagent** |
 | Same reasoning, different tone per audience | **PersonaAdapter (one node)** |
 | Same reasoning, different threshold/RBAC per audience | **PolicyConfig parameter** |
-| Genuinely different reasoning per audience | (Rare — prove it before forking) |
+| Genuinely different reasoning per audience | (Rare - prove it before forking) |
 | Routes between agents based on state | **Router (node)** |
-| Wraps a deterministic call with an LLM "interpretation" | **Probably a tool — drop the LLM** |
+| Wraps a deterministic call with an LLM "interpretation" | **Probably a tool - drop the LLM** |
 | Workflow control (HITL, saga, approval routing) | **Workflow agent** |
 | Pure control flow (checkpoint, pause, exit) | **Node** |
 
@@ -699,12 +699,12 @@ Pin this to your monitor:
 
 The decomposition axis of this platform is **capability, not audience**.
 Capabilities are reasoning skills with plan-act-observe loops over external
-data — they earn being agents. Audiences are who's asking, and they vary on
-tone, RBAC, thresholds, cadence, and budget — they're parameters. Tools are
+data - they earn being agents. Audiences are who's asking, and they vary on
+tone, RBAC, thresholds, cadence, and budget - they're parameters. Tools are
 deterministic primitives that never reason; nodes are fixed graph steps with
 no internal decision-making. The orchestrator is exactly one and orchestrates
 across the capability subagents. Persona is one column of metadata that
-gates which capabilities are reachable and how the output is toned — never a
+gates which capabilities are reachable and how the output is toned - never a
 fork in the runtime, never a subagent boundary, never an orchestrator copy.
 Get this axis right and every future addition (new capability, new persona,
 new regulator, new region) is an additive change to the platform; get it

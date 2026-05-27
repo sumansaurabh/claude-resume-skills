@@ -1,4 +1,4 @@
-# Multi-Persona AI Banker — Shared Platform (R2 System Design Pack)
+# Multi-Persona AI Banker - Shared Platform (R2 System Design Pack)
 
 > Staff Engineer interview pack, Round 2 (System Design).
 > Pack archetype: `system-design` (v2). Agentic: yes. Knowledge base: yes.
@@ -6,7 +6,7 @@
 
 ## One-screen summary
 
-A **shared AI platform with persona-aware specialization** — Retail / SME / CFO
+A **shared AI platform with persona-aware specialization** - Retail / SME / CFO
 run on the same orchestrator, memory, tool router, and governance plane.
 Persona is a parameter, not a code fork. Financial math is deterministic;
 LLMs do reasoning and the conversational surface. Money-moving actions are
@@ -54,14 +54,14 @@ Read **`02-design-estimates.md`** before architecture if you have 15.
 
 ## Reference problem folders consumed (not solved)
 
-- `/Users/sumansaurabh/Documents/slcie/problems/spending_coach_agent/` — Retail
+- `/Users/sumansaurabh/Documents/slcie/problems/spending_coach_agent/` - Retail
   reference implementation; the platform's Retail lane subsumes it.
-- `/Users/sumansaurabh/Documents/slcie/problems/cash_flow_risk_detector/` —
+- `/Users/sumansaurabh/Documents/slcie/problems/cash_flow_risk_detector/` -
   open SME problem; the platform's SME lane subsumes it.
 
 ## Resume anchors used
 
-`resume.txt`, `blackbox-experience.md`, `microsoft-experience.md` — see
+`resume.txt`, `blackbox-experience.md`, `microsoft-experience.md` - see
 `00-question-and-context.md` for the load-bearing citations.
 
 ## How to extend

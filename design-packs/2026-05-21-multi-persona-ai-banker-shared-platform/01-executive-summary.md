@@ -1,4 +1,4 @@
-# 01 — Executive Summary
+# 01 - Executive Summary
 
 ## The One-Paragraph Answer
 
@@ -7,10 +7,10 @@ independent agents. Retail (coach), SME (operational cashflow), and CFO
 (governance-heavy treasury) share the same supervisor + specialist subagent
 runtime, the same memory tiers, the same tool router, and the same governance
 plane. Personas are a *parameter*: persona tag drives context injection, tool
-RBAC, proactive cadence, tone, and approval workflow — nothing else forks.
+RBAC, proactive cadence, tone, and approval workflow - nothing else forks.
 Financial math (balances, runway, payroll readiness, FX exposure) lives in a
 **deterministic Calculation Service** behind the tool router; the LLM never
-arithmetic. Money-moving actions are **risk-tiered** — low-risk auto, medium-risk
+arithmetic. Money-moving actions are **risk-tiered** - low-risk auto, medium-risk
 queued for review, high-risk approval workflow with audit and recoverability.
 The platform is event-driven for proactivity (salary credits, budget breaches,
 treasury imbalances) with priority, cooldowns, and fatigue prevention.
@@ -44,7 +44,7 @@ Observability is per-step trace + deterministic replay, drawing on the
    risk × tenant policy. Every sensitive action is auditable and recoverable.
 
 4. **Proactive intelligence is event-driven**, with prioritization, per-user
-   cooldowns, persona-specific fatigue limits, and a guaranteed audit trail —
+   cooldowns, persona-specific fatigue limits, and a guaranteed audit trail -
    not a cron job dumping notifications.
 
 5. **Observability and deterministic replay are first-class**, not afterthoughts.
@@ -97,7 +97,7 @@ Observability is per-step trace + deterministic replay, drawing on the
                                       │
                        ┌──────────────▼──────────────┐
                        │ Model Router (Claude/GPT/   │
-                       │ Grok) — capability-aware    │
+                       │ Grok) - capability-aware    │
                        └─────────────────────────────┘
                                       │
                        ┌──────────────▼──────────────┐
@@ -105,19 +105,19 @@ Observability is per-step trace + deterministic replay, drawing on the
                        │ OTel + ClickHouse + replay  │
                        └─────────────────────────────┘
 
-*Calc Service runs the deterministic financial math — the LLM never does arithmetic.
+*Calc Service runs the deterministic financial math - the LLM never does arithmetic.
 ```
 
 ## The Rollout Story (one paragraph)
 
 Ship **Retail first** because the blast radius of a wrong nudge is small (one user,
 one notification, no money moved). Use Retail to harden the deterministic
-boundary, observability, and HITL plumbing — these are exactly the things SME
+boundary, observability, and HITL plumbing - these are exactly the things SME
 and CFO depend on but cannot tolerate failures in. **SME** layers on cashflow
 forecasting, vendor/AR/AP tools, and team-of-one approval. **CFO** layers on
 multi-approver governance workflows, treasury operations, FX exposure, and
 sub-entity organizational context. Every persona reuses the same orchestrator,
-memory, tool router, and policy engine. New tools and new policies are added —
+memory, tool router, and policy engine. New tools and new policies are added -
 new orchestrators are *not*.
 
 ## The Strongest Resume Anchors For This Answer
@@ -145,7 +145,7 @@ new orchestrators are *not*.
   recoverability surface is what unlocks regulator and enterprise adoption.
 - **Observability is first-class infra.** Without per-step traces and
   deterministic replay, debugging a real financial-advice anomaly turns into
-  guesswork — exactly the problem the BlackBox LLMOps mesh was built to solve.
+  guesswork - exactly the problem the BlackBox LLMOps mesh was built to solve.
 
 ## What I Would Concede in Tradeoffs
 
@@ -158,4 +158,4 @@ new orchestrators are *not*.
   workflows.
 - **Cross-persona memory sharing is intentionally narrow.** An SME owner who
   is also a Retail customer of the same bank does not get auto-shared memory
-  unless they opt in — the privacy regression is not worth the convenience.
+  unless they opt in - the privacy regression is not worth the convenience.

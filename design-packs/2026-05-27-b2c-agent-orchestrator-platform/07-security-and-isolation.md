@@ -4,17 +4,17 @@
 
 ## Resume anchors used here
 
-- `(resume.txt:49-50)` — Golang-backed WASM sandbox plane, 1M+ daily zero-shot code executions, unblocking Enterprise SOC-2 compliance.
-- `(resume.txt:58-59)` — LLMOps telemetry mesh, 50M spans/day, 2.5TB+ monthly trace data, deterministic replay.
-- `(resume.txt:87-89)` — secure multi-tenant ML infrastructure on Kubernetes and Azure: isolation strategies for LLM workloads, GPU scheduling.
-- `(resume.txt:93-94)` — CodeQL + GitHub Advanced Security integrated into CI/CD; standardized threat modeling.
-- `(resume.txt:97-98)` — TunDRA, secure QUIC-based protocol in Rust, 1M+ Compute Instances.
-- `(microsoft-experience.md point 10,11)` — isolation strategies: VNet, subnet, NSG, private endpoints, managed identity, namespaces, network policies, pod security, storage ACLs.
-- `(microsoft-experience.md point 17)` — CodeQL + GitHub Advanced Security in CI/CD.
-- `(microsoft-experience.md point 18)` — standardized threat modeling for Microsoft compliance.
-- `(microsoft-experience.md point 33)` — threat modeling assets, trust boundaries, attack vectors, mitigations.
-- `(microsoft-experience.md point 34)` — secrets leakage prevention from jobs, logs, images, env vars, user-provided code.
-- `(blackbox-experience.md points 3-5)` — WASM sandbox plane isolating 1M+ daily executions, supporting SOC-2.
+- `(resume.txt:49-50)` - Golang-backed WASM sandbox plane, 1M+ daily zero-shot code executions, unblocking Enterprise SOC-2 compliance.
+- `(resume.txt:58-59)` - LLMOps telemetry mesh, 50M spans/day, 2.5TB+ monthly trace data, deterministic replay.
+- `(resume.txt:87-89)` - secure multi-tenant ML infrastructure on Kubernetes and Azure: isolation strategies for LLM workloads, GPU scheduling.
+- `(resume.txt:93-94)` - CodeQL + GitHub Advanced Security integrated into CI/CD; standardized threat modeling.
+- `(resume.txt:97-98)` - TunDRA, secure QUIC-based protocol in Rust, 1M+ Compute Instances.
+- `(microsoft-experience.md point 10,11)` - isolation strategies: VNet, subnet, NSG, private endpoints, managed identity, namespaces, network policies, pod security, storage ACLs.
+- `(microsoft-experience.md point 17)` - CodeQL + GitHub Advanced Security in CI/CD.
+- `(microsoft-experience.md point 18)` - standardized threat modeling for Microsoft compliance.
+- `(microsoft-experience.md point 33)` - threat modeling assets, trust boundaries, attack vectors, mitigations.
+- `(microsoft-experience.md point 34)` - secrets leakage prevention from jobs, logs, images, env vars, user-provided code.
+- `(blackbox-experience.md points 3-5)` - WASM sandbox plane isolating 1M+ daily executions, supporting SOC-2.
 
 ---
 
@@ -113,14 +113,14 @@ Anchored on `(microsoft-experience.md point 11)` (VNet, identity, managed identi
 - OAuth 2.0 with **PKCE** for the install flow; state parameter HMAC-signed and bound to user session.
 - Access tokens kept short-lived per provider policy; we store them only for the lifetime needed.
 - **Refresh tokens are rotated** on every use where the provider supports it (Google, Microsoft do).
-- Both access and refresh tokens are encrypted with a per-tenant DEK and stored only in the ConnectorBroker vault — see Section 4.
+- Both access and refresh tokens are encrypted with a per-tenant DEK and stored only in the ConnectorBroker vault - see Section 4.
 - Tokens are **never** exposed to skill code; the broker swaps `${TOKEN}` into outgoing requests at the egress proxy.
 
 ---
 
 ## 3. Network isolation
 
-Anchored on `(microsoft-experience.md point 10,11)` and `(resume.txt:87-89)` — VNet isolation patterns reused on AWS as VPC + subnets + PrivateLink.
+Anchored on `(microsoft-experience.md point 10,11)` and `(resume.txt:87-89)` - VNet isolation patterns reused on AWS as VPC + subnets + PrivateLink.
 
 ### 3.1 VPC layout
 
@@ -143,7 +143,7 @@ VPC
     └── VPC endpoints: S3 (Gateway), KMS, Secrets Manager, STS (PrivateLink)
 ```
 
-Only the public subnet has any inbound from the internet, and only on 443 to the NLB. The isolated subnets have **no route to 0.0.0.0/0** — all access from services is via VPC endpoints.
+Only the public subnet has any inbound from the internet, and only on 443 to the NLB. The isolated subnets have **no route to 0.0.0.0/0** - all access from services is via VPC endpoints.
 
 ### 3.2 Egress controls (per service)
 
@@ -166,7 +166,7 @@ Linkerd with strict mTLS for all east-west. Authorization policies:
 - Orchestrator may call Memory, RAG, ConnectorBroker, SkillExecutor.
 - SkillExecutor may call ConnectorBroker (only) for capability host functions.
 - Memory / RAG may not call ConnectorBroker.
-- **No pod can call another pod in a different tenant's logical scope** — tenancy is logical, not at pod level (we are not pod-per-tenant; see Section 5).
+- **No pod can call another pod in a different tenant's logical scope** - tenancy is logical, not at pod level (we are not pod-per-tenant; see Section 5).
 
 ### 3.4 WASM sandbox network policy
 
@@ -181,7 +181,7 @@ Anchored on `(resume.txt:49-50)` and `(blackbox-experience.md 3-5)`.
 
 ## 4. Secrets management
 
-Anchored on `(microsoft-experience.md point 17,34)` — secret leakage prevention from jobs, logs, container images, env vars, user-provided code.
+Anchored on `(microsoft-experience.md point 17,34)` - secret leakage prevention from jobs, logs, container images, env vars, user-provided code.
 
 ### 4.1 Layering
 
@@ -215,7 +215,7 @@ Ciphertext at rest (OAuth tokens, memory entries, RAG documents)
 
 - No secret in env vars at rest. Pods get secrets as ephemeral tmpfs mounts via CSI driver.
 - No secret in container images. CI fails the build if Trivy / gitleaks find one.
-- **Connector tokens are never decrypted into orchestrator memory** — the ConnectorBroker is the only service holding a DEK with `decrypt` permission, and tokens are spliced into requests inside the broker, so a compromise of any other service does not leak tokens. Anchored on `(microsoft-experience.md point 34)`.
+- **Connector tokens are never decrypted into orchestrator memory** - the ConnectorBroker is the only service holding a DEK with `decrypt` permission, and tokens are spliced into requests inside the broker, so a compromise of any other service does not leak tokens. Anchored on `(microsoft-experience.md point 34)`.
 
 ---
 
@@ -276,14 +276,14 @@ upload -> static scan -> sign -> publish -> on-demand spawn -> run -> kill -> ev
 - **Static scan at upload time**: forbidden imports (any non-WASI preview2 import), suspicious patterns (encoded shells, base64 blobs above N bytes), and a Trivy-equivalent SBOM scan over any embedded native dependencies. Anchored on `(microsoft-experience.md point 17)` (CodeQL + GHAS).
 - **Signing**: every published skill artifact is signed by the catalog signing key (cosign). The executor verifies signature before instantiation.
 - **Fresh instance per run**: no warm-pool reuse of Stores across tenants. (Warm pools are allowed only **within** a single tenant + single skill version + only when memory is zeroed.)
-- **Telemetry**: every fuel-exhaust, wall-clock-kill, memory-overflow, denied egress logged with the skill ID, version, tenant, and a hashed source span — feeds the catalog's abuse signal.
+- **Telemetry**: every fuel-exhaust, wall-clock-kill, memory-overflow, denied egress logged with the skill ID, version, tenant, and a hashed source span - feeds the catalog's abuse signal.
 
 ### 6.4 Why WASM (not Docker / gVisor / Firecracker)
 
 - Cold start in single-digit milliseconds vs hundreds of ms for microVM. At 1M+ executions/day we cannot pay microVM cold start. `(resume.txt:49)`
 - Deterministic fuel metering gives us replay-friendly CPU bounds. Important for `(resume.txt:58-59)` deterministic replay.
 - WASI preview2 surface is provably smaller than a Linux syscall surface.
-- Tradeoff acknowledged: WASM is weaker than gVisor/Firecracker against *kernel* escape because it shares the host kernel — we mitigate by running executors on a dedicated nodepool with seccomp, AppArmor, and no privileged capabilities. If a future skill type needs full Linux (e.g. `pip install`), it goes to a Firecracker pool instead.
+- Tradeoff acknowledged: WASM is weaker than gVisor/Firecracker against *kernel* escape because it shares the host kernel - we mitigate by running executors on a dedicated nodepool with seccomp, AppArmor, and no privileged capabilities. If a future skill type needs full Linux (e.g. `pip install`), it goes to a Firecracker pool instead.
 
 ---
 
@@ -302,7 +302,7 @@ This is the unique-to-this-system risk: skill code wants to talk to **third-part
 
 - The ConnectorBroker is the **only** service with `decrypt` permission for connector DEKs.
 - Skill code never sees a raw OAuth token. The capability host function takes a target host and request payload; the broker injects `Authorization: Bearer …` at the egress proxy.
-- Tokens are tagged at trace ingestion and redacted before reaching Langfuse / ClickHouse — anchored on `(resume.txt:58-59)` telemetry mesh.
+- Tokens are tagged at trace ingestion and redacted before reaching Langfuse / ClickHouse - anchored on `(resume.txt:58-59)` telemetry mesh.
 
 ### 7.3 Per-agent connector ACL
 
@@ -335,7 +335,7 @@ Example: a `Calendar Triage` agent gets `gmail.read` but **not** `gmail.send`. E
 
 - Detection at ingestion (see `14-ingestion-pipeline.md`); flagged spans get a `pii=true` tag in pgvector metadata and a redaction rule applies to logs and traces.
 - Logs are scrubbed by a Fluent Bit pipeline before they leave the cluster; redaction rules are unit-tested.
-- The **Langfuse trace mesh** (`resume.txt:58-59`) honors per-tenant redaction tags — sensitive fields are masked at write time.
+- The **Langfuse trace mesh** (`resume.txt:58-59`) honors per-tenant redaction tags - sensitive fields are masked at write time.
 
 ### 8.3 GDPR right-to-erase
 
@@ -364,7 +364,7 @@ Anchored on `(resume.txt:93-94)` and `(microsoft-experience.md point 17)`.
 | First-party container images | Built in GHA on hardened runners; signed with cosign (keyless via Sigstore + GitHub OIDC); SBOM (CycloneDX) attached as attestation; scanned by Trivy on every push |
 | Image admission | Kyverno policy in cluster: refuse to admit any image not signed by our build identity; refuse images with Critical CVEs older than 14 days |
 | Dependencies (Go, Rust, TS) | Renovate + GitHub Dependabot; pinned versions in lockfiles; `govulncheck` / `cargo audit` / `npm audit` gates in CI |
-| Static analysis | CodeQL on all PRs — anchored on `(resume.txt:93-94)` and `(microsoft-experience.md point 17)`; semgrep custom rules for our internal anti-patterns |
+| Static analysis | CodeQL on all PRs - anchored on `(resume.txt:93-94)` and `(microsoft-experience.md point 17)`; semgrep custom rules for our internal anti-patterns |
 | Secrets in source | gitleaks pre-commit + CI; PR blocked on hit |
 | Third-party (catalog) skill packages | Signature required (publisher key registered at developer onboarding); optional human review for skills that request high-risk scopes (Gmail.send, Drive.write) or wide egress allowlists |
 | Build environment | OIDC-only secrets; no long-lived deploy keys; ephemeral runners |
@@ -378,17 +378,17 @@ Anchored on `(microsoft-experience.md point 18,33)`.
 
 | # | Threat | STRIDE | Where it lives | Mitigation | Detection |
 |---|---|---|---|---|---|
-| 1 | Cross-tenant memory leak — skill or service returns tenant B's data to tenant A | T + I | Postgres, pgvector, Redis | RLS on Postgres, query-wrapper-enforced namespace on pgvector, key prefix on Redis; CI deny-test on every PR | Periodic synthetic queries from a fake tenant against a real tenant's data; alert on any non-404 |
+| 1 | Cross-tenant memory leak - skill or service returns tenant B's data to tenant A | T + I | Postgres, pgvector, Redis | RLS on Postgres, query-wrapper-enforced namespace on pgvector, key prefix on Redis; CI deny-test on every PR | Periodic synthetic queries from a fake tenant against a real tenant's data; alert on any non-404 |
 | 2 | OAuth token theft from connector vault | I | ConnectorBroker, Vault, Postgres | Per-tenant DEK; only broker can decrypt; tokens never in logs/traces (redaction); IAM scoped so even broker can't read another tenant's DEK without an audited Vault policy decision | Anomaly detection on Vault decrypt rate per tenant; alert on decrypt from outside broker SPIFFE ID |
 | 3 | Malicious skill code escapes WASM sandbox | E | SkillExecutor host | wasmtime + WASI preview2 only, fuel + memory bound, no syscalls, dedicated nodepool with seccomp + no privileged caps; signed images only | Anomaly on host-level syscall audit (auditd); fail closed on any unexpected syscall from the executor process |
-| 4 | Connector misuse — skill calls `Gmail.delete` or sends to thousands when granted `gmail.read` only | T | ConnectorBroker | Per-agent ACL enforced at broker; broker matches outbound method+host+path against ACL before egress | Audit log diff: any denied call surfaces in user-visible activity feed |
+| 4 | Connector misuse - skill calls `Gmail.delete` or sends to thousands when granted `gmail.read` only | T | ConnectorBroker | Per-agent ACL enforced at broker; broker matches outbound method+host+path against ACL before egress | Audit log diff: any denied call surfaces in user-visible activity feed |
 | 5 | Webhook replay (third party replays a delivery, or attacker replays a leaked signed payload) | S | Inbound webhook endpoint | HMAC signature verify + 5-minute timestamp window + nonce store (Redis, 24h TTL) | Spike in `replay_rejected` metric |
-| 6 | DoS via expensive runs — attacker installs an agent that runs forever or burns LLM quota | D | Orchestrator, model router | Per-tenant + per-user concurrency caps; per-skill fuel budget; per-tenant LLM token quota with circuit-breaker; backpressure to 429 | Alert on per-tenant spend rate p99 |
-| 7 | Catalog SEO spam — bad actor publishes thousands of low-quality agents | R | Catalog | Publisher identity verification (email + payment hold); rate limit on publish; quality signals + manual review for trending; takedown workflow | Catalog moderation queue + report-this-agent button |
+| 6 | DoS via expensive runs - attacker installs an agent that runs forever or burns LLM quota | D | Orchestrator, model router | Per-tenant + per-user concurrency caps; per-skill fuel budget; per-tenant LLM token quota with circuit-breaker; backpressure to 429 | Alert on per-tenant spend rate p99 |
+| 7 | Catalog SEO spam - bad actor publishes thousands of low-quality agents | R | Catalog | Publisher identity verification (email + payment hold); rate limit on publish; quality signals + manual review for trending; takedown workflow | Catalog moderation queue + report-this-agent button |
 | 8 | Prompt or code injection that exfiltrates secrets via outbound network | I | WASM sandbox + ConnectorBroker | Zero-egress default; per-skill egress allowlist; tokens never available to skill code | Egress proxy logs every host + bytes; alert on unusual destination |
 | 9 | Compromised LLM provider (rare but real) | T + I | LLM router | No sensitive secrets in prompts (we strip before send); provider-isolated keys per tenant tier; fast failover to alternate provider | Provider health probe + canary; correlation of failures across tenants |
 | 10 | Stolen end-user session | S | Browser, edge | Passkey-bound sessions; refresh token rotation with device-fingerprint binding; step-up auth for high-risk actions | Anomalous device or IP class triggers re-auth |
-| 11 | Insider threat — engineer reads tenant memory | T + I | Internal ops | Just-in-time access via Vault; all production access logged with reason; per-tenant DEKs require a Vault policy decision visible in audit; engineers cannot read connector tokens at all | Vault audit log + weekly review |
+| 11 | Insider threat - engineer reads tenant memory | T + I | Internal ops | Just-in-time access via Vault; all production access logged with reason; per-tenant DEKs require a Vault policy decision visible in audit; engineers cannot read connector tokens at all | Vault audit log + weekly review |
 | 12 | Supply-chain compromise of a skill dependency | T | Catalog, build | SBOM + Trivy on skill bundles; signature pinning; publisher key compromise -> revocation list checked at executor spawn | New CVE on a pinned dep auto-triggers re-scan and quarantine |
 
 ---
@@ -399,7 +399,7 @@ Anchored on `(resume.txt:49-50)` (the WASM sandbox plane was the SOC-2 enabler) 
 
 | Standard | Target | Notes |
 |---|---|---|
-| SOC-2 Type II | within 12 months of GA | Controls already in place from day 1: access control, change management, encryption, monitoring. The WASM sandbox plane is the architectural enabler — anchored on `(resume.txt:49-50)`. |
+| SOC-2 Type II | within 12 months of GA | Controls already in place from day 1: access control, change management, encryption, monitoring. The WASM sandbox plane is the architectural enabler - anchored on `(resume.txt:49-50)`. |
 | GDPR | day one | Right to access (`GET /v1/me/export`), right to erase (Section 8.3), data residency (Section 8.4), DPA + SCC templates ready |
 | ISO 27001 | year 2 | builds on SOC-2 evidence |
 | HIPAA / FedRAMP | not in scope for B2C MVP | call-out for enterprise tier if needed |
@@ -409,14 +409,14 @@ Anchored on `(resume.txt:49-50)` (the WASM sandbox plane was the SOC-2 enabler) 
 
 ## 12. Audit logging
 
-Anchored on `(resume.txt:58-59)` — telemetry mesh, 50M spans/day, 2.5TB+ trace data, deterministic replay; the audit log is a sibling stream into ClickHouse.
+Anchored on `(resume.txt:58-59)` - telemetry mesh, 50M spans/day, 2.5TB+ trace data, deterministic replay; the audit log is a sibling stream into ClickHouse.
 
 ### 12.1 Streams
 
 | Stream | Sink | Retention | Use |
 |---|---|---|---|
 | Admin audit (control plane actions: connector grants, skill installs, scope changes, deletions) | Append-only ClickHouse `audit_events` table; segments hash-chained, signed daily by KMS; mirrored to S3 Object Lock (compliance mode) | 1 year (7 years for flagged tenants) | SOC-2 evidence, incident IR |
-| Per-run trace lineage (tool calls, LLM calls, retrieval, memory reads/writes) | ClickHouse `run_spans` | 30 days hot, 90 days cold, then summary | Deterministic replay + debugging — anchored on `(resume.txt:58-59)` |
+| Per-run trace lineage (tool calls, LLM calls, retrieval, memory reads/writes) | ClickHouse `run_spans` | 30 days hot, 90 days cold, then summary | Deterministic replay + debugging - anchored on `(resume.txt:58-59)` |
 | Security events (auth failures, denied egress, scope violations, RLS denies) | ClickHouse `security_events`; high-severity also paged | 1 year | IR, anomaly detection |
 | Data-access log (which service read which row of which tenant) | ClickHouse `data_access` | 90 days | Insider-threat detection |
 
@@ -429,7 +429,7 @@ Every authenticated user has a UI page that surfaces:
 - export, delete, login events
 - session active devices
 
-This is the trust signal that converts "you have my Gmail token" into "I can see exactly what you did with it" — a B2C transparency promise.
+This is the trust signal that converts "you have my Gmail token" into "I can see exactly what you did with it" - a B2C transparency promise.
 
 ### 12.3 Integrity
 
@@ -441,6 +441,6 @@ This is the trust signal that converts "you have my Gmail token" into "I can see
 
 ## Surviving design decisions
 
-- WASM over microVM is a deliberate tradeoff: we trade some kernel-level isolation strength for cold-start latency and deterministic replay. For skill classes that need full Linux (rare), we route to a Firecracker pool instead — that pool is a 10x cost-per-execution surface.
+- WASM over microVM is a deliberate tradeoff: we trade some kernel-level isolation strength for cold-start latency and deterministic replay. For skill classes that need full Linux (rare), we route to a Firecracker pool instead - that pool is a 10x cost-per-execution surface.
 - Logical multi-tenancy (shared DB, RLS) over physical (DB-per-tenant) is justified up to single-digit thousands of tenants. The migration to per-tenant Postgres clusters is pre-designed but not built.
 - ConnectorBroker as the only token-holder is a single point of failure for connector availability. We accept that to make token blast-radius zero from any other compromise.

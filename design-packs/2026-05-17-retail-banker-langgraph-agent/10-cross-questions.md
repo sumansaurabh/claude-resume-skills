@@ -110,7 +110,7 @@ as the BlackBox model router (`resume.txt` L55-56).
 
 **Q13. "Your peak is 900 turns/sec. The router LLM is 150ms. That's
 135 concurrent LLM calls just for routing. Does that hold?"**
-At provider concurrency limits, yes — Anthropic's enterprise tier
+At provider concurrency limits, yes - Anthropic's enterprise tier
 supports it; we keep a per-provider semaphore plus per-route headroom.
 Beyond that, we pin a quantized Haiku-class for routing in our own
 VPC; routing is a classification task and a small model handles it.
@@ -119,7 +119,7 @@ Cost and concurrency both improve.
 **Q14. "What if Core Banking is slow on the 1st of the month?"**
 `context_fetch` runs in parallel with circuit breakers. If balances
 return but txns don't, we degrade to "I have your balance but not
-your transactions right now — try again in a few minutes." We also
+your transactions right now - try again in a few minutes." We also
 pre-warm balance cache for the top-decile users 30 min before
 salary-credit windows we predict from history.
 
@@ -130,7 +130,7 @@ nondeterministic?"**
 It means the *inputs* are pinned: original state, original tool
 envelopes (input + output), original model versions, original
 policy bundle hash. Two replay modes: Fixture (reuses captured tool
-outputs — auditable, deterministic) and Live (re-executes tools —
+outputs - auditable, deterministic) and Live (re-executes tools -
 catches drift). Same dual-mode pattern we ran at BlackBox for AI
 logic anomalies; cut MTTR by 60% (`resume.txt` L58-59).
 
@@ -178,7 +178,7 @@ calibrated language pair based on telemetry.
 
 **Q21. "How do you bring this live without one bad answer becoming a
 front-page story?"**
-- Phase 1: shadow mode — agent runs but doesn't ship answers; we
+- Phase 1: shadow mode - agent runs but doesn't ship answers; we
   compare to human banker outputs.
 - Phase 2: 1% canary on low-risk intents (balance lookup, FAQ).
 - Phase 3: expand intents one at a time, each gated by a stable
@@ -192,5 +192,5 @@ front-page story?"**
 LLMOps (eval, replay, model routing), 2 product / linguist for tone
 and intents, 1 security partner, 1 compliance partner. This is the
 same shape as the BlackBox agentic platform team I led
-(`resume.txt` L51-52, `blackbox-experience.md` #6) — different
+(`resume.txt` L51-52, `blackbox-experience.md` #6) - different
 domain, same skeleton.

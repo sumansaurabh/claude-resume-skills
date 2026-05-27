@@ -82,7 +82,7 @@ The output should feel like a principal engineer answer, not a generic tutorial:
 
 ## Agentic System Detection
 
-Before choosing lanes, determine whether the question describes or requires an **agentic system** — one where autonomous agents execute multi-step tasks, call tools, maintain memory, and hand off to other agents.
+Before choosing lanes, determine whether the question describes or requires an **agentic system** - one where autonomous agents execute multi-step tasks, call tools, maintain memory, and hand off to other agents.
 
 A question is agentic when it contains at least two of the following signals:
 
@@ -95,35 +95,35 @@ When the question is agentic, set `isAgentic: true` in `manifest.json`, activate
 
 ## Agentic Design Estimates Checklist
 
-When `isAgentic: true`, the design-estimates lane MUST reason through all 20 points below **before** writing `02-design-estimates.md`. Each point requires a concrete answer or an explicit assumption — "TBD" is not acceptable. The answers drive the architecture, capacity model, and graph structure that follow.
+When `isAgentic: true`, the design-estimates lane MUST reason through all 20 points below **before** writing `02-design-estimates.md`. Each point requires a concrete answer or an explicit assumption - "TBD" is not acceptable. The answers drive the architecture, capacity model, and graph structure that follow.
 
-1. **State persistence** — what agent state survives a crash or coordinator restart, and what is recomputed?
-2. **Idempotency of tool calls** — when a node re-executes after a retry, which tool calls are safe to repeat and which must be deduplicated via idempotency keys?
-3. **Cycle detection and loop prevention** — how does the graph detect and break infinite ReAct loops or back-edges that never converge?
-4. **Parallel subgraph execution and join semantics** — when two subgraphs run concurrently, what does the join node do if one subgraph fails, times out, or returns a partial result?
-5. **Conditional edge logic** — how is branching evaluated (model output, rule-based, score threshold), and who is responsible for the routing decision?
-6. **Human-in-the-loop interrupt and resume** — at which nodes can a human pause, inspect, or redirect execution, and how does the graph checkpoint before the interrupt?
-7. **Short-term, long-term, and episodic memory separation** — what lives in the run context, what is persisted to a vector store, and what is summarized into episodic snapshots?
-8. **Tool routing** — which agent node is authorized to call which tools, and how is that enforced at the graph level (not just in the prompt)?
-9. **Tool failure handling per node** — what is the retry policy when a tool returns an error, and when does the graph route to a fallback node vs halt the run?
-10. **Agent-to-agent communication protocol** — do agents share a mutable state object, pass messages on a queue, or write/read from a shared scratchpad, and what are the consistency guarantees?
-11. **Concurrent run isolation at 1M users** — how are agent runs isolated at the tenant boundary (separate threads, processes, WASM sandboxes, or ephemeral pods), and what prevents prompt or data bleed?
-12. **Latency budget per graph hop** — what is the p99 latency target for a single node execution, and what is the total latency budget for a full multi-hop run?
-13. **Checkpoint and resume from mid-graph** — can a run resume from an arbitrary intermediate node after a failure, or only from the start?
-14. **Versioning of graph definitions during live traffic** — when the agent graph schema changes (new node, deleted edge), how are in-flight runs that were started under the old schema handled?
-15. **Multi-tenant isolation** — what prevents one tenant's agent run from reading another tenant's tool outputs, memory, or intermediate state?
-16. **Prompt injection through tool outputs** — if an external tool (web search, code executor, API call) returns adversarial content, what sanitization layer prevents it from hijacking the agent's next action?
-17. **Token budget enforcement per run** — how is per-run token spend tracked and capped, and what does the graph do when a run approaches the limit mid-execution?
-18. **Partial execution failure and rollback semantics** — if a node at step N of an M-step plan fails with side effects already applied (e.g., a file written, an email sent), what is the compensation logic?
-19. **Observability: tracing a stuck or looping graph** — what does the on-call engineer look at when a run appears to be hung, and how is a specific graph hop identified as the bottleneck?
-20. **Scale model** — what is the expected peak concurrent graph runs, average fan-out per planner node, and where is the coordinator bottleneck under that load?
+1. **State persistence** - what agent state survives a crash or coordinator restart, and what is recomputed?
+2. **Idempotency of tool calls** - when a node re-executes after a retry, which tool calls are safe to repeat and which must be deduplicated via idempotency keys?
+3. **Cycle detection and loop prevention** - how does the graph detect and break infinite ReAct loops or back-edges that never converge?
+4. **Parallel subgraph execution and join semantics** - when two subgraphs run concurrently, what does the join node do if one subgraph fails, times out, or returns a partial result?
+5. **Conditional edge logic** - how is branching evaluated (model output, rule-based, score threshold), and who is responsible for the routing decision?
+6. **Human-in-the-loop interrupt and resume** - at which nodes can a human pause, inspect, or redirect execution, and how does the graph checkpoint before the interrupt?
+7. **Short-term, long-term, and episodic memory separation** - what lives in the run context, what is persisted to a vector store, and what is summarized into episodic snapshots?
+8. **Tool routing** - which agent node is authorized to call which tools, and how is that enforced at the graph level (not just in the prompt)?
+9. **Tool failure handling per node** - what is the retry policy when a tool returns an error, and when does the graph route to a fallback node vs halt the run?
+10. **Agent-to-agent communication protocol** - do agents share a mutable state object, pass messages on a queue, or write/read from a shared scratchpad, and what are the consistency guarantees?
+11. **Concurrent run isolation at 1M users** - how are agent runs isolated at the tenant boundary (separate threads, processes, WASM sandboxes, or ephemeral pods), and what prevents prompt or data bleed?
+12. **Latency budget per graph hop** - what is the p99 latency target for a single node execution, and what is the total latency budget for a full multi-hop run?
+13. **Checkpoint and resume from mid-graph** - can a run resume from an arbitrary intermediate node after a failure, or only from the start?
+14. **Versioning of graph definitions during live traffic** - when the agent graph schema changes (new node, deleted edge), how are in-flight runs that were started under the old schema handled?
+15. **Multi-tenant isolation** - what prevents one tenant's agent run from reading another tenant's tool outputs, memory, or intermediate state?
+16. **Prompt injection through tool outputs** - if an external tool (web search, code executor, API call) returns adversarial content, what sanitization layer prevents it from hijacking the agent's next action?
+17. **Token budget enforcement per run** - how is per-run token spend tracked and capped, and what does the graph do when a run approaches the limit mid-execution?
+18. **Partial execution failure and rollback semantics** - if a node at step N of an M-step plan fails with side effects already applied (e.g., a file written, an email sent), what is the compensation logic?
+19. **Observability: tracing a stuck or looping graph** - what does the on-call engineer look at when a run appears to be hung, and how is a specific graph hop identified as the bottleneck?
+20. **Scale model** - what is the expected peak concurrent graph runs, average fan-out per planner node, and where is the coordinator bottleneck under that load?
 
 After answering all 20 points, use the answers to populate the capacity estimates, functional requirements, and non-functional requirements subsections of `02-design-estimates.md`. Mark any point answered by assumption rather than resume evidence.
 
 ## Memory Layer Checklist
 
 When `isAgentic: true`, Lane 13 must answer all 15 points below before writing
-`13-memory-layer-design.md`. Each point must be a concrete subsection in the file —
+`13-memory-layer-design.md`. Each point must be a concrete subsection in the file -
 not a paragraph mention inside a larger section. "Not applicable" requires a one-sentence
 justification; silence is not acceptable.
 
@@ -137,7 +137,7 @@ The diagram must include, at minimum:
   grouped as a `subgraph` per physical store when multiple memory types share a backend.
 - Read and write edges from each agent node (use the node names from
   `12-agentic-graph-structure.md`) into the memory types they touch. Distinguish reads
-  from writes — either with solid (`-->`) vs dotted (`-.->`) edges, or with edge labels
+  from writes - either with solid (`-->`) vs dotted (`-.->`) edges, or with edge labels
   (`-- write -->`, `-- read -->`).
 - The embedding model from point 6 as a shared node with edges into every vector-backed
   memory type, so embedding-model consistency is visible without scanning the prose.
@@ -148,54 +148,54 @@ The diagram must include, at minimum:
 Node IDs in this diagram MUST match the agent node names used in
 `12-agentic-graph-structure.md`. If they diverge, the in-loop critic will flag it.
 
-1. **Memory taxonomy** — enumerate each memory type in the system (working/short-term,
+1. **Memory taxonomy** - enumerate each memory type in the system (working/short-term,
    long-term semantic, episodic, procedural/skill), state its purpose, and identify which
    agent nodes read and write each type.
-2. **Storage backend per type** — for each memory type, name the backing store (Redis,
+2. **Storage backend per type** - for each memory type, name the backing store (Redis,
    Postgres, Pinecone, Weaviate, pgvector, in-process dict, etc.) and justify the choice
    against at least one alternative.
-3. **Write triggers** — specify exactly when memory is written: after every agent turn,
+3. **Write triggers** - specify exactly when memory is written: after every agent turn,
    after task completion, on explicit save instruction, when an importance score exceeds a
    threshold, or on a scheduled flush. State who decides (the model, a rule, or the user).
-4. **Retrieval strategy** — describe how relevant memories are surfaced: semantic vector
+4. **Retrieval strategy** - describe how relevant memories are surfaced: semantic vector
    search, recency ranking, importance scoring, BM25 keyword, or a hybrid. State the
    similarity threshold or top-K cutoff and what happens when no memory clears the bar.
-5. **Context window budget allocation** — how many tokens are reserved for retrieved
+5. **Context window budget allocation** - how many tokens are reserved for retrieved
    memories in the prompt, how the budget is split across memory types, and what the
    eviction order is when retrieved memories exceed the budget.
-6. **Embedding model selection and consistency** — which model produces embeddings, what
+6. **Embedding model selection and consistency** - which model produces embeddings, what
    the vector dimension is, and what happens to stored embeddings when the model is
    upgraded (re-indexing strategy or version tagging).
-7. **Memory eviction and TTL** — what expires (and when), what is retained indefinitely,
+7. **Memory eviction and TTL** - what expires (and when), what is retained indefinitely,
    and who sets the policy (system default, per-tenant config, or per-user preference).
-8. **Memory consolidation** — describe how short-term memories are promoted to long-term:
+8. **Memory consolidation** - describe how short-term memories are promoted to long-term:
    summarization cadence, importance-scoring function, and the merge or de-duplication
    strategy when new memories conflict with stored ones.
-9. **Cross-tenant memory isolation** — explain the isolation boundary that prevents one
+9. **Cross-tenant memory isolation** - explain the isolation boundary that prevents one
    tenant's agent from retrieving another tenant's stored memories. Name the enforcement
    mechanism (namespace prefix, row-level security, separate index, or separate store).
-10. **Memory poisoning and injection via retrieval** — if adversarial or malformed content
+10. **Memory poisoning and injection via retrieval** - if adversarial or malformed content
     was stored in memory (e.g., from a previous tool output), what sanitization layer
     prevents it from hijacking the next agent turn when retrieved.
-11. **Memory staleness detection** — how outdated memories are identified (timestamp-based,
+11. **Memory staleness detection** - how outdated memories are identified (timestamp-based,
     contradiction detection, confidence decay) and what action is taken: suppress, flag,
     update, or delete.
-12. **Retrieval latency budget** — state the p99 retrieval target (e.g., <50 ms) and show
+12. **Retrieval latency budget** - state the p99 retrieval target (e.g., <50 ms) and show
     how it fits within the per-hop latency budget from the agentic design. Name the index
     type (HNSW, IVF-Flat, etc.) and the approximate-vs-exact tradeoff made.
-13. **Memory at scale** — estimate storage growth rate per active user per day, total
+13. **Memory at scale** - estimate storage growth rate per active user per day, total
     index size at 1M users, and retrieval latency degradation under that load. Show the
     arithmetic.
-14. **Memory observability and debugging** — describe what an on-call engineer looks at
+14. **Memory observability and debugging** - describe what an on-call engineer looks at
     when a run retrieved the wrong memory or missed a relevant one: which logs, metrics,
     or trace spans are present, and what the remediation path is.
-15. **Memory schema versioning** — what happens when the embedding dimension changes, a
+15. **Memory schema versioning** - what happens when the embedding dimension changes, a
     memory type is added or removed, or the schema of a stored memory object changes for
     in-flight or archived memories.
 
 Lane 13 runs concurrently with lanes 11 and 12. It does not depend on their output and
 must not block waiting for them. The file it produces (`13-memory-layer-design.md`) is
-standalone — it should not require the reader to cross-reference `12-agentic-graph-structure.md`.
+standalone - it should not require the reader to cross-reference `12-agentic-graph-structure.md`.
 
 ## Ingestion Pipeline Checklist
 
@@ -204,7 +204,7 @@ below before writing `14-ingestion-pipeline.md`. Each point must be a concrete s
 "Not applicable" requires a one-sentence justification.
 
 RAG-as-tool-call (agent explicitly invokes a `search()` tool) lives in
-`04-api-and-contracts.md` and `05-low-level-design.md` — not here. This file covers
+`04-api-and-contracts.md` and `05-low-level-design.md` - not here. This file covers
 the **write path**: how external content flows into the stores the agent reads from.
 
 Before point 1, the file MUST open with a `## Overview Diagram` section containing a
@@ -230,87 +230,87 @@ without reading 15 paragraphs. The diagram must include, at minimum:
   `13-memory-layer-design.md` point 6. If the names diverge, the in-loop critic will
   flag the embedding-model mismatch from the diagram alone, without scanning prose.
 
-1. **Ingestion triggers** — what initiates ingestion: user upload event, webhook from
+1. **Ingestion triggers** - what initiates ingestion: user upload event, webhook from
    an external system, scheduled crawler, API push, or real-time event stream. State
    whether ingestion is synchronous (caller waits for indexing) or asynchronous
    (caller gets an async job ID).
-2. **Chunking strategy** — fixed-size, sentence-boundary, semantic, hierarchical, or
+2. **Chunking strategy** - fixed-size, sentence-boundary, semantic, hierarchical, or
    document-structure-aware chunking. State chunk size (tokens), overlap (tokens), and
    the rationale for the choice relative to the retrieval use case.
-3. **Embedding pipeline** — which model embeds chunks, batching strategy (batch size,
+3. **Embedding pipeline** - which model embeds chunks, batching strategy (batch size,
    throughput target), and whether embedding is CPU or GPU. **This model must match
    the embedding model named in `13-memory-layer-design.md` point 6.** If they differ,
    flag it explicitly and explain how the inconsistency is resolved.
-4. **Index write path** — how embedded chunks reach the vector store: synchronous
+4. **Index write path** - how embedded chunks reach the vector store: synchronous
    direct write, async queue-backed (Kafka, SQS), or streaming. State what happens
    on write failure: retry policy, dead-letter destination, and whether the document
    is partially or fully visible during a write.
-5. **Deduplication** — how duplicate or near-duplicate content is detected: content
+5. **Deduplication** - how duplicate or near-duplicate content is detected: content
    hash (exact), MinHash (near-duplicate), or semantic similarity threshold. State
    the action taken on a detected duplicate: skip, merge, or replace.
-6. **Document versioning** — when a document is updated, how its previous chunks are
+6. **Document versioning** - when a document is updated, how its previous chunks are
    invalidated and replaced in the index. State whether old chunks are tombstoned
    (soft delete) or physically removed, and the staleness window between update and
    old chunks expiring from query results.
-7. **Re-indexing on embedding model upgrade** — when the embedding model changes
+7. **Re-indexing on embedding model upgrade** - when the embedding model changes
    (new model, dimension change), describe the re-indexing strategy: full re-index
    offline, lazy re-index on next retrieval miss, or dual-index with version tagging.
    State how query correctness is maintained during the transition window.
-8. **Freshness and TTL** — how indexed content that should expire is identified and
+8. **Freshness and TTL** - how indexed content that should expire is identified and
    evicted. State whether TTL is set at ingestion time (per-document metadata) or
    centrally (policy-driven), and what triggers a re-crawl or re-ingest.
-9. **Ingestion throughput and latency** — peak documents/sec the pipeline must handle,
+9. **Ingestion throughput and latency** - peak documents/sec the pipeline must handle,
    p99 latency from document arrival to queryable in the index, and queue depth under
    peak load. Show the arithmetic anchored on the capacity model in `02-design-estimates.md`.
-10. **Multi-tenant isolation in the index** — how one tenant's ingested content is
+10. **Multi-tenant isolation in the index** - how one tenant's ingested content is
     isolated from another's: namespace prefix, separate index per tenant, row-level
     filter enforced at query time, or hybrid. State the enforcement point and the
     failure mode if isolation is bypassed.
-11. **Content filtering and safety** — what pre-processing happens before content is
+11. **Content filtering and safety** - what pre-processing happens before content is
     indexed: PII detection and redaction, malicious content or prompt-injection
     screening, format validation, and size limits. State what happens to content
     that fails a filter (reject, quarantine, or partial ingest).
-12. **Ingestion observability** — which metrics and logs exist for: ingestion lag
+12. **Ingestion observability** - which metrics and logs exist for: ingestion lag
     (time from trigger to queryable), failure rate per document type, dead-letter
     queue depth, and index size growth. State the alert threshold for each.
-13. **Scale model** — estimated document count at 1M users, total vector index size
+13. **Scale model** - estimated document count at 1M users, total vector index size
     (GB), monthly storage cost, monthly embedding compute cost, and growth rate.
     Show the arithmetic. Flag any tier where cost grows super-linearly with users.
-14. **Error handling and dead-letter** — full error taxonomy: embedding failure,
+14. **Error handling and dead-letter** - full error taxonomy: embedding failure,
     index write failure, chunking error, filter rejection. Per error type: retry
     count, backoff, dead-letter destination, and whether the user is notified.
-15. **Access control on ingested content** — who can query which content. State
+15. **Access control on ingested content** - who can query which content. State
     whether ACLs are enforced at ingestion time (content tagged with tenant/user
     scope at index time) or at query time (filter injected into every retrieval
     call). Explain the failure mode if the ACL enforcement point is bypassed.
 
 Lane 14 runs concurrently with lanes 11–13. The embedding model consistency check
-(point 3 vs `13-memory-layer-design.md` point 6) is the only cross-lane dependency —
+(point 3 vs `13-memory-layer-design.md` point 6) is the only cross-lane dependency -
 note the inconsistency in the file if it exists; do not block lane completion waiting
 for lane 13 to finish. The file it produces (`14-ingestion-pipeline.md`) is standalone.
 
 ## Guardrails Checklist
 
 When `isAgentic: true`, Lane 15 must answer all 15 points below before writing
-`15-guardrails.md`. Each point must be a concrete subsection — not a mention inside
+`15-guardrails.md`. Each point must be a concrete subsection - not a mention inside
 a larger paragraph. "Not applicable" requires a one-sentence justification.
 
 Do NOT duplicate content from `07-security-and-isolation.md` (which covers
 infrastructure security: network, identity, secrets). This file covers **behavioral
-and content safety** — the enforcement layer that governs what the agent is allowed
+and content safety** - the enforcement layer that governs what the agent is allowed
 to do and say at runtime.
 
 Before point 1, the file MUST open with a `## Overview Diagram` section containing a
 Mermaid `graph TD` (or `flowchart TD`) of the full enforcement pipeline from user
 input to user output. The diagram is what shows that the agent is actually *protected*
-end-to-end — without it, a reader has to assemble the pipeline mentally from 15
+end-to-end - without it, a reader has to assemble the pipeline mentally from 15
 disconnected prose points. The diagram must include, at minimum:
 
 - The full happy-path chain in order: user input → input guardrails (point 1) →
   planner / agent node → tool-call validator (point 3) → tool → tool-output sanitizer
   (point 8) → next agent step → output guardrails (point 2) → user.
 - Each guardrail node labeled with the specific checks it runs (jailbreak detection,
-  PII redaction, policy compliance, hallucination gate, etc.) — not just "guardrail".
+  PII redaction, policy compliance, hallucination gate, etc.) - not just "guardrail".
 - The escalation / HITL branch from point 4 drawn as an explicit edge from each
   guardrail node that can trigger escalation, leading to a `Human Review` node and
   back into the graph on resolution.
@@ -328,90 +328,90 @@ The graph node names for the agent / planner / tool stages MUST match the
 corresponding node names in `12-agentic-graph-structure.md`. If they diverge, the
 in-loop critic will flag it.
 
-1. **Input guardrail pipeline** — what checks run on user input before it reaches
+1. **Input guardrail pipeline** - what checks run on user input before it reaches
    the first agent node: jailbreak/prompt-injection detection, toxicity and harmful
    content filtering, PII detection and redaction, input length/size limits. State
    which checks are synchronous (block until verdict) vs asynchronous (tag and
    continue), and what the action is on each check type (reject, sanitize, flag).
 
-2. **Output guardrail pipeline** — what checks run on agent output before it reaches
+2. **Output guardrail pipeline** - what checks run on agent output before it reaches
    the user: policy compliance check, hallucination/factuality gate (if applicable),
    confidentiality leakage detection (system prompt, internal state, cross-tenant data
    bleeding into the response). State latency cost per check and whether checks run
    in parallel or sequentially.
 
-3. **Tool call validation** — before any tool call executes, what validates the
+3. **Tool call validation** - before any tool call executes, what validates the
    proposed call: capability RBAC per agent node (which nodes are authorized to call
    which tools), parameter schema and bounds validation, rate limiting per tool per
    run, and detection of anomalous or recursive tool invocations. State the enforcement
    mechanism and the action on validation failure (retry with sanitized params, reroute
    to fallback node, or halt run).
 
-4. **Escalation policy** — the conditions under which the system halts, refuses, or
+4. **Escalation policy** - the conditions under which the system halts, refuses, or
    routes to human-in-the-loop rather than completing the run: confidence below
    threshold, policy violation detected, repeated tool failure, budget exhausted,
    or user-requested pause. For each condition, state the trigger logic and what the
    user sees (error message, partial result, or hold state).
 
-5. **Cross-agent instruction boundaries** — what one agent node is allowed to instruct
+5. **Cross-agent instruction boundaries** - what one agent node is allowed to instruct
    another agent node to do: scope of valid instructions, instruction schema validation,
    and privilege escalation detection (a low-privilege node attempting to invoke a
    high-privilege node's capabilities). State how instruction integrity is verified and
    what happens when an out-of-scope instruction is detected.
 
-6. **Behavioral policy enforcement** — how the agent is constrained to its defined
+6. **Behavioral policy enforcement** - how the agent is constrained to its defined
    purpose mid-run: intent classification on each major plan step, scope creep
    detection (agent attempting actions outside the user's original request), and the
    policy definition format (rules engine, classifier, constitutional AI, or system
    prompt constraints). State what triggers a behavioral violation verdict and what
    the graph does in response.
 
-7. **Prompt injection defense — input surface** — defense against user-crafted inputs
+7. **Prompt injection defense - input surface** - defense against user-crafted inputs
    designed to override system instructions or hijack agent behavior: detection
    approach (regex heuristics, fine-tuned classifier, or LLM-based judge), confidence
    threshold, and the action on detection (sanitize and continue, reject with
    explanation, or flag for human review).
 
-8. **Prompt injection defense — tool output surface** — defense against adversarial
+8. **Prompt injection defense - tool output surface** - defense against adversarial
    content returned by external tools (web search results, API responses, code
    execution output) that attempts to redirect subsequent agent behavior: sanitization
    layer between tool output and the next agent prompt, detection approach, and
    quarantine strategy for flagged outputs.
 
-9. **Confidentiality protection** — preventing the agent from leaking system prompts,
+9. **Confidentiality protection** - preventing the agent from leaking system prompts,
    internal chain-of-thought, intermediate plan steps, or other tenants' data in its
    responses: output scanning for system prompt signature patterns, inter-tenant state
    isolation at the response layer, and the logging policy (what is retained, what is
    redacted from logs).
 
-10. **Guardrail latency budget** — p99 latency cost of the full guardrail stack (input
+10. **Guardrail latency budget** - p99 latency cost of the full guardrail stack (input
     checks + output checks + tool validation combined), and how it fits within the total
     run latency budget from `12-agentic-graph-structure.md`. State the optimization
     approach when guardrails add too much latency (async checks, distilled classifier,
     result caching for repeated inputs).
 
-11. **Guardrail bypass and override policy** — under what conditions, if any, a
+11. **Guardrail bypass and override policy** - under what conditions, if any, a
     guardrail check can be bypassed: trusted-caller override (specific admin token),
     emergency degraded-mode path, or a hard rule that no bypass is possible. State the
     required audit trail for any override event and how bypasses are monitored.
 
-12. **Multi-tenant guardrail isolation** — how guardrail policy configurations are
+12. **Multi-tenant guardrail isolation** - how guardrail policy configurations are
     scoped per tenant (one tenant's custom policy must not affect another's), and how
     per-tenant policy is loaded, cached, and applied at runtime without cross-tenant
     bleed.
 
-13. **Guardrail observability** — which metrics and logs track: trigger rate per check
+13. **Guardrail observability** - which metrics and logs track: trigger rate per check
     type, false positive rate (legitimate requests blocked), p99 latency added per
     check, bypass events, and escalation rate. State the alert threshold for an
     anomalous trigger spike (which may indicate an attack or a broken classifier).
 
-14. **Guardrail failure mode** — what the system does when a guardrail check itself
+14. **Guardrail failure mode** - what the system does when a guardrail check itself
     fails (service unavailable, timeout, or classifier error): fail-open (pass the
     request through unguarded), fail-closed (block the request), or degrade (apply a
     stricter static default policy). State the chosen mode, the rationale, and
     whether the failure mode is configurable per tenant.
 
-15. **Guardrail model and rule versioning** — when the guardrail classifier, safety
+15. **Guardrail model and rule versioning** - when the guardrail classifier, safety
     model, or policy rules are updated, how the rollout is managed: canary deployment,
     shadow mode (new version runs alongside old, results compared but old verdict wins),
     or A/B test. State how regressions (increased false positives or missed violations)
@@ -419,7 +419,7 @@ in-loop critic will flag it.
 
 Lane 15 runs concurrently with lanes 11–14. It has no cross-lane dependencies and
 must not block waiting for any other lane. The file it produces (`15-guardrails.md`)
-is standalone — readable without cross-referencing other agentic deep-dive files.
+is standalone - readable without cross-referencing other agentic deep-dive files.
 
 ## In-Loop Critic Checkpoint
 
@@ -428,7 +428,7 @@ parallel batch completes and **before** Lane 12 (per-node state) or Lane 10
 (challenges) run. This exists because the agent structure, memory layer, guardrail
 boundaries, ingestion pipeline, and end-to-end architecture are the load-bearing
 decisions in an agentic system. Catching a structural flaw in any of these
-after Layer 2 and challenges are written is wasteful — Layer 2 commits to the
+after Layer 2 and challenges are written is wasteful - Layer 2 commits to the
 topology, challenges consume the full pack.
 
 This checkpoint is distinct from the standalone `/critical-agent` skill:
@@ -533,15 +533,15 @@ are a signal to the human reader, not a hard stop.
 
 ### When to skip this checkpoint
 
-- Non-agentic packs (`isAgentic: false`) — the checkpoint is agentic-only.
-- The `Agent` tool is unavailable — note the fallback in the summary; the
+- Non-agentic packs (`isAgentic: false`) - the checkpoint is agentic-only.
+- The `Agent` tool is unavailable - note the fallback in the summary; the
   user can run `/critical-agent` manually post-pack.
 
 ## Default Workflow
 
 1. Read `resume.txt` and the relevant `*-experience.md` files in the main context.
    Extract the strongest resume anchors for the question. Do NOT read all pack
-   files into the main context — delegate reading to sub-agents.
+   files into the main context - delegate reading to sub-agents.
 2. Classify the request and choose a supported archetype.
 3. Detect whether the question is agentic (see **Agentic System Detection**). If
    yes, set `isAgentic: true` in the manifest plan and activate lanes 11–13 and 15.
@@ -553,10 +553,10 @@ are a signal to the human reader, not a hard stop.
    match exists.
 6. Create the pack folder and write `manifest.json` in the main context before
    spawning agents. This anchors the pack; sub-agents will write into it.
-7. Spawn parallel sub-agents — one `Agent` tool call per lane (see below). Each
+7. Spawn parallel sub-agents - one `Agent` tool call per lane (see below). Each
    agent receives only the files it needs, not the full pack. Send independent
    lanes in a single message as parallel `Agent` calls. Note: for agentic packs,
-   Lane 12 (per-node state) is NOT in the parallel batch — it runs sequentially
+   Lane 12 (per-node state) is NOT in the parallel batch - it runs sequentially
    after the in-loop critic checkpoint confirms the Layer 1 topology.
 8. Wait for all parallel agents to complete. Collect their output file paths.
 9. **In-loop critic checkpoint** *(agentic packs only)*. Spawn the in-loop critic
@@ -581,14 +581,14 @@ are a signal to the human reader, not a hard stop.
 
 **Each lane is a separate `Agent` tool call.** Never collapse two lanes into one
 agent. Never pass all 15 checklists to a single agent. Context discipline is the
-point of the lane structure — violating it defeats the purpose.
+point of the lane structure - violating it defeats the purpose.
 
 For each lane, pass the agent:
 - The question and a one-paragraph brief of what it must produce.
 - Only the input files it actually needs to read (listed per lane below).
 - The output file path it must write.
 - The relevant checklist or procedure from this skill file (copied inline, not
-  as a file reference — the agent does not have this SKILL.md in context).
+  as a file reference - the agent does not have this SKILL.md in context).
 
 Do not pass a sub-agent the full SKILL.md, the full resume, or files it does not
 need. Each agent should be able to complete its task in a focused context.
@@ -617,18 +617,18 @@ it runs in parallel or sequential.
 | 11. Agentic graph topology *(isAgentic only)* | `12-agentic-graph-structure.md` Layer 1 | `resume.txt`, relevant `*-experience.md`, the question | Node taxonomy, edge taxonomy, Mermaid graph, supervisor/worker hierarchy |
 | 13. Memory layer *(isAgentic only)* | `13-memory-layer-design.md` | `resume.txt`, relevant `*-experience.md`, the question, Memory Layer Checklist (copy inline) | All 15 memory points as discrete subsections |
 | 14. Ingestion pipeline *(isAgentic + hasKnowledgeBase only)* | `14-ingestion-pipeline.md` | `resume.txt`, relevant `*-experience.md`, the question, Ingestion Checklist (copy inline) | All 15 ingestion points; note embedding model must match memory layer |
-| 15. Guardrails *(isAgentic only)* | `15-guardrails.md` | `resume.txt`, relevant `*-experience.md`, the question, Guardrails Checklist (copy inline) | All 15 guardrail points; behavioral safety only — not infra security |
+| 15. Guardrails *(isAgentic only)* | `15-guardrails.md` | `resume.txt`, relevant `*-experience.md`, the question, Guardrails Checklist (copy inline) | All 15 guardrail points; behavioral safety only - not infra security |
 
 ### Sequential: after parallel batch completes
 
-Order matters. Run in this exact order — Lane 16 (critic) must run before Lane 12
+Order matters. Run in this exact order - Lane 16 (critic) must run before Lane 12
 (per-node state) because Layer 2 commits to the topology that the critic is
 reviewing. Lane 10 (challenges) consumes the full pack and always runs last.
 
 | Order | Lane | Produces | Reads | Notes |
 |---|---|---|---|---|
 | 1 | 16. In-loop critic checkpoint *(isAgentic only)* | Per-file verdicts and revision rounds; on surviving objections, appends a `## Surviving Critic Objections` section to `00-question-and-context.md` | `03-architecture.md`, `12-agentic-graph-structure.md` (Layer 1 only), `13-memory-layer-design.md`, `15-guardrails.md`, and `14-ingestion-pipeline.md` (if `hasKnowledgeBase: true`) | See **In-Loop Critic Checkpoint** section. Spawns revision sub-agents for any lane with BLOCKING verdict. Cap at 2 revision cycles per file. |
-| 2 | 12. Agentic per-node state *(isAgentic only)* | Merges into `12-agentic-graph-structure.md` | Lane 11's output (`12-agentic-graph-structure.md`), as revised by the critic checkpoint | Layer 2 content: per-node state shape, edge conditions, join semantics, HITL contracts. Must run *after* Lane 16 — Layer 2 commits to the Layer 1 topology, so the topology must be critic-confirmed first. |
+| 2 | 12. Agentic per-node state *(isAgentic only)* | Merges into `12-agentic-graph-structure.md` | Lane 11's output (`12-agentic-graph-structure.md`), as revised by the critic checkpoint | Layer 2 content: per-node state shape, edge conditions, join semantics, HITL contracts. Must run *after* Lane 16 - Layer 2 commits to the Layer 1 topology, so the topology must be critic-confirmed first. |
 | 3 | 10. Challenge | `15-challenges-by-stage.md` (non-agentic) or `16-challenges-by-stage.md` (agentic) | All files written by parallel lanes plus Lane 12 (for agentic) | Consumes full pack output. Chain-of-Thought procedure below. Always runs last. |
 
 If the `Agent` tool is unavailable, execute lanes sequentially in the main context and note the fallback. Quality will be lower but the structure remains the same.
@@ -641,7 +641,7 @@ New packs must use `schemaVersion: 2`. For `system-design` at v2, create at leas
 - `manifest.json`: pack metadata, archetype, question, hash, and grounding confidence. Set `schemaVersion` to `2`.
 - `00-question-and-context.md`: original question, scope, assumptions, and resume anchors used.
 - `01-executive-summary.md`: the short, strong version of the answer.
-- `02-design-estimates.md`: upfront framing — use case and problem statement, user personas and access patterns, existing options and build-vs-buy, why we are building it, and back-of-envelope capacity and load estimates (QPS, storage, growth, latency / availability / durability targets). See the **Design Estimates** section below for required structure.
+- `02-design-estimates.md`: upfront framing - use case and problem statement, user personas and access patterns, existing options and build-vs-buy, why we are building it, and back-of-envelope capacity and load estimates (QPS, storage, growth, latency / availability / durability targets). See the **Design Estimates** section below for required structure.
 - `03-architecture.md`: end-to-end architecture and major components.
 - `04-api-and-contracts.md`: external APIs, internal contracts, request flows, idempotency, and error model.
 - `05-low-level-design.md`: service decomposition, classes or modules, state machines, schemas, and component interactions.
@@ -665,13 +665,13 @@ Optional root files include (use 16+ for agentic packs; 12–14 are reserved for
 **Agentic packs only** (`isAgentic: true` in manifest) must also include:
 
 - `12-agentic-graph-structure.md`: two-layer deep-dive into the agent graph.
-  - **Layer 1 — Graph Topology**: node type taxonomy (planner, executor, critic, router,
+  - **Layer 1 - Graph Topology**: node type taxonomy (planner, executor, critic, router,
     tool-caller, human-in-loop, aggregator), edge type taxonomy (sequential,
     conditional, parallel-fork, parallel-join, back-edge with guard), the full
     Mermaid `graph TD` or `stateDiagram-v2` for this specific design, and the
     supervisor/worker/tool-caller hierarchy. Use Mermaid node IDs that match the
     service or component names from `03-architecture.md`.
-  - **Layer 2 — Per-Node State and Edge Conditions**: for every node in the graph,
+  - **Layer 2 - Per-Node State and Edge Conditions**: for every node in the graph,
     specify the state shape that is checkpointed (keys, types, whether ephemeral or
     durable), the condition logic on each outgoing edge (model score, rule, regex,
     or schema validator), join semantics for parallel-fork outputs (all-of, any-of,
@@ -681,20 +681,20 @@ Optional root files include (use 16+ for agentic packs; 12–14 are reserved for
 
 - `13-memory-layer-design.md`: standalone deep-dive into the memory subsystem.
   Generated by Lane 13 using the **Memory Layer Checklist** below. Must cover
-  all 15 memory layer points as discrete subsections — not as a paragraph summary.
+  all 15 memory layer points as discrete subsections - not as a paragraph summary.
   Treat it as a separate, self-contained design document: it should be readable
   without cross-referencing `12-agentic-graph-structure.md`.
 
 - `14-ingestion-pipeline.md` *(required only when `hasKnowledgeBase: true`)*:
-  standalone deep-dive into the document ingestion and indexing pipeline — the
+  standalone deep-dive into the document ingestion and indexing pipeline - the
   write path that feeds the stores the memory layer reads from. Generated by
   Lane 14 using the **Ingestion Pipeline Checklist** below. Must cover all 15
   ingestion points as discrete subsections. RAG-as-tool-call (agent invoking a
-  `search()` tool explicitly) is NOT covered here — that lives in
+  `search()` tool explicitly) is NOT covered here - that lives in
   `04-api-and-contracts.md`. This file covers the data pipeline that makes
   content available for retrieval.
 
-- `15-guardrails.md`: standalone deep-dive into the agentic guardrail stack —
+- `15-guardrails.md`: standalone deep-dive into the agentic guardrail stack -
   the enforcement layer that keeps agent behavior safe, scoped, and tenant-isolated
   across the full execution pipeline (input → planning → tool calls → output).
   Generated by Lane 15 using the **Guardrails Checklist** below. Must cover all
@@ -702,7 +702,7 @@ Optional root files include (use 16+ for agentic packs; 12–14 are reserved for
   other files.
 
 **Note on challenges file for agentic packs:** when `isAgentic: true`, the
-challenge lane (10) produces `16-challenges-by-stage.md` — not `15-`. The `15`
+challenge lane (10) produces `16-challenges-by-stage.md` - not `15-`. The `15`
 slot is occupied by guardrails. For non-agentic packs, challenges remain at
 `15-challenges-by-stage.md`.
 
@@ -728,18 +728,18 @@ context. The file must include these subsections, in this order:
 	 reasons a custom system beats the alternatives (compliance, isolation,
 	 scale, cost, latency, integration, sovereignty). These must connect back
 	 to the gaps in the previous section.
-5. **Capacity and load estimates.** Back-of-envelope numbers — users, peak QPS,
-	 average payload size, storage growth per month, bandwidth, fan-out — with
+5. **Capacity and load estimates.** Back-of-envelope numbers - users, peak QPS,
+	 average payload size, storage growth per month, bandwidth, fan-out - with
 	 the arithmetic shown, not just the answers. Pick numbers consistent with
 	 the resume scale claims; if those numbers are not on the resume, mark them
 	 as assumptions.
 
-	 **Instance sizing — always include a fleet estimate anchored on m8g.**
+	 **Instance sizing - always include a fleet estimate anchored on m8g.**
 	 For every service tier in the capacity model, show: chosen instance size,
 	 instance count, total vCPU, total RAM, total EBS/network throughput, and a
 	 rough monthly cost anchor (On-Demand $/hr × fleet × 730 hr/month).
 
-	 *m8g family reference (AWS Graviton 4 / Arm Neoverse V2 — general purpose,
+	 *m8g family reference (AWS Graviton 4 / Arm Neoverse V2 - general purpose,
 	 ~4 GiB RAM per vCPU, EBS-optimized by default):*
 
 	 | Size | vCPU | RAM | EBS bandwidth | Network | Local storage |
@@ -759,7 +759,7 @@ context. The file must include these subsections, in this order:
 	   the burst vs sustained figures separately when write spikes matter.
 	 - **What m8g is optimized for**: balanced CPU/memory ratio; strong price-per-vCPU
 	   on Graviton 4; well-suited for API servers, coordinators, metadata planes,
-	   and stateless worker fleets. It is *not* storage-optimized — local NVMe is
+	   and stateless worker fleets. It is *not* storage-optimized - local NVMe is
 	   only present on the metal-24xl and metal-48xl sizes.
 	 - **EBS-attached NVMe (io2 Block Express)**: when low-latency durable writes are
 	   needed on standard m8g sizes, attach an io2 volume; supports up to 256,000
@@ -782,7 +782,7 @@ context. The file must include these subsections, in this order:
 	 RTO / RPO, security and compliance posture, and explicit out-of-scope
 	 items.
 
-Keep this file short and dense — it is the framing, not the implementation.
+Keep this file short and dense - it is the framing, not the implementation.
 Tables and bullets are preferred over prose.
 
 For `security-review`, create the required root files defined in `design-packs/README.md`.
@@ -792,13 +792,13 @@ contract in `design-packs/README.md`.
 
 ## Load Balancer Configuration
 
-Whenever the architecture includes a load-balancing tier — cloud, on-prem, or
-hybrid — `03-architecture.md` must include a dedicated **Load Balancer
+Whenever the architecture includes a load-balancing tier - cloud, on-prem, or
+hybrid - `03-architecture.md` must include a dedicated **Load Balancer
 Configuration** subsection that covers all applicable types below and calls out
 which combination the design uses and why. Do not leave LB configuration
 implicit in a box diagram.
 
-### NLB — AWS Network Load Balancer (Layer 4)
+### NLB - AWS Network Load Balancer (Layer 4)
 
 *Optimized for*: raw TCP/UDP throughput, ultra-low latency (<1 ms added),
 static Elastic IPs, TLS passthrough, and PrivateLink endpoints.
@@ -807,19 +807,19 @@ Key configuration knobs to document:
 - **Listener**: protocol (TCP / TLS / UDP / TCP_UDP), port, default action.
 - **Target group**: target type (instance | IP | ALB), protocol, health-check
   protocol and threshold, deregistration delay (connection draining; default
-  300 s — tune down to 30–60 s for short-lived jobs).
+  300 s - tune down to 30–60 s for short-lived jobs).
 - **Cross-zone load balancing**: disabled by default on NLB (enable for
   uneven AZ capacity; incurs inter-AZ data charges).
 - **TLS termination vs passthrough**: terminate at NLB for mutual TLS or
   certificate pinning; pass through when the backend owns the certificate.
-- **Flow hash**: 5-tuple (protocol, src/dst IP, src/dst port) — sticky per
+- **Flow hash**: 5-tuple (protocol, src/dst IP, src/dst port) - sticky per
   connection. Mention when this matters (e.g., WebSocket, gRPC streams).
 - **Preserve client IP**: enabled by default for instance targets; use proxy
   protocol v2 for IP targets behind a NAT.
-- **Static IPs / Elastic IPs**: one static IP per AZ — required when
+- **Static IPs / Elastic IPs**: one static IP per AZ - required when
   downstream firewalls whitelist by IP.
 
-### ALB — AWS Application Load Balancer (Layer 7)
+### ALB - AWS Application Load Balancer (Layer 7)
 
 *Optimized for*: HTTP/HTTPS/HTTP2/gRPC/WebSocket routing, content-based
 routing rules, WAF integration, and OIDC/Cognito authentication offload.
@@ -845,7 +845,7 @@ Key configuration knobs to document:
 - **Connection multiplexing**: ALB reuses backend connections; tune keep-alive
   timeout on the backend to be longer than the ALB idle timeout.
 
-### MetalLB — Kubernetes Bare-Metal Load Balancer
+### MetalLB - Kubernetes Bare-Metal Load Balancer
 
 *Optimized for*: exposing `LoadBalancer`-type Kubernetes Services on bare-metal
 or on-prem clusters where no cloud LB controller is present.
@@ -854,17 +854,17 @@ Key configuration knobs to document:
 - **IP address pool** (`IPAddressPool` CR): the CIDR or range MetalLB can
   assign to Services; must be routable from the client network. Separate pools
   per environment (prod vs staging) are best practice.
-- **Mode — Layer 2 (ARP/NDP)**:
+- **Mode - Layer 2 (ARP/NDP)**:
   - One node per Service acts as the "speaker leader" (elected via member-list).
   - Gratuitous ARP/NDP on failover; failover time ~10 s by default.
-  - No ECMP — all traffic enters via the leader node, creating a single-node
+  - No ECMP - all traffic enters via the leader node, creating a single-node
     bottleneck. Document expected max throughput (limited to that node's NIC).
   - `L2Advertisement` CR selects which pools to advertise and which nodes
     are eligible speakers.
-- **Mode — BGP**:
+- **Mode - BGP**:
   - MetalLB peers with upstream BGP routers (`BGPPeer` CR); requires
     BGP-capable ToR switches or a router.
-  - ECMP across all nodes — traffic is distributed per flow at the router.
+  - ECMP across all nodes - traffic is distributed per flow at the router.
   - `BGPAdvertisement` CR controls community strings, local-preference, and
     aggregation length.
   - FRR (Free Range Routing) is the recommended MetalLB backend for BGP;
@@ -891,8 +891,8 @@ For every combination used, state:
 1. Which OSI layer each hop operates at.
 2. Where TLS terminates (and whether mTLS is needed end-to-end).
 3. How client IP is preserved (X-Forwarded-For, proxy protocol, or TPROXY).
-4. Health-check chain — what each LB checks and at what interval.
-5. Failure mode — what the client sees if one hop in the chain fails.
+4. Health-check chain - what each LB checks and at what interval.
+5. Failure mode - what the client sees if one hop in the chain fails.
 
 ## Writing Rules
 

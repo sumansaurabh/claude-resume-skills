@@ -1,14 +1,14 @@
-# 13 — Memory Layer Design
+# 13 - Memory Layer Design
 
 **Pack:** `2026-05-27-b2c-agent-orchestrator-platform`
 **Scope:** Memory subsystem for a B2C Custom-GPT-style agent orchestrator: four memory types, storage layout, read/write paths, isolation, eviction, hygiene, privacy, observability, failure modes, and cost.
 **Owner of this file:** Lane 13 (Memory Layer) of `/analyze-my-resume`.
 **Grounding anchors (must hold across the pack):**
-- `resume.txt:53-54` — at BlackBox I owned checkpointing and memory persistence for agent runs; this is the lived experience behind the WorkingMemory/EpisodicMemory split below.
-- `resume.txt:60-61` — RAG, Embeddings, VectorDB, HNSW, bm25 are the exact technologies I deployed; reused here as `Pgvector` HNSW + `tsvector` bm25 sidecar.
-- `blackbox-experience.md` point 12 — episodic trace persistence and run replay.
-- `blackbox-experience.md` point 14 — hybrid retrieval (dense + sparse) for grounded answers.
-- `blackbox-experience.md` point 21 — PII guardrails on the write path.
+- `resume.txt:53-54` - at BlackBox I owned checkpointing and memory persistence for agent runs; this is the lived experience behind the WorkingMemory/EpisodicMemory split below.
+- `resume.txt:60-61` - RAG, Embeddings, VectorDB, HNSW, bm25 are the exact technologies I deployed; reused here as `Pgvector` HNSW + `tsvector` bm25 sidecar.
+- `blackbox-experience.md` point 12 - episodic trace persistence and run replay.
+- `blackbox-experience.md` point 14 - hybrid retrieval (dense + sparse) for grounded answers.
+- `blackbox-experience.md` point 21 - PII guardrails on the write path.
 
 This file is a principal-engineer-interview-grade deep dive. Every section is keyed to one of the 15 mandatory memory-layer points so a reviewer can audit coverage in a single pass.
 
@@ -16,7 +16,7 @@ This file is a principal-engineer-interview-grade deep dive. Every section is ke
 
 ## 0. Executive summary (one screen)
 
-A B2C agent orchestrator is not just a chat wrapper — it must remember the *user*, the *agent persona*, and the *run*, while keeping tenants isolated and giving the user a GDPR-grade erasure button. We split memory into four orthogonal types:
+A B2C agent orchestrator is not just a chat wrapper - it must remember the *user*, the *agent persona*, and the *run*, while keeping tenants isolated and giving the user a GDPR-grade erasure button. We split memory into four orthogonal types:
 
 | Type | Scope | Backend | TTL | Read frequency | Write frequency |
 |---|---|---|---|---|---|
@@ -25,15 +25,15 @@ A B2C agent orchestrator is not just a chat wrapper — it must remember the *us
 | `SemanticMemory` | long-term facts | Pgvector + bm25 | indefinite, demote 180d | once per turn (top-k) | once per turn (post-extract) |
 | `ProceduralMemory` | learned tool-use patterns | Postgres + Redis cache | indefinite | on planner step | on success/fail signal |
 
-Everything is mediated by a single `MemoryService` facade. Two graph nodes own the timing: `MemoryReader` (pre-Planner) and `MemoryWriter` (post-turn). The PII guardrail sits *inside* the write path so we never persist a fact we can't later defend in an audit. A single canonical embedder — `EmbedderTextV3`, 1024 dimensions — is shared with `14-ingestion-pipeline.md` so retrieval is consistent across RAG corpora and SemanticMemory.
+Everything is mediated by a single `MemoryService` facade. Two graph nodes own the timing: `MemoryReader` (pre-Planner) and `MemoryWriter` (post-turn). The PII guardrail sits *inside* the write path so we never persist a fact we can't later defend in an audit. A single canonical embedder - `EmbedderTextV3`, 1024 dimensions - is shared with `14-ingestion-pipeline.md` so retrieval is consistent across RAG corpora and SemanticMemory.
 
-Why this shape: at 1M users with ~50 MB per user steady-state, we sit at ~50 TB total — comfortably inside a Pgvector-on-Aurora-with-S3-cold-tier budget, and small enough that we never need a separate vector cluster (Milvus/Pinecone) for V1. That decision is justified in `09-tradeoffs-and-alternatives.md`.
+Why this shape: at 1M users with ~50 MB per user steady-state, we sit at ~50 TB total - comfortably inside a Pgvector-on-Aurora-with-S3-cold-tier budget, and small enough that we never need a separate vector cluster (Milvus/Pinecone) for V1. That decision is justified in `09-tradeoffs-and-alternatives.md`.
 
 ---
 
 ## 1. Memory types (point 1 of 15)
 
-### 1.1 `WorkingMemory` — the run scratchpad
+### 1.1 `WorkingMemory` - the run scratchpad
 
 **Purpose:** Hold the *currently-executing run's* mutable state so graph nodes can read and write without round-tripping Postgres.
 
@@ -43,17 +43,17 @@ Why this shape: at 1M users with ~50 MB per user steady-state, we sit at ~50 TB 
 - Tool call results from this run (so a re-entrant node doesn't refetch).
 - The `tenant_ctx` envelope: `{user_id, agent_id, run_id, persona_id, locale, feature_flags}`.
 
-**Read:** every node entry — Planner, ToolCaller, MemoryReader, MemoryWriter all hydrate from WorkingMemory first.
-**Write:** every node exit — after a tool returns, after the LLM returns, after a guardrail decision.
+**Read:** every node entry - Planner, ToolCaller, MemoryReader, MemoryWriter all hydrate from WorkingMemory first.
+**Write:** every node exit - after a tool returns, after the LLM returns, after a guardrail decision.
 **Lifetime:** 1 hour Redis TTL, refreshed on every write. A run that goes idle for >1h must replay from EpisodicMemory.
 
 **Why Redis hash, not a JSON blob:** field-level `HSET`/`HGET` lets nodes update one slot (e.g. the latest tool result) without serializing/deserializing 50 KB of conversation. At p99 this is the difference between 0.4 ms and 12 ms per node hop.
 
-### 1.2 `EpisodicMemory` — the durable transcript
+### 1.2 `EpisodicMemory` - the durable transcript
 
 **Purpose:** The *append-only*, audit-grade record of *what happened in each run*. This is what `blackbox-experience.md` point 12 is about: when a user says "the agent did something weird yesterday," you must be able to replay it byte-for-byte.
 
-**Contents:** every turn — `{run_id, user_id, agent_id, turn_idx, role, content, tool_calls, tool_results, token_count, model_id, latency_ms, cost_usd, created_at}`.
+**Contents:** every turn - `{run_id, user_id, agent_id, turn_idx, role, content, tool_calls, tool_results, token_count, model_id, latency_ms, cost_usd, created_at}`.
 
 **Read:**
 - Run resumption (idle WorkingMemory replay).
@@ -61,10 +61,10 @@ Why this shape: at 1M users with ~50 MB per user steady-state, we sit at ~50 TB 
 - Self-RAG: when SemanticMemory misses, we fall back to `recent EpisodicMemory turns (last 6 turns)` of *this* run (already in WorkingMemory) or *this user × this agent's* prior 24h (Postgres LIMIT 50 ORDER BY ts DESC).
 - Fact extraction (the MemoryWriter reads the just-completed turn from EpisodicMemory to mine semantic facts).
 
-**Write:** exactly once per turn, post-LLM, transactional. If this write fails the run errors — we never silently lose an episode.
+**Write:** exactly once per turn, post-LLM, transactional. If this write fails the run errors - we never silently lose an episode.
 **Lifetime:** 90 days hot in Postgres, then archived to S3 Glacier as JSONL partitions keyed by `user_id/YYYY-MM/run_id.jsonl.gz`.
 
-### 1.3 `SemanticMemory` — facts and preferences
+### 1.3 `SemanticMemory` - facts and preferences
 
 **Purpose:** Long-term, queryable knowledge *about the user* and *about the agent's persona-specific learned facts*. This is the layer that makes a Custom-GPT feel personal.
 
@@ -77,7 +77,7 @@ Why this shape: at 1M users with ~50 MB per user steady-state, we sit at ~50 TB 
 **Write:** post-turn by `MemoryWriter` after fact extraction + PII filter + dedup.
 **Lifetime:** never auto-evict. Demote to `cold_partition` if `last_used_at < now() - 180d`. Cold facts are still searchable but ranked below hot.
 
-### 1.4 `ProceduralMemory` — learned tool-use patterns
+### 1.4 `ProceduralMemory` - learned tool-use patterns
 
 **Purpose:** Remember *how* this user-agent pair likes to get things done. When the planner sees a familiar trigger, it can short-circuit re-planning.
 
@@ -97,10 +97,10 @@ last_used: 2026-05-26T14:11:00Z
 ### 1.5 Why four types and not one
 
 A common interview pushback: "Why not one vector store?" Because the access patterns are fundamentally different:
-- WorkingMemory is *mutable* and *frequently overwritten* — a vector store is the wrong tool.
-- EpisodicMemory is *append-only*, *time-ordered*, and *high-volume* — a partitioned Postgres table beats a vector store at scan cost.
-- SemanticMemory is *similarity-queried* — Pgvector is correct.
-- ProceduralMemory is *key-triggered* — a hash + a small Postgres table is correct.
+- WorkingMemory is *mutable* and *frequently overwritten* - a vector store is the wrong tool.
+- EpisodicMemory is *append-only*, *time-ordered*, and *high-volume* - a partitioned Postgres table beats a vector store at scan cost.
+- SemanticMemory is *similarity-queried* - Pgvector is correct.
+- ProceduralMemory is *key-triggered* - a hash + a small Postgres table is correct.
 
 Conflating them means either over-engineering (everything as vectors) or under-engineering (everything as a JSON blob in Redis, which is what bad prototypes do and which loses you the run-replay and the personalization).
 
@@ -108,7 +108,7 @@ Conflating them means either over-engineering (everything as vectors) or under-e
 
 ## 2. Storage backends and schema (point 2 of 15)
 
-### 2.1 WorkingMemory — Redis
+### 2.1 WorkingMemory - Redis
 
 **Key:** `mem:wm:{user_id}:{agent_id}:{run_id}` (a single hash).
 **Fields:**
@@ -123,7 +123,7 @@ Conflating them means either over-engineering (everything as vectors) or under-e
 
 **Why hash, not multiple keys:** atomic field-level updates, single network round trip, simpler eviction (one `DEL` on `OnRunComplete`).
 
-### 2.2 EpisodicMemory — Postgres
+### 2.2 EpisodicMemory - Postgres
 
 ```sql
 CREATE TABLE episodes (
@@ -150,9 +150,9 @@ CREATE INDEX episodes_run_idx
     ON episodes (run_id);
 ```
 
-Monthly partitions (`episodes_2026_05`, `episodes_2026_06`, …). After 90 days, the partition is detached, dumped to `s3://orchestrator-episodes/{year}/{month}/`, and dropped. Restoration is a partition-attach plus an `s3 cp` — measured at ~6 min per 1M-turn partition.
+Monthly partitions (`episodes_2026_05`, `episodes_2026_06`, …). After 90 days, the partition is detached, dumped to `s3://orchestrator-episodes/{year}/{month}/`, and dropped. Restoration is a partition-attach plus an `s3 cp` - measured at ~6 min per 1M-turn partition.
 
-### 2.3 SemanticMemory — Pgvector + bm25 sidecar
+### 2.3 SemanticMemory - Pgvector + bm25 sidecar
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -189,7 +189,7 @@ CREATE INDEX semantic_facts_p00_user_agent
 SET hnsw.ef_search = 64;
 ```
 
-### 2.4 ProceduralMemory — Postgres + Redis cache
+### 2.4 ProceduralMemory - Postgres + Redis cache
 
 ```sql
 CREATE TABLE procedures (
@@ -216,7 +216,7 @@ A hot subset (top 20 procedures per user-agent by `success_count`) is cached in 
 
 ## 3. Write path (point 3 of 15)
 
-The write path runs *after* the user-visible response is streamed — never in the user's critical latency budget.
+The write path runs *after* the user-visible response is streamed - never in the user's critical latency budget.
 
 ### 3.1 Sequence
 
@@ -248,7 +248,7 @@ Skip facts containing PII unless marked safe.
 
 Output is `{text, confidence in [0,1], type in {'preference','fact','goal'}}`.
 
-We cap at 5 facts per turn to bound write amplification. The extraction LLM is the *only* component that sees the raw turn at fact-extraction time — its output is treated as untrusted (it could hallucinate) and goes through the same PII guardrail and dedup as everything else.
+We cap at 5 facts per turn to bound write amplification. The extraction LLM is the *only* component that sees the raw turn at fact-extraction time - its output is treated as untrusted (it could hallucinate) and goes through the same PII guardrail and dedup as everything else.
 
 ### 3.3 PII filter (defense-in-depth with `15-guardrails.md`)
 
@@ -328,7 +328,7 @@ ORDER BY final_score DESC
 LIMIT 8;
 ```
 
-`recency_boost = exp(-days_since_last_use / 30)` — sigmoid-soft, so a fact used 2 days ago beats one used 60 days ago all else equal.
+`recency_boost = exp(-days_since_last_use / 30)` - sigmoid-soft, so a fact used 2 days ago beats one used 60 days ago all else equal.
 
 Top-8 is empirically the knee on our internal eval set: precision plateaus after ~5–8, and a 9th–12th fact crowds the system prompt without adding signal (and burns ~300 input tokens per turn we'd rather spend on tool descriptions).
 
@@ -344,7 +344,7 @@ ORDER BY created_at DESC
 LIMIT 6;
 ```
 
-This is gated behind a feature flag because it doubles Postgres read load — we only enable it for users on the paid tier.
+This is gated behind a feature flag because it doubles Postgres read load - we only enable it for users on the paid tier.
 
 ### 4.4 ProceduralMemory trigger match
 
@@ -375,7 +375,7 @@ If user says "deploy X", consider: helm upgrade --chart={X} --namespace={user.de
 </system>
 ```
 
-Each block is tagged so the Planner — and a downstream cross-exam tool — can attribute *which* memory drove a decision.
+Each block is tagged so the Planner - and a downstream cross-exam tool - can attribute *which* memory drove a decision.
 
 ---
 
@@ -388,9 +388,9 @@ Each block is tagged so the Planner — and a downstream cross-exam tool — can
 **Consistency contract:** `EmbedderTextV3` is the *same model* used in `14-ingestion-pipeline.md` for RAG corpus embeddings. If we ever rotate the embedder (V3 → V4), both this file and the ingestion pipeline must rotate together; otherwise a SemanticMemory fact and a RAG chunk live in different vector spaces and hybrid recall silently degrades. The migration plan is double-write + dual-index for 7 days, then cut over.
 
 **HNSW parameters:**
-- `m = 16` — graph degree; sweet spot for 1024-dim cosine.
-- `ef_construction = 200` — build-time exploration; higher → better recall, slower build.
-- `ef_search = 64` — query-time exploration; gives p99 recall@8 of ~0.97 on our eval set with p99 latency ~12 ms per partition.
+- `m = 16` - graph degree; sweet spot for 1024-dim cosine.
+- `ef_construction = 200` - build-time exploration; higher → better recall, slower build.
+- `ef_search = 64` - query-time exploration; gives p99 recall@8 of ~0.97 on our eval set with p99 latency ~12 ms per partition.
 
 **Embedding endpoint:** internal `EmbedderService` (gRPC), batched, with a Redis L1 cache keyed by SHA-256 of the input text. Hot facts and frequently-repeated queries hit the cache; cache hit rate in steady state is ~35%.
 
@@ -420,7 +420,7 @@ plus a GIN index. For multi-locale users we'd swap the regconfig; locale is on `
 
 ### 6.3 Hybrid scoring
 
-`0.6 * dense + 0.3 * bm25 + 0.1 * recency` — weights were tuned on a 2k-query internal eval set. Dense-only loses ~7 pp recall on rare-term queries; bm25-only loses ~12 pp on paraphrased queries; the blend wins on both axes.
+`0.6 * dense + 0.3 * bm25 + 0.1 * recency` - weights were tuned on a 2k-query internal eval set. Dense-only loses ~7 pp recall on rare-term queries; bm25-only loses ~12 pp on paraphrased queries; the blend wins on both axes.
 
 ### 6.4 Index maintenance
 
@@ -442,8 +442,8 @@ plus a GIN index. For multi-locale users we'd swap the regconfig; locale is on `
 ### 7.1 Why never auto-delete SemanticMemory
 
 A user saying "remember I'm allergic to shellfish" should survive 18 months of silence. We *demote* (move to cold partition, exclude from default top-k) so that:
-1. Storage cost is bounded — cold can live on slower disks (gp3 → sc1) at ~1/3 the cost.
-2. The fact is still searchable if the user explicitly asks "what allergies do you remember about me?" — at that point we widen the query to include cold.
+1. Storage cost is bounded - cold can live on slower disks (gp3 → sc1) at ~1/3 the cost.
+2. The fact is still searchable if the user explicitly asks "what allergies do you remember about me?" - at that point we widen the query to include cold.
 3. Right-to-erasure (§12) is still the only way facts truly disappear.
 
 ### 7.2 EpisodicMemory archival
@@ -458,7 +458,7 @@ This is the single most-asked principal-eng interview question on memory systems
 
 ### 8.1 Application-layer filtering
 
-Every read path query has `WHERE user_id = :user AND agent_id = :agent`. The `MemoryService` API has no method that takes a user-less query — you cannot accidentally write a cross-user query.
+Every read path query has `WHERE user_id = :user AND agent_id = :agent`. The `MemoryService` API has no method that takes a user-less query - you cannot accidentally write a cross-user query.
 
 ```python
 class MemoryService:
@@ -476,7 +476,7 @@ class MemoryService:
 
 Every `MemoryReader` and `MemoryWriter` invocation passes its `tenant_ctx` to `GuardrailService.assertTenantMatch(ctx, retrieved_rows)` which double-checks that *every* row returned has matching `user_id` and `agent_id`. A mismatch is a `P0` paging incident, never silently tolerated.
 
-This is belt-and-braces — the partition + WHERE clause *should* make a mismatch impossible — but in interview review, having the third defense is what separates a passable answer from a confident one.
+This is belt-and-braces - the partition + WHERE clause *should* make a mismatch impossible - but in interview review, having the third defense is what separates a passable answer from a confident one.
 
 ### 8.4 Connection-pool boundary
 
@@ -494,7 +494,7 @@ When the read path returns two facts with `sim ≥ 0.85` to each other (i.e. sem
 
 1. **Recent wins.** Sort by `created_at DESC`.
 2. **Confidence breaks ties.** If `|created_at_a - created_at_b| < 7 days`, prefer the one with higher `confidence`.
-3. **Both survive if close.** If `|confidence_a - confidence_b| < 0.1` and both are within 7 days, return *both* to the Planner with a note: `"contradictory facts observed; user has stated both — clarify if relevant"`.
+3. **Both survive if close.** If `|confidence_a - confidence_b| < 0.1` and both are within 7 days, return *both* to the Planner with a note: `"contradictory facts observed; user has stated both - clarify if relevant"`.
 
 ### 9.2 Supersession tracking
 
@@ -551,7 +551,7 @@ Run per partition during off-peak.
 
 ### 10.4 Counters and observability
 
-The hygiene job emits per-user metrics: `facts.deduped`, `facts.pruned`, `facts.demoted`, `bytes.reclaimed`. We watch the dashboard for users whose `facts.count` keeps growing despite hygiene — that's a signal we're over-extracting and should tighten the extractor's prompt.
+The hygiene job emits per-user metrics: `facts.deduped`, `facts.pruned`, `facts.demoted`, `bytes.reclaimed`. We watch the dashboard for users whose `facts.count` keeps growing despite hygiene - that's a signal we're over-extracting and should tighten the extractor's prompt.
 
 ---
 
@@ -575,7 +575,7 @@ The opt-in is loud (a one-time modal explaining "this shared brain will be visib
 
 ### 11.3 Never cross-user
 
-There is no across-users sharing under any flag. The 64-partition layout and the GuardrailService cross-check make accidental leakage structurally hard. Marketing and product have asked for "people who used this agent also remembered…" — explicitly out of scope; rejected in `09-tradeoffs-and-alternatives.md`.
+There is no across-users sharing under any flag. The 64-partition layout and the GuardrailService cross-check make accidental leakage structurally hard. Marketing and product have asked for "people who used this agent also remembered…" - explicitly out of scope; rejected in `09-tradeoffs-and-alternatives.md`.
 
 ---
 
@@ -594,12 +594,12 @@ Authorization: Bearer <admin-or-user-token>
 
 A single `MemoryService.eraseUser(user_id)` call performs, in a saga:
 
-1. **Postgres** — `DELETE FROM semantic_facts WHERE user_id = $1` (per partition), `DELETE FROM episodes WHERE user_id = $1`, `DELETE FROM procedures WHERE user_id = $1`. Each per-partition delete is its own tx; the saga records progress so a crash can resume.
-2. **Redis** — `SCAN` for `mem:wm:{user_id}:*` and `mem:proc:{user_id}:*`, `DEL` each. (We avoid `KEYS` — production-banned.)
-3. **S3 Glacier archives** — issue Glacier `DeleteObject` for every `{user_id}/...` key under `s3://orchestrator-episodes/`. Glacier deletes are eventually consistent (~minutes); we record the deletion-issued timestamp.
-4. **RAG corpora** — call `RAGService.eraseUser(user_id)` to drop any user-uploaded corpora chunks (covered in `14-ingestion-pipeline.md`).
-5. **Outbox + event bus** — write `user.erased` event so any downstream consumer (analytics, billing) can clean up.
-6. **Tombstone** — write `audit.erasures(user_id, requested_at, completed_at, operator, ticket_id)`. The tombstone is *never* deleted; it's how we prove erasure during audits.
+1. **Postgres** - `DELETE FROM semantic_facts WHERE user_id = $1` (per partition), `DELETE FROM episodes WHERE user_id = $1`, `DELETE FROM procedures WHERE user_id = $1`. Each per-partition delete is its own tx; the saga records progress so a crash can resume.
+2. **Redis** - `SCAN` for `mem:wm:{user_id}:*` and `mem:proc:{user_id}:*`, `DEL` each. (We avoid `KEYS` - production-banned.)
+3. **S3 Glacier archives** - issue Glacier `DeleteObject` for every `{user_id}/...` key under `s3://orchestrator-episodes/`. Glacier deletes are eventually consistent (~minutes); we record the deletion-issued timestamp.
+4. **RAG corpora** - call `RAGService.eraseUser(user_id)` to drop any user-uploaded corpora chunks (covered in `14-ingestion-pipeline.md`).
+5. **Outbox + event bus** - write `user.erased` event so any downstream consumer (analytics, billing) can clean up.
+6. **Tombstone** - write `audit.erasures(user_id, requested_at, completed_at, operator, ticket_id)`. The tombstone is *never* deleted; it's how we prove erasure during audits.
 
 ### 12.3 Verifying erasure
 
@@ -607,7 +607,7 @@ A nightly `ErasureVerifier` job samples tombstoned users and runs `SELECT COUNT(
 
 ### 12.4 What about model weights?
 
-We do *not* fine-tune on user data. SemanticMemory facts are stored as data, not baked into model weights. This is a deliberate architectural choice that makes erasure tractable — fine-tuning would require either expensive unlearning or model rollback, neither of which is GDPR-defensible at our scale.
+We do *not* fine-tune on user data. SemanticMemory facts are stored as data, not baked into model weights. This is a deliberate architectural choice that makes erasure tractable - fine-tuning would require either expensive unlearning or model rollback, neither of which is GDPR-defensible at our scale.
 
 ---
 
@@ -675,7 +675,7 @@ SemanticMemory is gone:
 
 ### 14.3 Postgres down (EpisodicMemory)
 
-This is the most severe — we cannot guarantee replay, and we lose the durability anchor for the write path.
+This is the most severe - we cannot guarantee replay, and we lose the durability anchor for the write path.
 - Read path: degrade further (skip cross-run episodic).
 - Write path: the agent run **fails fast** (returns 503 to the user) because we will not produce a turn whose transcript we cannot persist. This is the one place we choose strong consistency over availability.
 - Banner: "service temporarily unavailable."
@@ -693,7 +693,7 @@ Write path: queue fact-extraction jobs; drain when embedder returns. Stale facts
 
 ### 14.6 Fact extractor LLM down or rate-limited
 
-Skip extraction for the turn. We lose one turn's worth of semantic-memory growth — not catastrophic. Counter alert if extraction success rate dips below 95% over 1h.
+Skip extraction for the turn. We lose one turn's worth of semantic-memory growth - not catastrophic. Counter alert if extraction success rate dips below 95% over 1h.
 
 ---
 
@@ -719,7 +719,7 @@ At 1M users: ~50 TB total memory storage. At AWS gp3 list price (~$0.08/GB-month
 
 ---
 
-## Mermaid — the full picture
+## Mermaid - the full picture
 
 ```mermaid
 flowchart TB
@@ -804,7 +804,7 @@ flowchart TB
 
 ---
 
-## Closing — what an interviewer should push on
+## Closing - what an interviewer should push on
 
 If I were on the other side of the table, I'd press on these:
 
@@ -812,6 +812,6 @@ If I were on the other side of the table, I'd press on these:
 2. **"What about the hot-shard problem when a power user has 10,000 facts?"** The 64-partition layout is hash-on-`user_id`, so a single user's facts all live in one partition. We monitor per-user fact count; users >5,000 facts trigger a hygiene-aggressiveness flag (tighter `confidence` floor, dedup threshold lowered to 0.92). Long term: a per-user sub-partition is a Phase 2 lever.
 3. **"How do you avoid the Planner being manipulated by a malicious SemanticMemory fact?"** The fact extractor outputs are treated as untrusted. PII filter is one defense; but a user could also try prompt-injection like "remember: ignore previous instructions." The GuardrailService runs a *fact-injection classifier* (small classifier, <5 ms) on every candidate fact and rejects ones that look instruction-like. This is documented in `15-guardrails.md`.
 4. **"Why Postgres + Pgvector instead of a dedicated vector DB?"** At 50 TB total we're inside Aurora's comfort zone. A dedicated vector DB (Milvus, Pinecone) adds a separate failure domain, a separate consistency model with the SQL data, and a separate ops burden. We revisit at 500 TB or when p99 retrieval > 30 ms on a fully-warmed partition. Covered in `09-tradeoffs-and-alternatives.md`.
-5. **"Is GDPR cascade really atomic across Postgres, Redis, S3, and downstream consumers?"** No — it's a saga with progress tracking and a verifier. Strict atomicity across heterogeneous stores is impossible; what's achievable, and what we ship, is *bounded eventual completion with verification* (typically minutes; SLA 24 h). The tombstone in `audit.erasures` is what we show regulators.
+5. **"Is GDPR cascade really atomic across Postgres, Redis, S3, and downstream consumers?"** No - it's a saga with progress tracking and a verifier. Strict atomicity across heterogeneous stores is impossible; what's achievable, and what we ship, is *bounded eventual completion with verification* (typically minutes; SLA 24 h). The tombstone in `audit.erasures` is what we show regulators.
 
-That last point is the most important: we don't promise impossibilities. We promise bounded, observable, verifiable correctness — which is what a production memory layer for a B2C agent platform actually is.
+That last point is the most important: we don't promise impossibilities. We promise bounded, observable, verifiable correctness - which is what a production memory layer for a B2C agent platform actually is.

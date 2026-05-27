@@ -27,7 +27,7 @@
     "supporting": [
       "Microsoft: AutoML job orchestration at 15M+ jobs/month with 200K+ users via SDK and UI (resume.txt:90-92)",
       "Microsoft: TunDRA QUIC protocol in Rust powering 1M+ compute instances (resume.txt:97-98)",
-      "BlackBox: Technologies — RAG, ReACT, Embeddings, VectorDB, Sandbox, Cross-encoder, Langfuse, Guardrails, HNSW, bm25, Clickhouse, OpenTelemetry (resume.txt:60-61)",
+      "BlackBox: Technologies - RAG, ReACT, Embeddings, VectorDB, Sandbox, Cross-encoder, Langfuse, Guardrails, HNSW, bm25, Clickhouse, OpenTelemetry (resume.txt:60-61)",
       "ShareChat: Real-time bidding infrastructure with 40M DAU and 22 user attributes for segmentation (resume.txt:111-114)"
     ]
   }

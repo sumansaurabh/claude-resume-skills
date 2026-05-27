@@ -93,17 +93,17 @@ flowchart LR
 
 | Threat | Vector | Mitigation |
 |---|---|---|
-| **Spoofing** — attacker impersonates customer | stolen JWT, session fixation | Short JWT TTL; bind JWT to device fingerprint + IP class; high-risk actions require step-up auth |
-| **Tampering** — modified turn payload at gateway | MITM (no TLS), broken TLS | TLS 1.3, HSTS, request signing for action confirms |
-| **Repudiation** — "I never asked for that FD sweep" | missing audit | Immutable per-turn audit log, signed, replayable; every action stored with `idempotency_key`, raw confirm payload, customer signature |
-| **Information disclosure** — PII to LLM provider | naive prompt construction | Tokenization layer + property tests + egress regex (above) |
-| **DoS** — runaway turns from one user | adversarial chatbot abuse | Per-user quotas; per-node concurrency; provider failover |
-| **Elevation of privilege** — sub-agent escapes tool allowlist | prompt injection inside tool output | Tool allowlist enforced in runtime, not prompt; tool-call name validated against allowlist before dispatch |
-| **Prompt injection** — malicious merchant memo in a transaction tries to instruct the LLM | indirect injection via tool data | (a) all tool data is wrapped in `<tool_data>` tags and the system prompt instructs the model to treat it as data; (b) tool-call decisions are validated against allowlist; (c) high-risk actions go through deterministic policy, not LLM consent |
-| **Memory poisoning** — agent writes a false fact ("user prefers no credit cards") that biases future advice | hallucinated "remember this" | Memory write is gated by confidence + schema + human-readable diff; long-term writes require a deterministic trigger or explicit user statement |
+| **Spoofing** - attacker impersonates customer | stolen JWT, session fixation | Short JWT TTL; bind JWT to device fingerprint + IP class; high-risk actions require step-up auth |
+| **Tampering** - modified turn payload at gateway | MITM (no TLS), broken TLS | TLS 1.3, HSTS, request signing for action confirms |
+| **Repudiation** - "I never asked for that FD sweep" | missing audit | Immutable per-turn audit log, signed, replayable; every action stored with `idempotency_key`, raw confirm payload, customer signature |
+| **Information disclosure** - PII to LLM provider | naive prompt construction | Tokenization layer + property tests + egress regex (above) |
+| **DoS** - runaway turns from one user | adversarial chatbot abuse | Per-user quotas; per-node concurrency; provider failover |
+| **Elevation of privilege** - sub-agent escapes tool allowlist | prompt injection inside tool output | Tool allowlist enforced in runtime, not prompt; tool-call name validated against allowlist before dispatch |
+| **Prompt injection** - malicious merchant memo in a transaction tries to instruct the LLM | indirect injection via tool data | (a) all tool data is wrapped in `<tool_data>` tags and the system prompt instructs the model to treat it as data; (b) tool-call decisions are validated against allowlist; (c) high-risk actions go through deterministic policy, not LLM consent |
+| **Memory poisoning** - agent writes a false fact ("user prefers no credit cards") that biases future advice | hallucinated "remember this" | Memory write is gated by confidence + schema + human-readable diff; long-term writes require a deterministic trigger or explicit user statement |
 | **Cross-tenant leak via shared cache or vector** | shared namespace | Per-tenant namespace; tenant ID in every key; periodic chaos test that issues cross-tenant lookups and asserts denial |
-| **Action replay attack** — replayed `confirm` to execute action twice | network replay | Idempotency keys on every write tool; replay returns original result, not a second action |
-| **LLM tool-call injection** — LLM emits a tool call with attacker-crafted args (e.g., `customer_id=other_user`) | model failure or jailbreak | Tool dispatcher *overrides* `customer_id` from `BankerState.customer.customer_id`; LLM-supplied `customer_id` is ignored |
+| **Action replay attack** - replayed `confirm` to execute action twice | network replay | Idempotency keys on every write tool; replay returns original result, not a second action |
+| **LLM tool-call injection** - LLM emits a tool call with attacker-crafted args (e.g., `customer_id=other_user`) | model failure or jailbreak | Tool dispatcher *overrides* `customer_id` from `BankerState.customer.customer_id`; LLM-supplied `customer_id` is ignored |
 
 ## Specific high-risk actions and their gates
 
@@ -113,7 +113,7 @@ flowchart LR
 | `reminder.create` | nuisance | per-user rate cap |
 | `support_ticket.create` | low | per-user rate cap; CSAT bot tag |
 | `goals_store.upsert` | medium | confirm + diff shown to user |
-| `dispute.file` | high | HITL — banker reviews evidence bundle |
+| `dispute.file` | high | HITL - banker reviews evidence bundle |
 | `fd.book` *(post-MVP)* | very high | HITL + 2FA + cooling-off window |
 | `loan.apply` *(post-MVP)* | very high | HITL + 2FA + KYC + advisor |
 
@@ -134,7 +134,7 @@ maximum-impact write the runtime can perform is filing a ticket.
 |---|---|
 | **DPDP (India)** | Per-user consent registry; "right to forget" purges memory store + tombstones audit; data residency in `ap-south-1` |
 | **RBI IT outsourcing** | All processing on bank-owned cloud account; LLM calls via bank-controlled egress proxy; quarterly audit pack from telemetry |
-| **SOC-2 Type II** | Audit log retention, access reviews, change management on policy bundles, replay-evidence for "AI decision" — same posture as the SOC-2 work for the BlackBox WASM sandbox plane (`resume.txt` L49-50) |
+| **SOC-2 Type II** | Audit log retention, access reviews, change management on policy bundles, replay-evidence for "AI decision" - same posture as the SOC-2 work for the BlackBox WASM sandbox plane (`resume.txt` L49-50) |
 | **PCI-DSS (card data)** | Card numbers tokenized at the moment they enter the perimeter; agent never sees the raw PAN |
 | **AI/ML model risk (RBI guidance, BIS-29)** | Model card per route; eval set; change log; "humanly explainable" output via the structured `Explanation` schema |
 

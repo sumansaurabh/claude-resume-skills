@@ -82,25 +82,25 @@ architecture at `02`, challenges at `14`). Do not produce new v1 packs.
 `02-design-estimates.md` is the interviewer's "frame the problem" expectation
 and must come before architecture. The file must include, in this order:
 
-1. **Use case and problem statement** — what is being solved and the business
+1. **Use case and problem statement** - what is being solved and the business
 	 cost of not solving it. Anchor to the resume where possible.
-2. **Users and access patterns** — personas (developers, internal services,
+2. **Users and access patterns** - personas (developers, internal services,
 	 end users, automated pipelines, security reviewers) with operations and
 	 rough cadence per persona.
-3. **Existing options** — short comparison table of open source, commercial,
+3. **Existing options** - short comparison table of open source, commercial,
 	 and adjacent internal systems, with the specific gap that disqualifies each.
-4. **Why we are building it** — load-bearing reasons custom beats the
+4. **Why we are building it** - load-bearing reasons custom beats the
 	 alternatives (compliance, isolation, scale, cost, latency, integration).
-5. **Capacity and load estimates** — back-of-envelope arithmetic for users,
+5. **Capacity and load estimates** - back-of-envelope arithmetic for users,
 	 peak QPS, payload size, storage growth, bandwidth, fan-out. Show the math.
 	 Mark assumptions explicitly when the resume does not pin the number.
 
-	 **Instance sizing — always include a fleet estimate anchored on m8g.**
+	 **Instance sizing - always include a fleet estimate anchored on m8g.**
 	 For every service tier, show: chosen instance size, instance count, total
 	 vCPU, total RAM, total EBS/network throughput, and a monthly cost anchor
 	 (On-Demand $/hr × fleet × 730 hr/month).
 
-	 *m8g family reference (AWS Graviton 4 / Arm Neoverse V2 — general purpose,
+	 *m8g family reference (AWS Graviton 4 / Arm Neoverse V2 - general purpose,
 	 ~4 GiB RAM per vCPU, EBS-optimized by default):*
 
 	 | Size | vCPU | RAM | EBS bandwidth | Network | Local storage |
@@ -120,7 +120,7 @@ and must come before architecture. The file must include, in this order:
 	   sustained separately when write spikes matter.
 	 - **What m8g is optimized for**: balanced CPU/memory ratio; strong price-per-vCPU
 	   on Graviton 4; well-suited for API servers, coordinators, metadata planes, and
-	   stateless worker fleets. It is *not* storage-optimized — local NVMe is only
+	   stateless worker fleets. It is *not* storage-optimized - local NVMe is only
 	   present on metal-24xl and metal-48xl.
 	 - **EBS-attached NVMe (io2 Block Express)**: when low-latency durable writes are
 	   needed on standard m8g sizes, attach an io2 volume; supports up to 256,000
@@ -137,7 +137,7 @@ and must come before architecture. The file must include, in this order:
 	 | CPU-bound, low memory (<2 GiB/vCPU) | c8g | Highest vCPU density, Graviton 4 |
 	 | Dense warm storage (HDD) | d3en | Up to 336 TB local HDD per instance |
 	 | ML inference | inf2 / trn2 | Inferentia2 / Trainium2 accelerators |
-6. **Functional and non-functional requirements** — functional ops the system
+6. **Functional and non-functional requirements** - functional ops the system
 	 must support; non-functional targets for p50 / p99 latency, availability,
 	 durability, RTO / RPO, security posture, and explicit out-of-scope items.
 
@@ -147,13 +147,13 @@ target those later files must hit.
 
 ## Load Balancer Configuration
 
-Whenever the architecture includes a load-balancing tier — cloud, on-prem, or
-hybrid — `03-architecture.md` must include a dedicated **Load Balancer
+Whenever the architecture includes a load-balancing tier - cloud, on-prem, or
+hybrid - `03-architecture.md` must include a dedicated **Load Balancer
 Configuration** subsection covering all applicable types below. State which
 combination the design uses and why. Do not leave LB configuration implicit
 in a box diagram.
 
-### NLB — AWS Network Load Balancer (Layer 4)
+### NLB - AWS Network Load Balancer (Layer 4)
 
 *Optimized for*: raw TCP/UDP throughput, ultra-low latency (<1 ms added),
 static Elastic IPs, TLS passthrough, and PrivateLink endpoints.
@@ -162,19 +162,19 @@ Key configuration knobs to document:
 - **Listener**: protocol (TCP / TLS / UDP / TCP_UDP), port, default action.
 - **Target group**: target type (instance | IP | ALB), protocol, health-check
   protocol and threshold, deregistration delay (connection draining; default
-  300 s — tune down to 30–60 s for short-lived jobs).
+  300 s - tune down to 30–60 s for short-lived jobs).
 - **Cross-zone load balancing**: disabled by default on NLB (enable for
   uneven AZ capacity; incurs inter-AZ data charges).
 - **TLS termination vs passthrough**: terminate at NLB for mutual TLS or
   certificate pinning; pass through when the backend owns the certificate.
-- **Flow hash**: 5-tuple (protocol, src/dst IP, src/dst port) — sticky per
+- **Flow hash**: 5-tuple (protocol, src/dst IP, src/dst port) - sticky per
   connection; document when this matters (WebSocket, gRPC streams).
 - **Preserve client IP**: enabled by default for instance targets; use proxy
   protocol v2 for IP targets behind a NAT.
-- **Static IPs / Elastic IPs**: one static IP per AZ — required when
+- **Static IPs / Elastic IPs**: one static IP per AZ - required when
   downstream firewalls whitelist by IP.
 
-### ALB — AWS Application Load Balancer (Layer 7)
+### ALB - AWS Application Load Balancer (Layer 7)
 
 *Optimized for*: HTTP/HTTPS/HTTP2/gRPC/WebSocket routing, content-based
 routing rules, WAF integration, and OIDC/Cognito authentication offload.
@@ -198,7 +198,7 @@ Key configuration knobs to document:
 - **Connection multiplexing**: ALB reuses backend connections; backend
   keep-alive timeout must exceed the ALB idle timeout.
 
-### MetalLB — Kubernetes Bare-Metal Load Balancer
+### MetalLB - Kubernetes Bare-Metal Load Balancer
 
 *Optimized for*: exposing `LoadBalancer`-type Kubernetes Services on bare-metal
 or on-prem clusters where no cloud LB controller is present.
@@ -207,15 +207,15 @@ Key configuration knobs to document:
 - **IP address pool** (`IPAddressPool` CR): CIDR or range MetalLB can assign
   to Services; must be routable from the client network. Separate pools per
   environment (prod vs staging).
-- **Mode — Layer 2 (ARP/NDP)**:
+- **Mode - Layer 2 (ARP/NDP)**:
   - One node per Service acts as "speaker leader" (elected via member-list).
   - Gratuitous ARP/NDP on failover; failover time ~10 s by default.
-  - No ECMP — all traffic enters via the leader node (single-node bottleneck).
+  - No ECMP - all traffic enters via the leader node (single-node bottleneck).
   - `L2Advertisement` CR selects which pools to advertise and eligible nodes.
-- **Mode — BGP**:
+- **Mode - BGP**:
   - MetalLB peers with upstream BGP routers (`BGPPeer` CR); requires
     BGP-capable ToR switches.
-  - ECMP across all nodes — traffic distributed per flow at the router.
+  - ECMP across all nodes - traffic distributed per flow at the router.
   - `BGPAdvertisement` CR controls community strings, local-preference,
     aggregation length.
   - FRR (Free Range Routing) is the recommended MetalLB BGP backend; document
@@ -240,8 +240,8 @@ For every combination used, state:
 1. Which OSI layer each hop operates at.
 2. Where TLS terminates (and whether mTLS is needed end-to-end).
 3. How client IP is preserved (X-Forwarded-For, proxy protocol, or TPROXY).
-4. Health-check chain — what each LB checks, at what interval, and threshold.
-5. Failure mode — what the client sees if one hop in the chain fails.
+4. Health-check chain - what each LB checks, at what interval, and threshold.
+5. Failure mode - what the client sees if one hop in the chain fails.
 
 ## Parallel Decomposition
 

@@ -7,7 +7,7 @@ A **router node** classifies the user question into one of ~10 intents, which
 selects the **DAG path**. **Fetch nodes** pull deterministic data (balances,
 transactions, goals) via **typed tool calls** against the Core Banking API.
 **Calculator nodes** run pure Python (`balance_drop`, `spend_by_category`,
-`emi_affordability`, `fraud_rules`, `due_date_check`) — every number an
+`emi_affordability`, `fraud_rules`, `due_date_check`) - every number an
 interviewer can re-compute by hand. **Sub-agents** (Risk, Budget, Savings) are
 **bounded ReAct loops** that may call additional tools, but only within their
 tool allowlist. An **Explainer** LLM node takes the structured findings and
@@ -38,19 +38,19 @@ deterministic plane has already computed.
    user intent, (b) deterministic eligibility check, (c) HITL approval for
    money-moving actions.
 7. **Replayable traces.** Every run emits an OTel trace with prompts,
-   tool inputs/outputs, model IDs, and seeds — so any "the agent said
+   tool inputs/outputs, model IDs, and seeds - so any "the agent said
    something weird" report becomes a deterministic replay, not an
    investigation.
 
 ## What this looks like at the interview level
 
 > "I'd model it as a LangGraph DAG with a router, fetch nodes, deterministic
-> calculator nodes, three bounded sub-agents — risk, budget, savings — and an
+> calculator nodes, three bounded sub-agents - risk, budget, savings - and an
 > explainer node that emits a Pydantic-validated `Explanation`. Numbers come
 > from pure-Python calculators; narration comes from the LLM. Side effects sit
 > behind a policy gate with HITL. Reliability is `LangGraph`'s checkpointer +
 > idempotency keys on tool calls. Observability is per-node OTel spans with
-> prompt+tool capture for deterministic replay — the same pattern we ran at
+> prompt+tool capture for deterministic replay - the same pattern we ran at
 > BlackBox for 50M spans/day." (`resume.txt` L51-59)
 
 ## What this design refuses to do

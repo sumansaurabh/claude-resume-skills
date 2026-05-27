@@ -1,10 +1,10 @@
-# 03 — Architecture: Multi-Persona AI Banker Shared Platform
+# 03 - Architecture: Multi-Persona AI Banker Shared Platform
 
 > Pack date: 2026-05-21. Archetype: agentic + knowledge-base. Scale envelope: 1M+ DAU across Retail, SME, and CFO personas, 10K+ orchestrator runs/day per tenant cluster, 1B+ model-router tokens/month aggregate.
 
 ## 1. TL;DR
 
-The Multi-Persona AI Banker is a **single shared platform** with persona-aware specialization, not three separate agents. A shared LangGraph supervisor (modeled on the same ReAct+DAG+durable-execution graph engine I scaled to 10K+ runs/day at Marvis on the resume.txt:51-54 stack) routes Retail, SME, and CFO conversations through one orchestrator. Specialization happens via three injection points: the **Context Manager** loads persona-tagged context blocks, the **Tool Router** filters the callable tool set by persona RBAC, and the **Policy Engine** swaps risk thresholds and HITL boundaries per persona. Financial math is **deterministic** — balance, runway, payroll readiness, FX exposure, weeks-to-crunch — and lives in an isolated Calculation Service so the LLM never owns numbers. The LLM owns reasoning, prioritization, action selection, and the conversational surface. Edge traffic flows through an **NLB (L4) → ALB (L7) → FastAPI gateway pods** chain, with **MetalLB BGP** fronting bare-metal inference for the model router (Claude/GPT/Grok, the same fleet I ran at 1B+ tokens/month on resume.txt:55-56). Proactive intelligence is **event-driven**: a Kafka event bus feeds a trigger evaluator → priority queue → cooldown gate → orchestrator → notification orchestrator. Medium- and high-risk actions are HITL-gated through an Approval Service that writes immutable audit before any data-plane mutation. Memory is four-tiered. The whole platform is multi-tenant with hard tenant boundaries (the same isolation discipline from the Microsoft secure multi-tenant ML infra on resume.txt:88-94) and SOC-2/DPDP/RBI compliant by construction.
+The Multi-Persona AI Banker is a **single shared platform** with persona-aware specialization, not three separate agents. A shared LangGraph supervisor (modeled on the same ReAct+DAG+durable-execution graph engine I scaled to 10K+ runs/day at Marvis on the resume.txt:51-54 stack) routes Retail, SME, and CFO conversations through one orchestrator. Specialization happens via three injection points: the **Context Manager** loads persona-tagged context blocks, the **Tool Router** filters the callable tool set by persona RBAC, and the **Policy Engine** swaps risk thresholds and HITL boundaries per persona. Financial math is **deterministic** - balance, runway, payroll readiness, FX exposure, weeks-to-crunch - and lives in an isolated Calculation Service so the LLM never owns numbers. The LLM owns reasoning, prioritization, action selection, and the conversational surface. Edge traffic flows through an **NLB (L4) → ALB (L7) → FastAPI gateway pods** chain, with **MetalLB BGP** fronting bare-metal inference for the model router (Claude/GPT/Grok, the same fleet I ran at 1B+ tokens/month on resume.txt:55-56). Proactive intelligence is **event-driven**: a Kafka event bus feeds a trigger evaluator → priority queue → cooldown gate → orchestrator → notification orchestrator. Medium- and high-risk actions are HITL-gated through an Approval Service that writes immutable audit before any data-plane mutation. Memory is four-tiered. The whole platform is multi-tenant with hard tenant boundaries (the same isolation discipline from the Microsoft secure multi-tenant ML infra on resume.txt:88-94) and SOC-2/DPDP/RBI compliant by construction.
 
 ---
 
@@ -76,7 +76,7 @@ flowchart TD
     POL -.decisions.-> AUD
 ```
 
-The control plane carries scheduling, policy decisions, identity, run metadata, audit, and HITL approvals. The data plane carries the actual financial reads/writes, tool execution, model calls, vector retrieval, and message delivery. The two planes share only signed run IDs and policy decisions — no business data crosses upward from data plane to control plane except as redacted audit events.
+The control plane carries scheduling, policy decisions, identity, run metadata, audit, and HITL approvals. The data plane carries the actual financial reads/writes, tool execution, model calls, vector retrieval, and message delivery. The two planes share only signed run IDs and policy decisions - no business data crosses upward from data plane to control plane except as redacted audit events.
 
 ---
 
@@ -89,7 +89,7 @@ The control plane carries scheduling, policy decisions, identity, run metadata, 
 | Identity Resolution Service | OIDC/OAuth2 token introspection, user + tenant + entitlement lookup | Sync | None (reads from IdP + entitlement DB) | Control |
 | Persona Resolver | Decides Retail / SME / CFO from claims + URL prefix + explicit override | Sync | None (decision is per-request) | Control |
 | Shared Agent Orchestrator (LangGraph supervisor) | DAG execution, ReAct loops, checkpointing, retry, durable run state | Sync (chat) + Async (proactive) | Run checkpoints in Postgres + S3 | Data |
-| Context Manager | Loads persona-tagged context block, hydrates short/long memory, KB hits | Sync | None at the manager — reads MEM + KB | Data |
+| Context Manager | Loads persona-tagged context block, hydrates short/long memory, KB hits | Sync | None at the manager - reads MEM + KB | Data |
 | Tool Router | Filters tool catalog by persona RBAC, dispatches to Calc / WASM / Core | Sync | None | Data |
 | Policy Engine (OPA/Rego) | Per-persona risk thresholds, HITL gating, compliance checks | Sync | Policy bundles in S3, signed | Control |
 | Calculation Service | Deterministic financial math: balance, runway, payroll, FX, weeks-to-crunch | Sync | None (pure functions, idempotent) | Data |
@@ -97,7 +97,7 @@ The control plane carries scheduling, policy decisions, identity, run metadata, 
 | Notification Orchestrator | Channel selection, throttling, quiet-hours, delivery receipts | Async | Outbox in Postgres | Data |
 | Approval Service | HITL queue, reviewer dispatch, SLA tracking, executed-by audit | Async | Approval state in Postgres | Control |
 | Audit & Monitoring | Immutable event log, regulator-ready export, compliance reports | Async | Append-only Postgres + S3 object-lock | Control |
-| Model Router | Claude / GPT / Grok selection, cost-aware routing, fallback chain | Sync | None — config in Consul | Data |
+| Model Router | Claude / GPT / Grok selection, cost-aware routing, fallback chain | Sync | None - config in Consul | Data |
 | Event Bus (Kafka MSK) | Domain events, fan-out to trigger evaluator + ingestion + audit | Async | Kafka log (7d hot, S3 tier 90d) | Data |
 | Ingestion Pipeline | Statements, transactions, market data, KYC docs, policy updates | Async | Staging Postgres + pgvector | Data |
 | WASM Tool Sandbox Plane | Untrusted code execution for user-generated reports and what-if sims | Sync | None (ephemeral sandboxes, resume.txt:49-50) | Data |
@@ -237,14 +237,14 @@ The discipline: **any service that *decides* lives in control plane; any service
 
 Three injection points specialize the shared orchestrator without forking it:
 
-1. **Context Manager** — when the run opens, the Persona Resolver's verdict (Retail / SME / CFO + tier) is passed to the Context Manager. The CM loads:
+1. **Context Manager** - when the run opens, the Persona Resolver's verdict (Retail / SME / CFO + tier) is passed to the Context Manager. The CM loads:
    - **Persona profile block**: language register (concise, conversational for Retail; structured for SME; analytical and dense for CFO), default time horizon (30d Retail, 90d SME, 4 quarters CFO), default currency display, default risk vocabulary.
    - **Entitlement block**: tier, product flags, jurisdiction, regulator regime.
    - **Memory hits**: persona-scoped working and long-term memory.
    - **KB hits**: filtered by persona-allowed document classes (CFO can see treasury policy docs; Retail cannot).
    The block is tagged `<persona scope="Retail" tier="Gold">…</persona>` and passed to the supervisor's system prompt as a structured slot, never concatenated raw.
-2. **Tool Router** — every tool in the catalog has a `personas: [Retail, SME, CFO]` allowlist plus an `entitlement_required` field. When the orchestrator asks "what tools can I call?", the router returns only the subset that matches the resolved persona, tier, and entitlements. A Retail customer never sees `treasury.fx_hedge_propose`; a CFO never sees `card.activate_offer`. This kills an entire class of jailbreak — the model cannot call a tool it does not know exists.
-3. **Policy Engine** — risk thresholds are persona-keyed. Retail: HITL above 5K AED outbound; SME: HITL above 50K AED *or* cross-border; CFO: HITL above 500K AED *or* off-policy treasury action. Same engine, different bundle, evaluated per-run.
+2. **Tool Router** - every tool in the catalog has a `personas: [Retail, SME, CFO]` allowlist plus an `entitlement_required` field. When the orchestrator asks "what tools can I call?", the router returns only the subset that matches the resolved persona, tier, and entitlements. A Retail customer never sees `treasury.fx_hedge_propose`; a CFO never sees `card.activate_offer`. This kills an entire class of jailbreak - the model cannot call a tool it does not know exists.
+3. **Policy Engine** - risk thresholds are persona-keyed. Retail: HITL above 5K AED outbound; SME: HITL above 50K AED *or* cross-border; CFO: HITL above 500K AED *or* off-policy treasury action. Same engine, different bundle, evaluated per-run.
 
 The persona is **not** a system prompt instruction the LLM might ignore. It is a structural constraint enforced by the router and the policy engine before the LLM is even invoked.
 
@@ -291,10 +291,10 @@ Client → CloudFront/Akamai (CDN) → AWS WAF → NLB (L4) → ALB (L7) → Gat
 |---|---|---|---|---|---|
 | CloudFront | L7 (HTTP) | Re-terminates from origin TLS; presents Cloudfront cert to client | `X-Forwarded-For` chain | Origin failover policy + 5xx threshold | Falls back to second origin; cached static assets continue serving |
 | WAF | L7 (rule engine, in-band with CloudFront/ALB) | N/A (inspects decrypted) | N/A | Rule engine health via CloudWatch | Fail-open or fail-closed per rule group (we fail-closed on auth paths, fail-open on read-only KB lookups) |
-| NLB | L4 (TCP) | **TLS terminates here for the regional VIP** using ACM cert; preserves client IP via `proxy_protocol_v2` to ALB | Yes — `proxy_protocol_v2` injected so ALB sees the real client IP | TCP healthcheck against ALB listener on :443 | Cross-zone load balancing on; one AZ ALB loss is absorbed; connection draining 300s |
-| ALB | L7 (HTTP/2 + gRPC) | Re-terminates internal TLS (mTLS to pods); presents internal CA cert | Yes — reads `proxy_protocol_v2` from NLB and injects `X-Forwarded-For` to gateway | HTTP 200 on `/healthz` per target; deregistration delay 30s | Failed pod evicted from target group; PDB ensures rolling deploys preserve 80% capacity |
+| NLB | L4 (TCP) | **TLS terminates here for the regional VIP** using ACM cert; preserves client IP via `proxy_protocol_v2` to ALB | Yes - `proxy_protocol_v2` injected so ALB sees the real client IP | TCP healthcheck against ALB listener on :443 | Cross-zone load balancing on; one AZ ALB loss is absorbed; connection draining 300s |
+| ALB | L7 (HTTP/2 + gRPC) | Re-terminates internal TLS (mTLS to pods); presents internal CA cert | Yes - reads `proxy_protocol_v2` from NLB and injects `X-Forwarded-For` to gateway | HTTP 200 on `/healthz` per target; deregistration delay 30s | Failed pod evicted from target group; PDB ensures rolling deploys preserve 80% capacity |
 | Gateway Pod | L7 (FastAPI) | Sees decrypted HTTP; mTLS from ALB | Reads `X-Forwarded-For` | `/healthz` shallow + `/readyz` deep | Liveness restart; readiness drains from ALB |
-| MetalLB (BGP) | L4 (ECMP via BGP) | TLS terminates at inference pod (gRPC over mTLS) | Yes — DSR-style; client (gateway pod) IP preserved | BGP session health + node health | BGP withdrawal removes node from ECMP; sub-second failover |
+| MetalLB (BGP) | L4 (ECMP via BGP) | TLS terminates at inference pod (gRPC over mTLS) | Yes - DSR-style; client (gateway pod) IP preserved | BGP session health + node health | BGP withdrawal removes node from ECMP; sub-second failover |
 
 ### 8.3 ALB listener rules
 
@@ -356,13 +356,13 @@ The 10M-MAU/612-concurrent-runs envelope is what the fleet sizing table above is
 
 ### 9.2 Cross-tenant checkpoint isolation enforcement
 
-Checkpoint isolation is not assertion — it is enforced at three layers:
+Checkpoint isolation is not assertion - it is enforced at three layers:
 
 1. **Postgres row-level security on `agent_checkpoints`.** The session role is set to `app_tenant_$tenant` at connection-pool checkout time; the table has `ENABLE ROW LEVEL SECURITY` with policy `tenant_id = current_setting('app.tenant_id')`. A pod with the wrong tenant context literally cannot SELECT another tenant's checkpoints. The connection pool is per-tenant-bucket (one pool per ~100 tenants) so pool starvation is bounded.
 2. **Run lease with tenant binding.** When pod A claims a paused run for resume, it takes a row lock on `run_leases (run_id, tenant_id, leased_by_pod, leased_until)` via `SELECT … FOR UPDATE SKIP LOCKED WHERE leased_until < now()`. The lease row carries `tenant_id`; pod A's connection must already be set to that tenant role before the row is visible. Lease renewals every 5 s; orphan reaper releases after 30 s of no renewal.
 3. **S3 checkpoint snapshots** live under `s3://banker-ckpt/<tenant_id>/<run_id>/...` with bucket policy denying GetObject when the IAM role's `aws:PrincipalTag/tenant_id` ≠ the object's `tenant_id` tag. The orchestrator pod assumes a per-tenant role via IRSA before reading, so a misrouted resume hits S3 AccessDenied, not a silent cross-tenant read.
 
-A CI integration test asserts: spin up two test tenants, write a checkpoint for tenant A, attempt to resume from a pod role-bound to tenant B — it must return zero rows (Postgres) and AccessDenied (S3). This test gates every orchestrator deploy.
+A CI integration test asserts: spin up two test tenants, write a checkpoint for tenant A, attempt to resume from a pod role-bound to tenant B - it must return zero rows (Postgres) and AccessDenied (S3). This test gates every orchestrator deploy.
 
 ---
 
@@ -412,17 +412,17 @@ The Persona Resolver decides using a **three-signal vote**, in priority order:
 2. **URL prefix / API surface**: `app.bank.com/retail/*` vs `business.bank.com/sme/*` vs `treasury.bank.com/cfo/*`.
 3. **Token claim** `persona_default` from the IdP.
 
-If a signal conflicts (e.g., user is on the SME surface but token says Retail-only), the resolver returns the *intersection* — Retail context only — and emits an audit event. **Multi-persona users** (an SME owner who is also a personal Retail customer with the bank, common in MENA SMB) carry multiple persona entitlements. The platform treats persona switches as **session boundaries**: switching from Retail to SME ends the current session, opens a new one, and the Context Manager rehydrates from the SME memory shard. We do not blend Retail and SME context in a single run — the regulatory boundary between consumer and commercial banking forbids it.
+If a signal conflicts (e.g., user is on the SME surface but token says Retail-only), the resolver returns the *intersection* - Retail context only - and emits an audit event. **Multi-persona users** (an SME owner who is also a personal Retail customer with the bank, common in MENA SMB) carry multiple persona entitlements. The platform treats persona switches as **session boundaries**: switching from Retail to SME ends the current session, opens a new one, and the Context Manager rehydrates from the SME memory shard. We do not blend Retail and SME context in a single run - the regulatory boundary between consumer and commercial banking forbids it.
 
 ---
 
 ## 12. Where the LangGraph Runtime Sits
 
-The Shared Agent Orchestrator is a fleet of EKS pods running the LangGraph supervisor (same engine pattern as the durable workflow engine on resume.txt:51-54 — graph workflow + checkpointing + retry + memory persistence). Runs are opened per chat or per proactive trigger, identified by `run_id`. Each run:
+The Shared Agent Orchestrator is a fleet of EKS pods running the LangGraph supervisor (same engine pattern as the durable workflow engine on resume.txt:51-54 - graph workflow + checkpointing + retry + memory persistence). Runs are opened per chat or per proactive trigger, identified by `run_id`. Each run:
 
 - Writes node-transition checkpoints to Postgres (hot path, ~5KB per transition).
 - Snapshots full graph state to S3 every N transitions (~50KB compressed).
-- Tags every span with `run_id`, `tenant_id`, `persona`, `node_id` for the observability mesh (50M spans/day, resume.txt:58-59) — replay reconstructs the exact decision sequence.
+- Tags every span with `run_id`, `tenant_id`, `persona`, `node_id` for the observability mesh (50M spans/day, resume.txt:58-59) - replay reconstructs the exact decision sequence.
 - On pod loss, the supervisor coordinator (a thin control-plane service) detects orphaned runs via Postgres lease expiry and reschedules them on a healthy pod, resuming from the last checkpoint.
 
 The deep mechanics of the graph (nodes, edges, state schema, supervisor / specialist split, replanning loop, critic node) live in `12-agentic-graph-structure.md`. Here we only assert: the runtime is LangGraph on EKS, runs are durable, checkpoints are in Postgres + S3, and recovery is automatic.
@@ -431,7 +431,7 @@ The deep mechanics of the graph (nodes, edges, state schema, supervisor / specia
 
 ## 13. Leadership and Business Framing
 
-A Principal would push back on three things, and we have answers for each. **First, "why one platform and not three?"** Because the *cost* of platform fragmentation isn't engineering — it's regulatory. Each persona-specific agent would need its own SOC-2 boundary, its own DPDP DPIA, its own RBI sandbox approval. One platform with persona-tagged data lineage gets one set of approvals, audited as one system. The marginal cost of a fourth persona (private banking, say, in 2027) is a context block, a tool catalog filter, and a policy bundle — not a new service. **Second, "why Retail first?"** Because Retail is the lowest-blast-radius surface and the highest-volume signal source. We harden the platform under Retail load (1M+ DAU envelope, mostly read-only intent) before letting it touch SME treasury actions. Brand risk in Retail is "the agent gave a confused answer"; brand risk in CFO is "the agent moved 5M AED to the wrong counterparty." We earn the right to the CFO surface by being boring at Retail first. **Third, "where are the next-quarter risks?"** Three places: (a) the deterministic boundary will leak — someone will ship a tool that lets the LLM produce a number, and we'll catch it in audit only after a customer complaint; we mitigate with the post-validation rule and a numeric-grounding test in CI. (b) HITL queue depth will spike before we have the reviewer headcount; we model queue depth against persona mix monthly and pre-hire. (c) The multi-persona switch will get abused — an SME owner asking the Retail agent to do SME work to bypass a policy gate; we mitigate by tying tools to entitlements not just personas. The shape of this platform unlocks regulator approval because **every decision is traceable to a deterministic input or a logged model call**, and **every mutation is gated by a policy decision that lives in the control plane**. That is the architecture a Principal can defend to a regulator with a straight face.
+A Principal would push back on three things, and we have answers for each. **First, "why one platform and not three?"** Because the *cost* of platform fragmentation isn't engineering - it's regulatory. Each persona-specific agent would need its own SOC-2 boundary, its own DPDP DPIA, its own RBI sandbox approval. One platform with persona-tagged data lineage gets one set of approvals, audited as one system. The marginal cost of a fourth persona (private banking, say, in 2027) is a context block, a tool catalog filter, and a policy bundle - not a new service. **Second, "why Retail first?"** Because Retail is the lowest-blast-radius surface and the highest-volume signal source. We harden the platform under Retail load (1M+ DAU envelope, mostly read-only intent) before letting it touch SME treasury actions. Brand risk in Retail is "the agent gave a confused answer"; brand risk in CFO is "the agent moved 5M AED to the wrong counterparty." We earn the right to the CFO surface by being boring at Retail first. **Third, "where are the next-quarter risks?"** Three places: (a) the deterministic boundary will leak - someone will ship a tool that lets the LLM produce a number, and we'll catch it in audit only after a customer complaint; we mitigate with the post-validation rule and a numeric-grounding test in CI. (b) HITL queue depth will spike before we have the reviewer headcount; we model queue depth against persona mix monthly and pre-hire. (c) The multi-persona switch will get abused - an SME owner asking the Retail agent to do SME work to bypass a policy gate; we mitigate by tying tools to entitlements not just personas. The shape of this platform unlocks regulator approval because **every decision is traceable to a deterministic input or a logged model call**, and **every mutation is gated by a policy decision that lives in the control plane**. That is the architecture a Principal can defend to a regulator with a straight face.
 
 ---
 

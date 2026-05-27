@@ -28,7 +28,7 @@ triggers:
 ## Purpose
 
 This skill enforces a three-phase quality gate on agentic system design packs.
-It does not generate designs — it evaluates them. The output is either a blocking
+It does not generate designs - it evaluates them. The output is either a blocking
 failure report or a stamped approval artifact.
 
 Run this skill after `analyze-my-resume` or `resume-design-pack` has produced an
@@ -47,7 +47,7 @@ Before starting, confirm:
 6. If `manifest.json` contains `"hasKnowledgeBase": true`, then
    `14-ingestion-pipeline.md` must also be present in the pack folder.
 
-If any check fails, print the relevant message and halt — do not proceed:
+If any check fails, print the relevant message and halt - do not proceed:
 
 - Missing pack → "No design pack found. Run `/analyze-my-resume` first, then
   re-invoke `/critical-agent` with the pack folder path."
@@ -69,7 +69,7 @@ If any check fails, print the relevant message and halt — do not proceed:
 
 ## Phase 1: Parallel Critic Sub-Agents
 
-Phase 1 uses **four parallel `Agent` calls** — one per rubric section. Send
+Phase 1 uses **four parallel `Agent` calls** - one per rubric section. Send
 them in a single message. Each agent reads only the files relevant to its
 rubric. None reads the full pack. After all four complete, a fifth sequential
 synthesizer agent produces the unified Phase 1 report.
@@ -78,7 +78,7 @@ synthesizer agent produces the unified Phase 1 report.
 points and a full pack to read produces shallow verdicts. The isolation is the
 quality mechanism.
 
-### Sub-Agent A — Agentic Layer (20-point rubric + Scale Gate)
+### Sub-Agent A - Agentic Layer (20-point rubric + Scale Gate)
 
 Reads: `manifest.json`, `02-design-estimates.md`, `03-architecture.md`,
 `12-agentic-graph-structure.md`.
@@ -89,7 +89,7 @@ Mandate:
 > For each point: `PASS`, `PARTIAL`, or `FAIL`, followed by one sentence of
 > evidence (file + section). Do not soften FAILs.
 > After all 20 points, run the 1M-User Scale Gate. Return a structured verdict
-> report — nothing else.
+> report - nothing else.
 
 Pass the 20-point table and the 1M-User Scale Gate table inline in the prompt.
 The agent must not read files outside the list above.
@@ -100,14 +100,14 @@ The Critic must evaluate each of these in order. Do not skip any.
 
 | # | Point |
 |---|---|
-| 1 | State persistence — what survives a crash/coordinator restart |
-| 2 | Idempotency of tool calls — retry safety per node |
+| 1 | State persistence - what survives a crash/coordinator restart |
+| 2 | Idempotency of tool calls - retry safety per node |
 | 3 | Cycle detection and loop prevention in the graph |
 | 4 | Parallel subgraph execution and join semantics |
-| 5 | Conditional edge logic — how branching is evaluated |
+| 5 | Conditional edge logic - how branching is evaluated |
 | 6 | Human-in-the-loop interrupt and resume points |
 | 7 | Short-term, long-term, and episodic memory separation |
-| 8 | Tool routing — which agent node can call which tools |
+| 8 | Tool routing - which agent node can call which tools |
 | 9 | Tool failure handling and retry policy per node |
 | 10 | Agent-to-agent communication protocol and consistency guarantees |
 | 11 | Concurrent run isolation at 1M users (tenant boundary) |
@@ -118,14 +118,14 @@ The Critic must evaluate each of these in order. Do not skip any.
 | 16 | Prompt injection through tool outputs |
 | 17 | Token budget enforcement per run |
 | 18 | Partial execution failure and rollback semantics |
-| 19 | Observability — tracing a stuck or looping graph |
-| 20 | Scale model — peak concurrent runs, fan-out, coordinator bottleneck |
+| 19 | Observability - tracing a stuck or looping graph |
+| 20 | Scale model - peak concurrent runs, fan-out, coordinator bottleneck |
 
 ### 1M-User Scale Gate
 
 After the 20-point evaluation, the Critic must additionally confirm the design
 handles **1 million concurrent users** on at least **4 of the following 5 axes**.
-Each axis requires a concrete, numbered answer from the pack — not a claim that
+Each axis requires a concrete, numbered answer from the pack - not a claim that
 it "can scale":
 
 | Axis | What a passing answer looks like |
@@ -138,7 +138,7 @@ it "can scale":
 
 If fewer than 4 axes pass, this is a **Scale Gate FAIL** regardless of the 20-point scores.
 
-### Sub-Agent B — Memory Layer (15-point rubric)
+### Sub-Agent B - Memory Layer (15-point rubric)
 
 Reads: `13-memory-layer-design.md` only.
 
@@ -147,7 +147,7 @@ Mandate:
 > Evaluate `13-memory-layer-design.md` against the 15 Memory Layer points below.
 > For each point: `PASS`, `PARTIAL`, or `FAIL`, followed by one sentence of
 > evidence (section name + what you found or didn't find). Do not soften FAILs.
-> Return a structured verdict report — nothing else.
+> Return a structured verdict report - nothing else.
 
 Pass the 15-point memory rubric table inline in the prompt.
 The agent must not read files outside `13-memory-layer-design.md`.
@@ -157,26 +157,26 @@ pass all 20 agentic points and still fail here. A single `FAIL` is a Phase 1 hal
 
 | # | Memory Layer Point |
 |---|---|
-| 1 | Memory taxonomy — each type named, purpose stated, nodes that read/write identified |
-| 2 | Storage backend per type — named store with justification against one alternative |
-| 3 | Write triggers — exact condition stated, decision-maker identified |
-| 4 | Retrieval strategy — algorithm named, similarity threshold or top-K stated, no-match behavior defined |
-| 5 | Context window budget allocation — token reservation stated, split across types, eviction order defined |
-| 6 | Embedding model and consistency — model named, dimension stated, upgrade/re-indexing strategy present |
-| 7 | Eviction and TTL — what expires, when, and policy owner stated |
-| 8 | Memory consolidation — cadence, importance function, and conflict-merge strategy described |
-| 9 | Cross-tenant memory isolation — isolation boundary named and enforcement mechanism explained |
-| 10 | Memory poisoning defense — sanitization layer for adversarial stored content described |
-| 11 | Staleness detection — detection method and remediation action stated |
-| 12 | Retrieval latency budget — p99 target stated and fits within the per-hop agentic latency budget |
-| 13 | Memory at scale — storage growth rate, index size at 1M users, latency degradation under load with arithmetic |
-| 14 | Memory observability — specific logs, metrics, or traces named for wrong-retrieval debugging |
-| 15 | Schema versioning — strategy for embedding dimension change or memory object schema migration stated |
+| 1 | Memory taxonomy - each type named, purpose stated, nodes that read/write identified |
+| 2 | Storage backend per type - named store with justification against one alternative |
+| 3 | Write triggers - exact condition stated, decision-maker identified |
+| 4 | Retrieval strategy - algorithm named, similarity threshold or top-K stated, no-match behavior defined |
+| 5 | Context window budget allocation - token reservation stated, split across types, eviction order defined |
+| 6 | Embedding model and consistency - model named, dimension stated, upgrade/re-indexing strategy present |
+| 7 | Eviction and TTL - what expires, when, and policy owner stated |
+| 8 | Memory consolidation - cadence, importance function, and conflict-merge strategy described |
+| 9 | Cross-tenant memory isolation - isolation boundary named and enforcement mechanism explained |
+| 10 | Memory poisoning defense - sanitization layer for adversarial stored content described |
+| 11 | Staleness detection - detection method and remediation action stated |
+| 12 | Retrieval latency budget - p99 target stated and fits within the per-hop agentic latency budget |
+| 13 | Memory at scale - storage growth rate, index size at 1M users, latency degradation under load with arithmetic |
+| 14 | Memory observability - specific logs, metrics, or traces named for wrong-retrieval debugging |
+| 15 | Schema versioning - strategy for embedding dimension change or memory object schema migration stated |
 
-### Sub-Agent C — Ingestion Pipeline *(only when `hasKnowledgeBase: true`)*
+### Sub-Agent C - Ingestion Pipeline *(only when `hasKnowledgeBase: true`)*
 
 Reads: `14-ingestion-pipeline.md` and `13-memory-layer-design.md` (embedding
-model consistency check only — point 6 of memory file, point 3 of ingestion file).
+model consistency check only - point 6 of memory file, point 3 of ingestion file).
 
 Mandate:
 > You are a skeptical data-platform engineer. Evaluate `14-ingestion-pipeline.md`
@@ -184,30 +184,30 @@ Mandate:
 > `PARTIAL`, or `FAIL`, followed by one sentence of evidence. Additionally, check
 > that the embedding model in point 3 matches the model in `13-memory-layer-design.md`
 > point 6. If they differ with no migration strategy, auto-FAIL point 3.
-> Return a structured verdict report — nothing else.
+> Return a structured verdict report - nothing else.
 
 Pass the 15-point ingestion rubric table inline. If `hasKnowledgeBase` is false,
 skip this agent entirely. A single `FAIL` is a Phase 1 halt.
 
 | # | Ingestion Pipeline Point |
 |---|---|
-| 1 | Ingestion triggers — event type named, sync vs async stated |
-| 2 | Chunking strategy — algorithm, chunk size (tokens), overlap, and rationale stated |
-| 3 | Embedding pipeline — model named, matches memory layer model, batching strategy described |
-| 4 | Index write path — sync/async named, failure handling and partial-visibility behavior stated |
-| 5 | Deduplication — detection method and action on duplicate stated |
-| 6 | Document versioning — chunk invalidation strategy and staleness window stated |
-| 7 | Re-indexing on embedding model upgrade — strategy and query-correctness during transition stated |
-| 8 | Freshness and TTL — expiry detection method and re-ingest trigger stated |
-| 9 | Ingestion throughput and latency — peak doc/sec, p99 index latency, and queue depth arithmetic present |
-| 10 | Multi-tenant index isolation — isolation mechanism named and enforcement point stated |
-| 11 | Content filtering and safety — PII/injection screening named, action on filter failure stated |
-| 12 | Ingestion observability — lag, failure rate, dead-letter depth, and index growth metrics named |
-| 13 | Scale model — document count, index size, storage cost, and embedding compute cost at 1M users with arithmetic |
-| 14 | Error handling and dead-letter — error taxonomy present, per-type retry + dead-letter destination stated |
-| 15 | Access control on ingested content — ACL enforcement point (ingest-time vs query-time) and bypass failure mode stated |
+| 1 | Ingestion triggers - event type named, sync vs async stated |
+| 2 | Chunking strategy - algorithm, chunk size (tokens), overlap, and rationale stated |
+| 3 | Embedding pipeline - model named, matches memory layer model, batching strategy described |
+| 4 | Index write path - sync/async named, failure handling and partial-visibility behavior stated |
+| 5 | Deduplication - detection method and action on duplicate stated |
+| 6 | Document versioning - chunk invalidation strategy and staleness window stated |
+| 7 | Re-indexing on embedding model upgrade - strategy and query-correctness during transition stated |
+| 8 | Freshness and TTL - expiry detection method and re-ingest trigger stated |
+| 9 | Ingestion throughput and latency - peak doc/sec, p99 index latency, and queue depth arithmetic present |
+| 10 | Multi-tenant index isolation - isolation mechanism named and enforcement point stated |
+| 11 | Content filtering and safety - PII/injection screening named, action on filter failure stated |
+| 12 | Ingestion observability - lag, failure rate, dead-letter depth, and index growth metrics named |
+| 13 | Scale model - document count, index size, storage cost, and embedding compute cost at 1M users with arithmetic |
+| 14 | Error handling and dead-letter - error taxonomy present, per-type retry + dead-letter destination stated |
+| 15 | Access control on ingested content - ACL enforcement point (ingest-time vs query-time) and bypass failure mode stated |
 
-### Sub-Agent D — Guardrails (15-point rubric)
+### Sub-Agent D - Guardrails (15-point rubric)
 
 Reads: `15-guardrails.md` only.
 
@@ -215,34 +215,34 @@ Mandate:
 > You are a skeptical AI safety engineer. Evaluate `15-guardrails.md` against the
 > 15 Guardrails points below. For each point: `PASS`, `PARTIAL`, or `FAIL`,
 > followed by one sentence of evidence (section name + what you found or didn't
-> find). Do NOT credit content from the security file — this rubric covers
+> find). Do NOT credit content from the security file - this rubric covers
 > behavioral and content safety only, not infrastructure security.
-> Return a structured verdict report — nothing else.
+> Return a structured verdict report - nothing else.
 
 Pass the 15-point guardrails rubric table inline. A single `FAIL` is a Phase 1 halt.
 
 | # | Guardrails Point |
 |---|---|
-| 1 | Input guardrail pipeline — check types named, sync/async mode stated, action per check type stated |
-| 2 | Output guardrail pipeline — checks named, latency cost stated, parallel/sequential execution stated |
-| 3 | Tool call validation — capability RBAC per node named, parameter validation described, failure action stated |
-| 4 | Escalation policy — trigger conditions enumerated, action per condition stated, user-facing behavior described |
-| 5 | Cross-agent instruction boundaries — scope of valid instructions defined, privilege escalation detection described |
-| 6 | Behavioral policy enforcement — policy format named, scope creep detection described, violation response stated |
-| 7 | Prompt injection defense (input surface) — detection approach named, confidence threshold stated, action on detection stated |
-| 8 | Prompt injection defense (tool output surface) — sanitization layer described, detection approach named, quarantine strategy stated |
-| 9 | Confidentiality protection — output scanning for leakage described, inter-tenant isolation at response layer stated, log redaction policy stated |
-| 10 | Guardrail latency budget — p99 cost of full stack stated and fits within run budget, optimization approach named |
-| 11 | Bypass and override policy — conditions stated (or hard no-bypass), audit trail requirement stated |
-| 12 | Multi-tenant guardrail isolation — per-tenant policy scoping described, runtime loading strategy stated |
-| 13 | Guardrail observability — trigger rate, false positive rate, latency, bypass events, and escalation rate metrics named; alert threshold stated |
-| 14 | Guardrail failure mode — fail-open/fail-closed/degrade choice stated with rationale and configurability noted |
-| 15 | Guardrail model versioning — rollout strategy named (canary/shadow/A-B), regression detection method stated |
+| 1 | Input guardrail pipeline - check types named, sync/async mode stated, action per check type stated |
+| 2 | Output guardrail pipeline - checks named, latency cost stated, parallel/sequential execution stated |
+| 3 | Tool call validation - capability RBAC per node named, parameter validation described, failure action stated |
+| 4 | Escalation policy - trigger conditions enumerated, action per condition stated, user-facing behavior described |
+| 5 | Cross-agent instruction boundaries - scope of valid instructions defined, privilege escalation detection described |
+| 6 | Behavioral policy enforcement - policy format named, scope creep detection described, violation response stated |
+| 7 | Prompt injection defense (input surface) - detection approach named, confidence threshold stated, action on detection stated |
+| 8 | Prompt injection defense (tool output surface) - sanitization layer described, detection approach named, quarantine strategy stated |
+| 9 | Confidentiality protection - output scanning for leakage described, inter-tenant isolation at response layer stated, log redaction policy stated |
+| 10 | Guardrail latency budget - p99 cost of full stack stated and fits within run budget, optimization approach named |
+| 11 | Bypass and override policy - conditions stated (or hard no-bypass), audit trail requirement stated |
+| 12 | Multi-tenant guardrail isolation - per-tenant policy scoping described, runtime loading strategy stated |
+| 13 | Guardrail observability - trigger rate, false positive rate, latency, bypass events, and escalation rate metrics named; alert threshold stated |
+| 14 | Guardrail failure mode - fail-open/fail-closed/degrade choice stated with rationale and configurability noted |
+| 15 | Guardrail model versioning - rollout strategy named (canary/shadow/A-B), regression detection method stated |
 
 ### Phase 1 Synthesizer (sequential, after A–D complete)
 
 After all parallel sub-agents return, spawn one final sequential `Agent` as the
-synthesizer. This agent **does not re-read the pack** — it receives only the
+synthesizer. This agent **does not re-read the pack** - it receives only the
 structured verdict reports from sub-agents A, B, C (if applicable), and D.
 
 Reads: the four verdict reports passed as inline text in the prompt. Nothing else.
@@ -285,25 +285,25 @@ proceeding. The Principal Engineer in Phase 2 will see the full synthesizer repo
 
 Reads: the synthesizer's Phase 1 report (passed as inline text) + the pack folder
 path so the PE can selectively read files. The PE must NOT be given the individual
-sub-agent verdict reports — only the aggregated synthesizer output.
+sub-agent verdict reports - only the aggregated synthesizer output.
 
 ## Phase 2: Principal Engineer Validation Agent
 
 Spawn a fresh `Agent` for the PE review. This agent receives the synthesizer's
-Phase 1 report as inline text — NOT the individual sub-agent verdicts. It also
+Phase 1 report as inline text - NOT the individual sub-agent verdicts. It also
 receives the pack folder path and is asked to selectively read the deep-dive files.
 Keeping the PE independent from the raw sub-agent verdicts prevents anchoring bias.
 
 > You are a principal engineer at a company that runs agentic AI systems for
 > over a million users. You are conducting a final production-readiness review.
-> You are NOT a yes-man — you approve only when the design is genuinely
+> You are NOT a yes-man - you approve only when the design is genuinely
 > production-ready.
 >
 > You have been given a Phase 1 critic summary (aggregated counts only, no raw
 > verdicts). The PARTIAL items are listed below by section. Read
 > `12-agentic-graph-structure.md`, `13-memory-layer-design.md`,
 > `15-guardrails.md`, and (if present) `14-ingestion-pipeline.md` yourself.
-> Do not read the entire pack — focus on the deep-dive files and the executive
+> Do not read the entire pack - focus on the deep-dive files and the executive
 > summary. Then answer these eight questions:
 >
 > 1. Is the agentic graph structure (`12-agentic-graph-structure.md`) specific
@@ -313,15 +313,15 @@ Keeping the PE independent from the raw sub-agent verdicts prevents anchoring bi
 >    to implement? Are the retrieval strategy, isolation boundary, and scale
 >    model credible? If not, what is the first gap?
 > 3. Does the guardrails design (`15-guardrails.md`) cover the full execution
->    pipeline — input, output, tool calls, and cross-agent boundaries? Is the
+>    pipeline - input, output, tool calls, and cross-agent boundaries? Is the
 >    fail-open/fail-closed policy appropriate for the threat model? Any gaps?
 > 4. If `14-ingestion-pipeline.md` is present: does it close the loop between
 >    the write path and the memory layer's read path, with consistent embedding
 >    model and credible throughput at 1M users? Skip if not present.
 > 5. Are the PARTIAL items from the Critic genuinely acceptable for an MVP, or
 >    are any blockers for a production launch at 1M users?
-> 6. Does the combined design — agentic layer, memory, guardrails, and
->    ingestion (if present) — show a credible end-to-end path to 1M users with
+> 6. Does the combined design - agentic layer, memory, guardrails, and
+>    ingestion (if present) - show a credible end-to-end path to 1M users with
 >    fleet, queue depth, isolation boundary, cost model, and index scale addressed?
 > 7. Are there any gaps the Critic missed in any layer that you consider blocking?
 > 8. Would you sign off on this design as ready for implementation?
@@ -368,7 +368,7 @@ Write `20-critical-agent-approval.md` into the pack folder with this structure:
 ### Guardrails (15-point rubric)
 - Result: G PASS, H PARTIAL, 0 FAIL
 
-### Ingestion Pipeline (15-point rubric — omit section if `hasKnowledgeBase: false`)
+### Ingestion Pipeline (15-point rubric - omit section if `hasKnowledgeBase: false`)
 - Result: R PASS, S PARTIAL, 0 FAIL
 
 ### PARTIAL Items (must be addressed before GA)
@@ -399,7 +399,7 @@ Write `20-critical-agent-approval.md` into the pack folder with this structure:
 
 This agentic design pack has cleared the /critical-agent gate. Downstream work
 (implementation, detailed LLD, handoff to engineers) may proceed. The PARTIAL
-items and PE concerns above are tracked obligations — they are not optional.
+items and PE concerns above are tracked obligations - they are not optional.
 
 **Approved by:** /critical-agent skill (automated gate, not a human sign-off)
 ```

@@ -66,7 +66,7 @@ banker/
     └── e2e/                  # full DAG against staging
 ```
 
-## `BankerState` — the shared object
+## `BankerState` - the shared object
 
 ```python
 # runtime/state.py
@@ -315,7 +315,7 @@ async def budget_agent(state: BankerState) -> BankerState:
 Key invariants:
 
 - The node returns a *new* `BankerState` (Pydantic copy).
-- The ReAct loop is **inside the node**, not at the top of the graph —
+- The ReAct loop is **inside the node**, not at the top of the graph -
   this is what makes the outer DAG predictable.
 - Tools are restricted by an **allowlist**, not by faith in the prompt.
 
@@ -470,7 +470,7 @@ stateDiagram-v2
     Failed_Permanent --> [*]
 ```
 
-## Schemas — minimal data model
+## Schemas - minimal data model
 
 ```sql
 -- per turn (immutable)

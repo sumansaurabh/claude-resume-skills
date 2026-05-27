@@ -10,7 +10,7 @@
 | Output | **Pydantic structured `Explanation`** | Free-text response | Free-text means UI parses prose; UI breaks on phrasing change; auditability collapses. Structured output is contract. |
 | Memory | **Three-tier (working, episodic, long-term)** | Single vector store of "everything the user said" | Single vector store leaks across sessions, can't be schema-validated, hard to delete (DPDP). Tier separation gives clean retention + redaction. |
 
-## Alternative orchestrators — why not them?
+## Alternative orchestrators - why not them?
 
 | Alternative | What it is | Why not (in this context) |
 |---|---|---|
@@ -25,7 +25,7 @@ We picked LangGraph because it is the smallest set of primitives that
 give us DAG + checkpointing + typed state, while letting us own the
 parts that matter (router, sub-agents, eval).
 
-## Deterministic-vs-LLM split — challenges and answers
+## Deterministic-vs-LLM split - challenges and answers
 
 | Challenge | Answer |
 |---|---|
@@ -34,7 +34,7 @@ parts that matter (router, sub-agents, eval).
 | "Reflection sounds like a hack. Why not just prompt-engineer harder?" | Reflection is a deterministic comparator, not another LLM call. The LLM can hallucinate a number; the comparator can't. |
 | "Two LLM calls per turn (sub-agent + explainer) doubles your cost." | Tiered routing (Haiku for cheap paths, Sonnet for explainer) plus prompt caching keeps blended cost at ~$0.009/turn. Worth it for correctness. |
 
-## Memory architecture — alternatives
+## Memory architecture - alternatives
 
 | Approach | Verdict |
 |---|---|
@@ -47,11 +47,11 @@ parts that matter (router, sub-agents, eval).
 The schema'd `user_facts` table is essentially a rule-engine for the
 LLM: "these are the typed facts you know about the user; do not infer
 more." This is the same discipline as ShareChat's 22-attribute user
-segmentation for ad targeting (`resume.txt` L112-114) — typed
+segmentation for ad targeting (`resume.txt` L112-114) - typed
 attributes beat untyped embeddings when the downstream is a regulated
 decision.
 
-## Sub-agent shape — why bounded ReAct?
+## Sub-agent shape - why bounded ReAct?
 
 Three alternatives considered:
 
@@ -88,7 +88,7 @@ The temptation is real and the failure modes are five-fold:
    turn = a ~$100M/month bill.
 3. **Latency.** Multi-megabyte prompts blow the 3s budget.
 4. **Correctness.** Even with all the data, LLMs miscount. Not
-   "sometimes" — measurably, in our golden set.
+   "sometimes" - measurably, in our golden set.
 5. **Auditability.** "The model knew because it had the data" is not
    an audit answer. "The calculator computed it from these specific
    rows" is.

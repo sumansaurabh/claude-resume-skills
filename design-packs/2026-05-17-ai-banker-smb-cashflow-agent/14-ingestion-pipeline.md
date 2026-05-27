@@ -1,18 +1,18 @@
-# 14. Ingestion Pipeline — AI Banker for SMB Owners
+# 14. Ingestion Pipeline - AI Banker for SMB Owners
 
 > Write-path design for every source of content the cashflow intelligence agent reads from. Read-path retrieval lives in `13-memory-layer-design.md`; agent-invoked `search()` tool semantics live in `04-api-and-contracts.md`. This file is standalone.
 
-Pipeline DNA is anchored on two prior systems on the resume: the **BlackBox LLMOps telemetry mesh** (50M spans/day, 2.5 TB/month — resume L58-59) for shape and observability, and **IQLECT Ampere** (terabytes of streaming data in minutes for low-latency decisioning — resume L130-131) for the row-oriented, queue-buffered streaming-row architecture that underlies bank-event ingestion.
+Pipeline DNA is anchored on two prior systems on the resume: the **BlackBox LLMOps telemetry mesh** (50M spans/day, 2.5 TB/month - resume L58-59) for shape and observability, and **IQLECT Ampere** (terabytes of streaming data in minutes for low-latency decisioning - resume L130-131) for the row-oriented, queue-buffered streaming-row architecture that underlies bank-event ingestion.
 
 ---
 
 ## Overview Diagram
 
-End-to-end write path, top to bottom from trigger to query-visible state. Every failure class in point 14 has an explicit edge into a DLQ destination so the failure surface is readable at a glance. The embedding model node name is **identical** to `13-memory-layer-design.md` point 6 — a divergence in the diagram alone is enough to fail the in-loop critic. The tenant boundary wraps the index targets and labels the four-layer enforcement from point 10.
+End-to-end write path, top to bottom from trigger to query-visible state. Every failure class in point 14 has an explicit edge into a DLQ destination so the failure surface is readable at a glance. The embedding model node name is **identical** to `13-memory-layer-design.md` point 6 - a divergence in the diagram alone is enough to fail the in-loop critic. The tenant boundary wraps the index targets and labels the four-layer enforcement from point 10.
 
 ```mermaid
 graph TD
-  subgraph TRIG["Triggers — point 1"]
+  subgraph TRIG["Triggers - point 1"]
     BANK[Bank webhook<br/>AA · Plaid · direct bank push]
     ACCT[Accounting OAuth + webhook<br/>Tally · Zoho Books]
     PAYR[Payroll webhook<br/>RazorpayX · Gusto]
@@ -27,18 +27,18 @@ graph TD
   CHUNKED[("Kafka ingest.chunked · 24h retention")]
 
   EMB_WORK["Embedding worker<br/>batched 64/req · 30K/sec aggregate peak"]
-  EMB{{"text-embedding-3-large · 3072d<br/>OpenAI primary · bge-large-en-v1.5 1024d fallback<br/>MUST match 13-memory-layer-design.md point 6 — enforced by EmbeddingService"}}
+  EMB{{"text-embedding-3-large · 3072d<br/>OpenAI primary · bge-large-en-v1.5 1024d fallback<br/>MUST match 13-memory-layer-design.md point 6 - enforced by EmbeddingService"}}
 
-  DEDUP{"Dedup gate — point 5<br/>SHA-256 · (vendor,inv_no) · MinHash · cosine"}
-  FILT{"Content filter — point 11<br/>PII (PAN · Aadhaar · OTP) · injection classifier<br/>MIME allow-list · 25MB · ClamAV · OCR gVisor sandbox"}
-  OUTBOX["2PC outbox writer — point 4<br/>Postgres tx + outbox row → drainer UPSERTs pgvector"]
+  DEDUP{"Dedup gate - point 5<br/>SHA-256 · (vendor,inv_no) · MinHash · cosine"}
+  FILT{"Content filter - point 11<br/>PII (PAN · Aadhaar · OTP) · injection classifier<br/>MIME allow-list · 25MB · ClamAV · OCR gVisor sandbox"}
+  OUTBOX["2PC outbox writer - point 4<br/>Postgres tx + outbox row → drainer UPSERTs pgvector"]
 
-  subgraph TENANT["Tenant N — isolation point 10<br/>(1) pgvector namespace per tenant_id<br/>(2) business_id required metadata filter on every chunk<br/>(3) Postgres RLS keyed on app.tenant_id<br/>(4) all access via EmbeddingService + VectorStore wrappers · CI lint blocks raw connections"]
+  subgraph TENANT["Tenant N - isolation point 10<br/>(1) pgvector namespace per tenant_id<br/>(2) business_id required metadata filter on every chunk<br/>(3) Postgres RLS keyed on app.tenant_id<br/>(4) all access via EmbeddingService + VectorStore wrappers · CI lint blocks raw connections"]
     PG[("Postgres<br/>structured rows · doc versioning · tombstones 30d grace")]
     PGV[("pgvector HNSW<br/>queryable · p99 60s arrival → queryable")]
   end
 
-  DLQ[("DLQ topics — ingest.dlq.{embed.ratelimit · embed.transient · embed.bad_input · index · pg · chunk · ocr · schema · quota}")]
+  DLQ[("DLQ topics - ingest.dlq.{embed.ratelimit · embed.transient · embed.bad_input · index · pg · chunk · ocr · schema · quota}")]
   QUAR[("ingest.quarantine · 24h hold · admin review")]
   USER_NOTIF[/"User notice<br/>manual entry required · billing · 4xx upload reject"/]
   SYNC_REJECT[/"Sync 4xx<br/>size · format · virus"/]
@@ -62,19 +62,19 @@ graph TD
   EMB_WORK -- "embedding API 4xx bad input (empty · oversize)" --> DLQ
   EMB_WORK --> DEDUP
 
-  DEDUP -- "exact match — drop / merge (per point 5 matrix)" --> PG
+  DEDUP -- "exact match - drop / merge (per point 5 matrix)" --> PG
   DEDUP --> FILT
 
-  FILT -- "size · format — pre-ingest" --> SYNC_REJECT
+  FILT -- "size · format - pre-ingest" --> SYNC_REJECT
   FILT -- "virus · ClamAV hit" --> SYNC_REJECT
   FILT -- "OCR failure (2× linear · 5s)" --> DLQ
-  FILT -- "injection-suspect — 24h hold" --> QUAR
+  FILT -- "injection-suspect - 24h hold" --> QUAR
   FILT -- "webhook schema mismatch (upstream contract break)" --> DLQ
   FILT -- "tenant quota exceeded" --> DLQ
   FILT --> OUTBOX
 
   OUTBOX -- "vector index write failure (3× exp · circuit breaker)" --> DLQ
-  OUTBOX -- "Postgres write failure — SEV-high page" --> DLQ
+  OUTBOX -- "Postgres write failure - SEV-high page" --> DLQ
   OUTBOX --> PG
   OUTBOX --> PGV
 
@@ -91,7 +91,7 @@ The system has 7 ingestion sources. Each is classified by trigger pattern, sync/
 
 | Source | Trigger | Sync/Async | Arrival → queryable SLO (p95) |
 |---|---|---|---|
-| Bank account events | Webhook from Account Aggregator (AA, India) / Plaid (US) / direct bank push | Async — webhook ack ≤ 200 ms | 60 s |
+| Bank account events | Webhook from Account Aggregator (AA, India) / Plaid (US) / direct bank push | Async - webhook ack ≤ 200 ms | 60 s |
 | Accounting sync (Tally / Zoho Books) | OAuth pull every 15 min + create/update webhooks where supported | Async | 5 min (bulk), 60 s (webhook delta) |
 | Payroll (RazorpayX / Gusto) | Webhook on `pay_run.scheduled` and `pay_run.processed` | Async | 60 s |
 | GST / IT portal | Daily scheduled scrape via GSP route (consent token) | Async, daily | 4 h after daily run starts |
@@ -99,22 +99,22 @@ The system has 7 ingestion sources. Each is classified by trigger pattern, sync/
 | Vendor / customer master | Bulk CSV/XLSX on onboarding; ongoing deltas from accounting webhook | Sync (bulk ≤ 5 min); async for deltas | 5 min bulk; 60 s deltas |
 | Domain knowledge (GST rate tables, RBI holiday calendar, lender catalog) | Scheduled monthly + manual trigger on CBIC / RBI notification | Async, low priority | 1 h |
 
-Webhook ack policy: every webhook handler is a thin shim that writes the raw payload to Kafka (`ingest.raw.{source}`) and returns 200 within 200 ms. All real work is downstream — no source is ever blocked on our pipeline. This mirrors the IQLECT Ampere streaming-row intake pattern (resume L130-131).
+Webhook ack policy: every webhook handler is a thin shim that writes the raw payload to Kafka (`ingest.raw.{source}`) and returns 200 within 200 ms. All real work is downstream - no source is ever blocked on our pipeline. This mirrors the IQLECT Ampere streaming-row intake pattern (resume L130-131).
 
 ---
 
 ## 2. Chunking strategy
 
-Chunking is chosen per content type to match the retrieval use case. Mixing strategies in one index is intentional — different content yields different chunk shapes.
+Chunking is chosen per content type to match the retrieval use case. Mixing strategies in one index is intentional - different content yields different chunk shapes.
 
 | Content type | Strategy | Chunk size | Overlap | Rationale |
 |---|---|---|---|---|
-| Bank transactions | None — atomic row | n/a | n/a | Reconciliation queries hit `(account_id, provider_txn_id)` and structured filters; embed only on demand when promoted to an episodic narrative |
+| Bank transactions | None - atomic row | n/a | n/a | Reconciliation queries hit `(account_id, provider_txn_id)` and structured filters; embed only on demand when promoted to an episodic narrative |
 | Invoices (OCR'd) | Hybrid: typed-field row + free-text chunks | 200 tokens (free-text part) | 30 tokens | Bank reconciliation needs entity fields (vendor, amount, line items); "did we already pay this vendor for the same SKU" needs semantic free-text |
-| Accounting ledger entries (GL) | None — row-based; category + memo concatenated to one 100-token text vector | 100 tokens | 0 | Row identity is `(book_id, voucher_id, line_id)`; semantic recall is over the memo only |
-| Contracts / MSAs / vendor terms | Document-structure aware — split on section headers, then size-bounded | 500 tokens | 80 tokens | Preserves clause boundaries; clauses are the atomic legal unit |
-| GST rules / lender product docs | Semantic — sliding window with topic-shift detection (cosine drop > 0.25) | 300 tokens | 50 tokens | Rules and product T&Cs are mid-density narrative; topic-shift cutting preserves rule coherence |
-| Email attachments | Detect MIME → route to one of the above | — | — | — |
+| Accounting ledger entries (GL) | None - row-based; category + memo concatenated to one 100-token text vector | 100 tokens | 0 | Row identity is `(book_id, voucher_id, line_id)`; semantic recall is over the memo only |
+| Contracts / MSAs / vendor terms | Document-structure aware - split on section headers, then size-bounded | 500 tokens | 80 tokens | Preserves clause boundaries; clauses are the atomic legal unit |
+| GST rules / lender product docs | Semantic - sliding window with topic-shift detection (cosine drop > 0.25) | 300 tokens | 50 tokens | Rules and product T&Cs are mid-density narrative; topic-shift cutting preserves rule coherence |
+| Email attachments | Detect MIME → route to one of the above | - | - | - |
 
 Streaming-row design for bank txns and GL is anchored on IQLECT Ampere (resume L130-131) where row-based ingestion at terabyte scale powered low-latency decisioning without forcing every record through a chunker.
 
@@ -122,7 +122,7 @@ Streaming-row design for bank txns and GL is anchored on IQLECT Ampere (resume L
 
 ## 3. Embedding pipeline
 
-**Model: `text-embedding-3-large` (OpenAI), 3072 dim.** This MUST match point 6 of `13-memory-layer-design.md`; they are pinned together by the `EmbeddingService` abstraction and the dim is asserted in CI — any divergence fails the build. Self-hosted fallback: `bge-large-en-v1.5` (1024 dim) for cost-sensitive cohorts; the same `EmbeddingService` swaps providers transparently, but mixed-dim reads are rejected at the index layer (`vector_dim != index.dim` → 4xx).
+**Model: `text-embedding-3-large` (OpenAI), 3072 dim.** This MUST match point 6 of `13-memory-layer-design.md`; they are pinned together by the `EmbeddingService` abstraction and the dim is asserted in CI - any divergence fails the build. Self-hosted fallback: `bge-large-en-v1.5` (1024 dim) for cost-sensitive cohorts; the same `EmbeddingService` swaps providers transparently, but mixed-dim reads are rejected at the index layer (`vector_dim != index.dim` → 4xx).
 
 | Concern | Choice | Arithmetic |
 |---|---|---|
@@ -152,8 +152,8 @@ source webhook
 | Retention | `ingest.raw.*` = 7 days; `ingest.chunked` = 24 h |
 | Retry | Embedding write: 3× exp backoff (1 s, 4 s, 16 s); index write: 3× exp backoff |
 | DLQ | `ingest.dlq.{source}` per failure class (see section 14) |
-| Atomicity | Document-level transaction across Postgres + pgvector via **outbox pattern** — structured row + outbox entry in one Postgres tx; outbox drained by a writer that performs the vector UPSERT and marks outbox as done |
-| Partial visibility | **Intentional** — structured fields go live synchronously; vector index may lag 60 s. Deterministic agent paths (AR aging, runway calc) query Postgres directly and stay correct; semantic recall (vendor lookup) tolerates the lag |
+| Atomicity | Document-level transaction across Postgres + pgvector via **outbox pattern** - structured row + outbox entry in one Postgres tx; outbox drained by a writer that performs the vector UPSERT and marks outbox as done |
+| Partial visibility | **Intentional** - structured fields go live synchronously; vector index may lag 60 s. Deterministic agent paths (AR aging, runway calc) query Postgres directly and stay correct; semantic recall (vendor lookup) tolerates the lag |
 
 Why partial visibility is acceptable: the cashflow agent's high-stakes paths (runway, AP scheduling) read structured columns; semantic memory is a recall aid. Holding the user's webhook ack on a vector write would couple p99 ingest latency to OpenAI's tail latency, which is the wrong trade.
 
@@ -165,7 +165,7 @@ Financial documents are too high-stakes for silent merges. Exact dedupe is autom
 
 | Content type | Exact-dedupe key | Near-dupe signal | Action |
 |---|---|---|---|
-| Bank transactions | `(account_id, provider_txn_id)` | none — providers give stable ids | Drop silently |
+| Bank transactions | `(account_id, provider_txn_id)` | none - providers give stable ids | Drop silently |
 | Invoices | SHA-256(PDF) **and** `(vendor_id, invoice_number)` | MinHash on extracted text, Jaccard ≥ 0.85 | Exact → skip; tuple-match different PDF → MERGE (keep latest); near-dupe → **flag for human reconciliation, do not auto-merge** |
 | Accounting entries | `(book_id, voucher_id, line_id)` | none | Drop silently |
 | Contracts | SHA-256(normalized text) | Embedding cosine ≥ 0.97 | Exact → skip; near-dupe → flag |
@@ -184,10 +184,10 @@ Every ingested document carries `doc_id` and monotonic `version` (uint64). Updat
 |---|---|
 | Write semantics | New version → insert new chunks with `version = N+1`; UPDATE old chunks `SET tombstoned_at = NOW()` |
 | Default read filter | `tombstoned_at IS NULL OR tombstoned_at > NOW() - INTERVAL '30 days'` excluded; effectively reads the latest version |
-| Grace window | 30 days — old chunks remain queryable by explicit `as_of` time-travel queries (auditor mode) |
+| Grace window | 30 days - old chunks remain queryable by explicit `as_of` time-travel queries (auditor mode) |
 | Physical deletion | Daily compaction job runs at 03:00 IST, drops chunks where `tombstoned_at < NOW() - 30 days` |
 | Staleness window for default reads | 0 s (writes are atomic at the Postgres+outbox layer) |
-| Cache staleness | Redis hot-doc cache TTL = 5 min — so a freshly-updated doc may serve stale read for ≤ 5 min on a cache-hit path |
+| Cache staleness | Redis hot-doc cache TTL = 5 min - so a freshly-updated doc may serve stale read for ≤ 5 min on a cache-hit path |
 
 ---
 
@@ -199,9 +199,9 @@ Dual-index, version-tagged. Reads stay on the live index until cutover.
 |---|---|---|---|---|
 | 1. Shadow stand-up | 4 weeks | New model `text-embedding-4-large` indexed in parallel namespace `vec.v4` | live `vec.v3` | both `vec.v3` and `vec.v4` |
 | 2. Historical backfill | 2 weeks, background | Walk all `doc_id`s and embed into `vec.v4` at 5K embeddings/sec budgeted | live `vec.v3` | both |
-| 3. Validation | 3 days | Golden query set (1000 queries × ground truth) — assert `recall@10(v4) ≥ recall@10(v3)`; assert MRR not regressed > 2% | live `vec.v3`; eval reads `vec.v4` | both |
+| 3. Validation | 3 days | Golden query set (1000 queries × ground truth) - assert `recall@10(v4) ≥ recall@10(v3)`; assert MRR not regressed > 2% | live `vec.v3`; eval reads `vec.v4` | both |
 | 4. Atomic cutover | 1 routing flip | Read path flag `vector.index.active = v4` | live `vec.v4` | both for 30 days, then v4 only |
-| 5. Deprecation | 30 days after cutover | Drop `vec.v3` namespace | — | — |
+| 5. Deprecation | 30 days after cutover | Drop `vec.v3` namespace | - | - |
 
 Cost during transition: 2× embedding spend (writes go to both models) + 2× index storage for ~6 weeks. Budget impact estimated at +$140K total for a 1M MAU footprint (per section 13 arithmetic).
 
@@ -239,19 +239,19 @@ Arithmetic anchored on `02-design-estimates.md` capacity model (300K DAU / 1M MA
 | Accounting GL | 50 entries/day | 300K × 50 = **15M/day** | 15M ÷ 86,400 ≈ **175/sec** | ~800/sec (15-min sync bursts) |
 | Payroll events | 0.05/day | 15K/day | trivial | 50/sec (1st-of-month payroll spike) |
 | Domain knowledge | n/a | < 100 docs/day | trivial | trivial |
-| **TOTAL** | — | — | **~1K events/sec sustained** | **~5K events/sec peak** |
+| **TOTAL** | - | - | **~1K events/sec sustained** | **~5K events/sec peak** |
 
 p99 latency arrival → queryable:
 
 | Source | p99 |
 |---|---|
-| Bank txn (structured) | 60 s — Kafka (5 s) + chunker (2 s) + embed batch (10 s) + index write (3 s) + buffer |
-| Invoice OCR | 30 s — OCR is the slow path: 5–10 s text extraction + 2 s embedding + write |
-| Accounting bulk sync | 5 min — bulk sync, low priority lane |
+| Bank txn (structured) | 60 s - Kafka (5 s) + chunker (2 s) + embed batch (10 s) + index write (3 s) + buffer |
+| Invoice OCR | 30 s - OCR is the slow path: 5–10 s text extraction + 2 s embedding + write |
+| Accounting bulk sync | 5 min - bulk sync, low priority lane |
 | Payroll | 60 s |
 | Domain knowledge | 1 h |
 
-Kafka sizing: 5K events/sec peak × 30 s burst tolerance = **150K msg buffered**; topic partitioned **64-way** to keep per-partition depth ≤ 2.5K. Anchored on BlackBox telemetry mesh which sustained 50M spans/day = 578 spans/sec sustained, with 5× peaks (resume L58-59) — same Kafka + ClickHouse intake shape, re-cast for financial-document scale.
+Kafka sizing: 5K events/sec peak × 30 s burst tolerance = **150K msg buffered**; topic partitioned **64-way** to keep per-partition depth ≤ 2.5K. Anchored on BlackBox telemetry mesh which sustained 50M spans/day = 578 spans/sec sustained, with 5× peaks (resume L58-59) - same Kafka + ClickHouse intake shape, re-cast for financial-document scale.
 
 ---
 
@@ -264,9 +264,9 @@ Kafka sizing: 5K events/sec peak × 30 s burst tolerance = **150K msg buffered**
 | Application | All reads/writes go through `EmbeddingService` + `VectorStore` wrappers; direct vector-DB connections are forbidden by Vault policy and CI lint |
 | Tests | A CI gate fans 100 cross-tenant probe queries on every PR; any leak → block merge |
 
-Failure mode if isolation is bypassed: cross-tenant data leak — SMB-A sees SMB-B's invoice. Detection: per-tenant row-count reconciliation runs daily on every table, alerts on > 1σ shift vs 7-day trend; per-row `tenant_id` mismatch raised at ORM serialization (defense in depth — should be unreachable).
+Failure mode if isolation is bypassed: cross-tenant data leak - SMB-A sees SMB-B's invoice. Detection: per-tenant row-count reconciliation runs daily on every table, alerts on > 1σ shift vs 7-day trend; per-row `tenant_id` mismatch raised at ORM serialization (defense in depth - should be unreachable).
 
-Anchor: the multi-tenant ML infra pattern from Microsoft AML (gang scheduling + isolation strategies for LLM workloads, resume L88-89) translates directly — tenant_id is the new pod-namespace.
+Anchor: the multi-tenant ML infra pattern from Microsoft AML (gang scheduling + isolation strategies for LLM workloads, resume L88-89) translates directly - tenant_id is the new pod-namespace.
 
 ---
 
@@ -281,9 +281,9 @@ Pre-processing happens before any chunk reaches the index.
 | Format validation | MIME sniff + ext check; allow-list = PDF, JPG, PNG, TIFF, CSV, XLSX | Reject with 4xx at upload (synchronous user error) |
 | Size limits | 25 MB per upload; 10K tokens per chunk after extraction | Reject 4xx |
 | Virus scan | ClamAV on every uploaded blob, gVisor-sandboxed | Reject + alert; quarantine blob 30 days |
-| OCR | Tesseract + LayoutLMv3 in **gVisor sandbox** — read-only FS, no network egress | OCR failure → 2× retry, then DLQ + user notice "manual entry required" |
+| OCR | Tesseract + LayoutLMv3 in **gVisor sandbox** - read-only FS, no network egress | OCR failure → 2× retry, then DLQ + user notice "manual entry required" |
 
-OCR isolation anchor: BlackBox WASM sandbox plane isolated 1M+ zero-shot code executions/day for SOC-2 compliance (resume L49-50). Same threat model applies here — user-uploaded PDFs are untrusted content that the OCR engine deserializes; sandboxing is non-negotiable.
+OCR isolation anchor: BlackBox WASM sandbox plane isolated 1M+ zero-shot code executions/day for SOC-2 compliance (resume L49-50). Same threat model applies here - user-uploaded PDFs are untrusted content that the OCR engine deserializes; sandboxing is non-negotiable.
 
 Partial-ingest semantics: if 6 of 8 chunks in a contract pass filters and 2 are quarantined, the document is ingested with `partial_ingest=true` metadata and the missing chunks listed in `quarantined_chunk_ids` so retrieval callers can warn.
 
@@ -291,7 +291,7 @@ Partial-ingest semantics: if 6 of 8 chunks in a contract pass filters and 2 are 
 
 ## 12. Ingestion observability
 
-Reusing the BlackBox LLMOps telemetry mesh stack — **OpenTelemetry + ClickHouse**, the exact stack from resume L58-61 — recast for ingest events.
+Reusing the BlackBox LLMOps telemetry mesh stack - **OpenTelemetry + ClickHouse**, the exact stack from resume L58-61 - recast for ingest events.
 
 | Metric | Threshold | Alert routing |
 |---|---|---|
@@ -318,11 +318,11 @@ events: [
 ]
 ```
 
-Storage: ClickHouse with `(toYYYYMM(ts), tenant_id, source)` partition key, 90-day hot retention, S3 export for older. Anchored on BlackBox 2.5 TB/month trace volume cost model (resume L58-59) — at our 1K events/sec sustained × ~2 KB per trace = 5 GB/day = 150 GB/month, well within the same architecture's headroom.
+Storage: ClickHouse with `(toYYYYMM(ts), tenant_id, source)` partition key, 90-day hot retention, S3 export for older. Anchored on BlackBox 2.5 TB/month trace volume cost model (resume L58-59) - at our 1K events/sec sustained × ~2 KB per trace = 5 GB/day = 150 GB/month, well within the same architecture's headroom.
 
 ---
 
-## 13. Scale model — arithmetic, 1M MAU
+## 13. Scale model - arithmetic, 1M MAU
 
 Per-tenant rates from section 9, scaled to 1M MAU (= ~600K DAU at 60% DAU/MAU).
 
@@ -333,7 +333,7 @@ Per-tenant rates from section 9, scaled to 1M MAU (= ~600K DAU at 60% DAU/MAU).
 | Invoices | 600K × 0.3 = 180K/day | 66M | 50 KB PDF + 2 KB text + 13.8 KB embedding ≈ 66 KB | **4.3 TB** |
 | Accounting GL | 600K × 50 = 30M/day | 11B | 200 B | **2.2 TB structured**, sampled-summary embeddings ~10% = 1.1B × 13.8 KB = **15 TB** (mitigated by row-summarization, see below) |
 | Payroll events | 30K/day | 11M | 1 KB | 11 GB |
-| Domain knowledge | static | — | — | ~10 GB total |
+| Domain knowledge | static | - | - | ~10 GB total |
 
 Row-summarization for accounting: instead of embedding every GL line, the chunker rolls up to monthly per-(book, category) summaries → 600K tenants × 50 categories × 12 months = **360M embeddings/year × 13.8 KB = 5 TB**, not 15. Documented as an explicit design choice.
 
@@ -341,7 +341,7 @@ Row-summarization for accounting: instead of embedding every GL line, the chunke
 |---|---|
 | Total raw structured | **~3 TB/year** |
 | Total embeddings (after row-summarization) | **~12 TB/year** |
-| Active vector index (90-day hot window, after cold-tiering) | **~600 GB** — matches `13-memory-layer-design.md` point 13 arithmetic |
+| Active vector index (90-day hot window, after cold-tiering) | **~600 GB** - matches `13-memory-layer-design.md` point 13 arithmetic |
 
 **Monthly storage cost:**
 - Aurora + pgvector io2 at $0.10/GB-month × 600 GB hot = **$60/month** (vector index)
@@ -356,54 +356,54 @@ Row-summarization for accounting: instead of embedding every GL line, the chunke
 - At $0.13 / 1M tokens × ~200 tokens/embedding avg = $0.000026/embedding
 - = **$40K/month at 1M MAU**
 
-**Super-linear flag:** every new SMB adds ~5 MB/month of embeddings (after row-summarization). At 10M MAU the embedding bill scales to ~$400K/month — this is the explicit trigger for migrating cost-sensitive cohorts to self-hosted `bge-large-en-v1.5` (4× cheaper at 1024 dim, 1× L4 GPU per worker per section 3). Migration plan: when embedding spend crosses $200K/month, move the bottom-tier-pricing cohort first; agent quality regression target ≤ 1% recall@10.
+**Super-linear flag:** every new SMB adds ~5 MB/month of embeddings (after row-summarization). At 10M MAU the embedding bill scales to ~$400K/month - this is the explicit trigger for migrating cost-sensitive cohorts to self-hosted `bge-large-en-v1.5` (4× cheaper at 1024 dim, 1× L4 GPU per worker per section 3). Migration plan: when embedding spend crosses $200K/month, move the bottom-tier-pricing cohort first; agent quality regression target ≤ 1% recall@10.
 
 ---
 
 ## 14. Error handling and dead-letter
 
-Error taxonomy is fixed and exhaustive — every ingestion failure maps to exactly one class, which determines retry, backoff, DLQ topic, and user notification.
+Error taxonomy is fixed and exhaustive - every ingestion failure maps to exactly one class, which determines retry, backoff, DLQ topic, and user notification.
 
 | Error class | Retry | Backoff | DLQ destination | User notified |
 |---|---|---|---|---|
-| Embedding API rate-limit (429) | 5× | exp + jitter | `ingest.dlq.embed.ratelimit` — auto-drained on quota refresh | No |
+| Embedding API rate-limit (429) | 5× | exp + jitter | `ingest.dlq.embed.ratelimit` - auto-drained on quota refresh | No |
 | Embedding API 5xx | 3× | exp (1s, 4s, 16s) | `ingest.dlq.embed.transient` | No |
-| Embedding API 4xx (bad input — empty text, oversize) | 0 | — | `ingest.dlq.embed.bad_input` | Yes (for user-uploaded content) |
+| Embedding API 4xx (bad input - empty text, oversize) | 0 | - | `ingest.dlq.embed.bad_input` | Yes (for user-uploaded content) |
 | Vector index write failure | 3× | exp | `ingest.dlq.index` + circuit breaker on vector DB | No |
 | Postgres write failure | 3× | exp | `ingest.dlq.pg` + page (this is high-severity) | No |
-| Chunking error (malformed doc, parser exception) | 0 | — | `ingest.dlq.chunk` | Yes (for user-uploaded) |
-| Filter rejection — size/format | 0 | — | not retried; sync 4xx at upload | Yes |
-| Filter rejection — injection-suspect | 0 | — | `ingest.quarantine` (24 h hold) | Yes (admin only, not end-user) |
-| OCR failure | 2× | linear (5s) | `ingest.dlq.ocr` | Yes — "manual entry required" |
-| Webhook payload schema mismatch | 0 | — | `ingest.dlq.schema` + page (upstream broke contract) | No |
-| Tenant quota exceeded | 0 | — | `ingest.dlq.quota` | Yes — billing notice |
+| Chunking error (malformed doc, parser exception) | 0 | - | `ingest.dlq.chunk` | Yes (for user-uploaded) |
+| Filter rejection - size/format | 0 | - | not retried; sync 4xx at upload | Yes |
+| Filter rejection - injection-suspect | 0 | - | `ingest.quarantine` (24 h hold) | Yes (admin only, not end-user) |
+| OCR failure | 2× | linear (5s) | `ingest.dlq.ocr` | Yes - "manual entry required" |
+| Webhook payload schema mismatch | 0 | - | `ingest.dlq.schema` + page (upstream broke contract) | No |
+| Tenant quota exceeded | 0 | - | `ingest.dlq.quota` | Yes - billing notice |
 
 Ops affordances:
 - **DLQ depth dashboard** per source × error class; SLO ≤ 100 msg per class.
-- **Drain-with-override action** on transient classes (rate-limit, transient 5xx) — triggers reprocessing after a fix.
-- **Bad-input classes are NEVER auto-drained** — they require an explicit chunker fix and a new code deploy; otherwise the same input loops forever.
-- **Per-tenant DLQ alerting** — a single tenant filling 50% of any DLQ triggers automation to throttle that tenant's ingest rate, protecting the multi-tenant fleet.
+- **Drain-with-override action** on transient classes (rate-limit, transient 5xx) - triggers reprocessing after a fix.
+- **Bad-input classes are NEVER auto-drained** - they require an explicit chunker fix and a new code deploy; otherwise the same input loops forever.
+- **Per-tenant DLQ alerting** - a single tenant filling 50% of any DLQ triggers automation to throttle that tenant's ingest rate, protecting the multi-tenant fleet.
 
 ---
 
 ## 15. Access control on ingested content
 
-Access control on ingested data is enforced at TWO layers — **ingest-time tagging** and **query-time filtering** — both required, by design (defense in depth).
+Access control on ingested data is enforced at TWO layers - **ingest-time tagging** and **query-time filtering** - both required, by design (defense in depth).
 
 | Aspect | Policy |
 |---|---|
 | Tag schema | Every chunk has `(tenant_id, business_id, doc_visibility, consent_expires_at)` as required metadata; missing fields fail the write |
 | Visibility classes | `owner_only`, `business_internal`, `auditor_consented`, `lender_consented` |
 | Default per source | bank statement → `business_internal`; OCR'd invoice → `business_internal`; consent-shared loan application doc → `lender_consented` for the consent term; voice memo from owner → `owner_only` |
-| Consent expiry | Each consent class carries `consent_expires_at`; a daily job rewrites expired chunks to `owner_only` (does not delete — owner still has access) |
+| Consent expiry | Each consent class carries `consent_expires_at`; a daily job rewrites expired chunks to `owner_only` (does not delete - owner still has access) |
 | Query-time filter | `EmbeddingService` abstraction injects `WHERE visibility IN (user.allowed_classes) AND (consent_expires_at IS NULL OR consent_expires_at > NOW())` on every retrieval call. No caller can opt out |
-| Final backstop | Postgres RLS on `transactions`, `invoices`, `documents` keyed on `tenant_id` and `visibility` — even raw SQL through ops tooling cannot bypass |
+| Final backstop | Postgres RLS on `transactions`, `invoices`, `documents` keyed on `tenant_id` and `visibility` - even raw SQL through ops tooling cannot bypass |
 
 **Failure mode if enforcement bypassed:** an unauthorized role (e.g., a lender connector after consent revocation) queries the index and sees content they should not. Mitigations:
-1. Dual enforcement — ingest-tag + query-filter — only fails if both layers regress simultaneously.
+1. Dual enforcement - ingest-tag + query-filter - only fails if both layers regress simultaneously.
 2. Automated daily integration test that constructs a synthetic 4-role × 4-visibility cross-matrix and asserts visibility matches the access matrix; any mismatch blocks deploys.
 3. Postgres RLS as the final backstop.
-4. Per-tenant access audit log (ClickHouse, 90-day hot) — every retrieval logs `(querying_role, tenant_id, doc_ids_returned, visibility_filter_applied)` for forensic review.
+4. Per-tenant access audit log (ClickHouse, 90-day hot) - every retrieval logs `(querying_role, tenant_id, doc_ids_returned, visibility_filter_applied)` for forensic review.
 
 This file describes the data-layer enforcement only. Identity, RBAC, role-to-visibility mapping, and consent-flow UX live in `07-security-and-isolation.md`.
 

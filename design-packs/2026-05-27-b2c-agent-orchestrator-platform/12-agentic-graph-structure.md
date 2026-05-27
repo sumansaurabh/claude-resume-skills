@@ -1,4 +1,4 @@
-# 12 — Agentic Graph Structure (Two-Layer Deep-Dive)
+# 12 - Agentic Graph Structure (Two-Layer Deep-Dive)
 
 > Scope: the internal topology and state contract of the `AgentRuntime` for the
 > B2C Custom-GPT-style platform. This file is the canonical reference for **how
@@ -16,7 +16,7 @@ contract and the predicates"). Layer 1 is the **topology**; Layer 2 is the
 
 ---
 
-## Layer 1 — Graph Topology
+## Layer 1 - Graph Topology
 
 ### 1.1 Design intent
 
@@ -47,7 +47,7 @@ high-risk transitions.
 ### 1.2 Node type taxonomy
 
 Every node in the runtime is exactly one of the 12 types below. The "state
-shape" column lists the fields the node **owns** in the checkpoint — i.e. it is
+shape" column lists the fields the node **owns** in the checkpoint - i.e. it is
 the canonical writer. Other nodes may read these fields but only the owner
 writes them, which is what makes deterministic replay tractable
 (`blackbox-experience.md` point 15).
@@ -71,7 +71,7 @@ Two structural rules follow from this taxonomy:
 
 - **No node both reads and writes the same field** except `Planner` (which may
   re-write `plan` on replan). This is what makes a checkpoint commutative under
-  retry — replaying a node N times yields the same write, because its inputs
+  retry - replaying a node N times yields the same write, because its inputs
   are immutable from its perspective.
 - **`GuardrailGate` is not on a single edge.** It is a node that any other
   edge can route through; in the diagram below it appears at three positions
@@ -197,7 +197,7 @@ ToolCaller SkillRunner RAGRetriever MemoryReader ModelCaller ────┘
                 ▼
             MemoryWriter (commit)
 
-  Gate plane (orthogonal): GuardrailGate, HITL — can interpose on any edge.
+  Gate plane (orthogonal): GuardrailGate, HITL - can interpose on any edge.
 ```
 
 - **Supervisor:** `Planner`. It is the only node allowed to mutate the `plan`
@@ -216,12 +216,12 @@ ToolCaller SkillRunner RAGRetriever MemoryReader ModelCaller ────┘
 - **Gate plane:** `GuardrailGate` and `HITL`. These are not in the linear
   flow; they are interposed on edges by the runtime engine based on policy.
   This is why a single `GuardrailGate` node appears in three positions in the
-  diagram — it is the **same node type** instantiated at three policy hooks
+  diagram - it is the **same node type** instantiated at three policy hooks
   (pre-plan, pre-tool, post-model).
 
 ---
 
-## Layer 2 — Per-Node State and Edge Conditions
+## Layer 2 - Per-Node State and Edge Conditions
 
 ### 2.1 Global `AgentState` shape
 
@@ -356,7 +356,7 @@ either a fixed successor (sequential), a label (conditional), or a list
 - **Emits:** sequential → `Router`. On fanout-plan emits parallel-fanout to K
   `Router` instances, one per top-level step.
 - **Predicate it enforces:** `replan_count <= 3`; on the 4th would-be replan
-  it routes to `HITL` ("I'm stuck — confirm direction").
+  it routes to `HITL` ("I'm stuck - confirm direction").
 
 #### Router
 
@@ -503,19 +503,19 @@ Two caps are global and override any predicate:
   bounded" footer.
 - `budget.tokens_spent >= budget.tokens_cap` OR `budget.cost_usd_spent >=
   budget.cost_usd_cap` → same forced exit. This is what keeps a runaway
-  ReAct loop from eating a B2C user's monthly quota in one turn — a class of
+  ReAct loop from eating a B2C user's monthly quota in one turn - a class of
   failure flagged in `blackbox-experience.md` point 11.
 
 ### 2.4 Parallel-join semantics
 
 Fanouts come from three sources:
 
-1. **Planner-level fanout** — independent top-level steps (`"book flight"`
+1. **Planner-level fanout** - independent top-level steps (`"book flight"`
    and `"check calendar"` in parallel). K Router instances run, each with its
    own `current_step_idx`.
-2. **Tool-level fanout** — the model emits multiple `tool_use` blocks in one
+2. **Tool-level fanout** - the model emits multiple `tool_use` blocks in one
    turn (e.g. three Google Drive lookups). K `ToolCaller` instances.
-3. **RAG-level fanout** — the planner asked for K query rewrites against the
+3. **RAG-level fanout** - the planner asked for K query rewrites against the
    same corpus, expecting an `Aggregator` to rerank.
 
 Join rules:
@@ -576,16 +576,16 @@ Lifecycle:
 
 1. **Pause.** The node entering HITL writes `hitl_pause_token`, sets
    `status = 'suspended'`, and emits an interrupt edge. The engine releases
-   the worker pod immediately — no thread blocked, no Redis lock held.
+   the worker pod immediately - no thread blocked, no Redis lock held.
 2. **Notify.** `OrchestratorAPI` enqueues a notification (push, email, SSE
    if the user is still connected) carrying the `resume_url`.
-3. **Wake — happy path.** The user (or a webhook from a connector for async
+3. **Wake - happy path.** The user (or a webhook from a connector for async
    tools) POSTs `{decision, edited_args?}` to `resume_url`. The Gateway
    verifies the signed token, the `OrchestratorAPI` writes `hitl_decision`
    and `hitl_edited_args` to the checkpoint, and the engine schedules the
-   resume — which restarts execution from `checkpoint_seq + 1`, *not* from
+   resume - which restarts execution from `checkpoint_seq + 1`, *not* from
    the top.
-4. **Wake — TTL expiry.** A Kafka delay-queue timer fires at `exp_at`. The
+4. **Wake - TTL expiry.** A Kafka delay-queue timer fires at `exp_at`. The
    engine writes `hitl_decision = 'expired'` and routes the run to
    `MemoryWriter` with `status = 'completed'` and a partial-result marker.
    The user sees a "the request expired, here's where we got" message on
@@ -614,7 +614,7 @@ Failure modes the contract explicitly handles:
   is frozen at run start, so a mid-pause persona edit cannot retroactively
   expand the approval scope. The next run picks up the new persona.
 
-### 2.6 Replay determinism — why this whole structure exists
+### 2.6 Replay determinism - why this whole structure exists
 
 Every choice in Layers 1 and 2 collapses into one property: **a stored
 checkpoint sequence can be replayed end-to-end and produce a byte-identical
@@ -624,24 +624,24 @@ site.** This is what powers the 60% MTTR reduction in
 
 The structural invariants that buy us replay are:
 
-1. **Single-writer fields** (§1.2) — replay never has to reconcile two
+1. **Single-writer fields** (§1.2) - replay never has to reconcile two
    writes.
-2. **Append-only arrays** (§2.1) — replay dedupes by inner `id`, never
+2. **Append-only arrays** (§2.1) - replay dedupes by inner `id`, never
    truncates.
-3. **`next_node` written before transition** (§2.1) — predicate decisions
+3. **`next_node` written before transition** (§2.1) - predicate decisions
    are durable.
-4. **Deterministic join order** (§2.4) — fanouts replay to the same merge.
-5. **Idempotency keys derived from canonicalized args** (§2.2 ToolCaller) —
+4. **Deterministic join order** (§2.4) - fanouts replay to the same merge.
+5. **Idempotency keys derived from canonicalized args** (§2.2 ToolCaller) -
    replayed tool calls dedupe at the broker.
-6. **`model_id` + `prompt_hash` recorded** (§2.2 ModelCaller) — replay
+6. **`model_id` + `prompt_hash` recorded** (§2.2 ModelCaller) - replay
    binds to the exact provider response previously observed; if we want a
    fresh response, we explicitly invalidate the cache.
-7. **HITL resume keyed to `checkpoint_seq`** (§2.5) — resume jumps to the
+7. **HITL resume keyed to `checkpoint_seq`** (§2.5) - resume jumps to the
    right node, never to the top.
 
 Together, these are what let an on-call engineer take a failed B2C run,
 hit "replay" in the TelemetryMesh UI, and walk through every node decision
-with the exact same inputs the production worker saw — which is the
+with the exact same inputs the production worker saw - which is the
 property `blackbox-experience.md` point 15 is describing.
 
 ---

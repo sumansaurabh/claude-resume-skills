@@ -1,4 +1,4 @@
-# 06 — Scaling & Capacity: AI Banker for SMB Owners
+# 06 - Scaling & Capacity: AI Banker for SMB Owners
 
 > **Voice:** Principal Engineer. Numbers are load-bearing. Every multiplier is anchored against a real system I have shipped, or marked explicitly as an extrapolation assumption.
 >
@@ -8,7 +8,7 @@
 > - ShareChat Ads: **40M DAU**, real-time RTB at sub-100ms (resume.txt L109-114)
 > - TunDRA: **1M+ Compute Instances** over QUIC (resume.txt L97-98)
 >
-> The platform target — **1M SMB MAU / 300K DAU / 8M agent runs/month / 18B LLM tokens/month** — is a **27x extrapolation** on BlackBox runs/day and an **18x extrapolation** on BlackBox monthly tokens. Treat the multiplier as an assumption; the sub-system math below shows what survives the extrapolation and what breaks first.
+> The platform target - **1M SMB MAU / 300K DAU / 8M agent runs/month / 18B LLM tokens/month** - is a **27x extrapolation** on BlackBox runs/day and an **18x extrapolation** on BlackBox monthly tokens. Treat the multiplier as an assumption; the sub-system math below shows what survives the extrapolation and what breaks first.
 
 ---
 
@@ -35,7 +35,7 @@ Restated from `02-design-estimates.md` and pinned here so this file is self-cont
 
 ## 2. Throughput model per service tier
 
-Every tier sized for **peak**, not average. Steady-state target utilization is 50% on stateless, 40% on stateful — leaves 2x headroom for the burst section below.
+Every tier sized for **peak**, not average. Steady-state target utilization is 50% on stateless, 40% on stateful - leaves 2x headroom for the burst section below.
 
 | Tier | Peak RPS | p95 budget | CPU/req | Mem/req | Util target | Fleet sizing (8 vCPU node) |
 |---|---:|---:|---:|---:|---:|---|
@@ -63,7 +63,7 @@ Every tier sized for **peak**, not average. Steady-state target utilization is 5
 
 ---
 
-## 3. Bottleneck analysis — what runs out first
+## 3. Bottleneck analysis - what runs out first
 
 Ranked by likelihood of being the first ceiling we hit. Each row says **what runs out**, **how we detect it**, **what we do about it**.
 
@@ -105,7 +105,7 @@ Multi-tenant fairness is the single largest risk to a 1M-MAU SMB platform. One n
 
 ### Fair scheduling at the supervisor
 
-Weighted-fair-queue per `tenant_id` inside the supervisor's work-stealing pool. Weight = `tier_weight × (1 - recent_usage_ratio)`. Free tier weight 1, paid 10. Prevents the classic noisy-neighbor in shared LLM compute — same pattern I used for **GPU gang-scheduling at Microsoft AML where 15M jobs/month across 200K users had to coexist (resume.txt L88-92)**.
+Weighted-fair-queue per `tenant_id` inside the supervisor's work-stealing pool. Weight = `tier_weight × (1 - recent_usage_ratio)`. Free tier weight 1, paid 10. Prevents the classic noisy-neighbor in shared LLM compute - same pattern I used for **GPU gang-scheduling at Microsoft AML where 15M jobs/month across 200K users had to coexist (resume.txt L88-92)**.
 
 ---
 
@@ -143,9 +143,9 @@ Monthly direct infrastructure cost. AWS reserved instances assumed for steady fl
 | Line item | Monthly cost | Derivation / anchor |
 |---|---:|---|
 | LLM tokens (inference) | **$90,000** | 18B tokens × $5/M blended; 70% Haiku-class, 25% Sonnet-class, 5% Opus-class. Anchored on BlackBox **1B tokens/month** baseline (resume.txt L55-56) × 18x with router optimizing the mix |
-| Compute — stateless fleet (BFF, orchestrator, tool gateway, model router) | $35,000 | ~360 m8g nodes reserved 1yr |
-| Compute — agent runtime (supervisor + specialists) | $40,000 | ~210 r8g nodes (memory-bound) |
-| Compute — forecast / embedding workers | $25,000 | c8g + occasional g5/g6 for embedding batches |
+| Compute - stateless fleet (BFF, orchestrator, tool gateway, model router) | $35,000 | ~360 m8g nodes reserved 1yr |
+| Compute - agent runtime (supervisor + specialists) | $40,000 | ~210 r8g nodes (memory-bound) |
+| Compute - forecast / embedding workers | $25,000 | c8g + occasional g5/g6 for embedding batches |
 | Postgres (Aurora, 8 shards × writer + 3 readers, multi-AZ) | $40,000 | r8g.16xlarge × 32 instances + IO + storage |
 | Redis (ElastiCache, 6 shards) | $8,000 | r8g.4xlarge × 18 nodes |
 | Vector store (16-shard pgvector / Qdrant cluster) | $12,000 | i4i.4xlarge × 16 with NVMe |
@@ -167,19 +167,19 @@ Monthly direct infrastructure cost. AWS reserved instances assumed for steady fl
 | Paid-tier headroom ($20/mo plan) | $20 - ~$5 direct = $15 gross margin before sales/marketing |
 | Break-even paid conversion | ~2% paid converts free; in practice we target 5-8% |
 
-**Assumption flag:** $5/M blended is conservative-realistic for May 2026 pricing with prompt caching enabled (Anthropic-style 90% cache discount on system prompts). If cache hit rate is < 50% (vs target 75%), blended jumps to $8/M and LLM line item is $144K (+60%). Cost-per-MAU climbs to $0.42 — still well within $20 paid ARPU.
+**Assumption flag:** $5/M blended is conservative-realistic for May 2026 pricing with prompt caching enabled (Anthropic-style 90% cache discount on system prompts). If cache hit rate is < 50% (vs target 75%), blended jumps to $8/M and LLM line item is $144K (+60%). Cost-per-MAU climbs to $0.42 - still well within $20 paid ARPU.
 
 ---
 
-## 7. Growth plan — what scales how
+## 7. Growth plan - what scales how
 
 Three growth jumps. Each one has a different scaling boundary that *will* fail without architectural change.
 
 ### Phase A: 100K → 1M MAU (10x)
-- Stateless tiers (BFF, orchestrator, tool gateway, model router) scale **linearly** via HPA — no architecture change.
+- Stateless tiers (BFF, orchestrator, tool gateway, model router) scale **linearly** via HPA - no architecture change.
 - **Vector store hits sharding boundary around 500K MAU** (single pgvector instance saturates HNSW memory at ~50M vectors). Mitigation: shard by `tenant_id mod N` with N=16; cross-shard query only for global KB.
 - Postgres run-state hits write IOPS ceiling around 700K MAU on a single Aurora writer. Mitigation: shard by `tenant_id mod 8` *before* hitting 600K.
-- Model router does not need architecture change — provider mix shifts toward cheaper models.
+- Model router does not need architecture change - provider mix shifts toward cheaper models.
 
 ### Phase B: 1M → 10M MAU (10x more)
 - **Cell-based architecture**. Split the platform into 10-20 cells, each cell holding ~500K-1M MAU and owning its own Postgres + agent runtime + Kafka. Cell assignment is sticky per tenant (consistent hash of `tenant_id`). Anchor: **Microsoft AML pattern that runs 15M jobs/month across 200K users with multi-cell isolation (resume.txt L88-92)**.
@@ -189,7 +189,7 @@ Three growth jumps. Each one has a different scaling boundary that *will* fail w
 
 ### Phase C: 10M+ MAU
 - **Self-host LLM inference** for cheap intents. Llama-3.1-70B or Mistral-Large-2 on H100/H200 fleet for 60% of traffic; provider models reserved for hard reasoning. Cuts blended token cost from $5/M to ~$2/M (60% saving on LLM line item).
-- Anchor: **vLLM and PyTorch Distributed expertise from Microsoft AI Fine-tuning (resume.txt L74, L101)** — already shipped multi-tenant vLLM at scale.
+- Anchor: **vLLM and PyTorch Distributed expertise from Microsoft AI Fine-tuning (resume.txt L74, L101)** - already shipped multi-tenant vLLM at scale.
 - Cross-region active/active for read APIs; per-region write residency.
 
 ### Per-customer (per-SMB) growth
@@ -225,10 +225,10 @@ Residency is a hard constraint (RBI DPDP for India, GDPR for EU, US data law for
 
 | Region | Primary customers | Stack footprint | Cross-region |
 |---|---|---|---|
-| **AP-South-1 (Mumbai)** | India SMBs (RBI DPDP residency) | Full stack — BFF, orchestrator, agent runtime, Aurora primary, Redis, Kafka, ClickHouse, pgvector | Telemetry roll-up to central analytics (anonymized); control-plane config replicated |
+| **AP-South-1 (Mumbai)** | India SMBs (RBI DPDP residency) | Full stack - BFF, orchestrator, agent runtime, Aurora primary, Redis, Kafka, ClickHouse, pgvector | Telemetry roll-up to central analytics (anonymized); control-plane config replicated |
 | **US-East-1 (Virginia)** | US + LATAM SMBs | Full stack mirror | Same |
 | **EU-Central-1 (Frankfurt)** | EU SMBs (GDPR + DPDP-adjacent) | Full stack mirror | Same |
-| (Future) AP-Southeast-1 | SEA expansion | Cell-pattern bootstrap | — |
+| (Future) AP-Southeast-1 | SEA expansion | Cell-pattern bootstrap | - |
 
 Write tier is **never** cross-region for customer data. Read tier can be cross-region for the control plane (feature flags, model catalog, prompt library). Anchored on the **Microsoft secure multi-tenant infra isolation strategies (resume.txt L88-89)**.
 
@@ -242,27 +242,27 @@ Write tier is **never** cross-region for customer data. Read tier can be cross-r
 - LLM provider rate limits: **70% of contracted RPM** → 1.4x headroom (provider rate limits are the least elastic)
 
 ### Daily peak
-- **8 AM IST and 9 AM IST** — morning cashflow brief — drives **3x average load**.
+- **8 AM IST and 9 AM IST** - morning cashflow brief - drives **3x average load**.
 - Fleet is sized for this peak, **not** for the daily average. HPA stays warm with `minReplicas` set to peak / 1.2 (so the morning rush doesn't wait for pod cold-start).
 - Embedding refresh, batch ingestion, telemetry compaction all scheduled at **2 AM - 5 AM local** during the trough.
 
 ### Monthly peak
-- **Last 3 days of month (payroll runway questions) + GST filing day** — drives **5x average load**.
+- **Last 3 days of month (payroll runway questions) + GST filing day** - drives **5x average load**.
 - Strategy: **warm reserved capacity** pre-provisioned 24h ahead based on calendar; cluster autoscaler set to aggressive scale-up (3-min) and slow scale-down (30-min).
 - Anchor: **ShareChat ad-serving handled 40M DAU with calendar-aware burst patterns (resume.txt L109-114)**.
 
 ### Black-swan burst
-- 10x sudden spike (viral event, regulator change): degraded modes engage automatically — `PRECANNED` for free tier, `CACHED_FORECAST` for everyone, `OBSERVABILITY_LITE` for telemetry. Maintains availability with controlled quality regression rather than collapsing.
+- 10x sudden spike (viral event, regulator change): degraded modes engage automatically - `PRECANNED` for free tier, `CACHED_FORECAST` for everyone, `OBSERVABILITY_LITE` for telemetry. Maintains availability with controlled quality regression rather than collapsing.
 
 ---
 
-## Appendix — assumption ledger (explicit)
+## Appendix - assumption ledger (explicit)
 
 | Assumption | Source / risk |
 |---|---|
 | 27x BlackBox runs/day extrapolates linearly | resume.txt L51-52; risk: avg hops/run may climb from 5 → 8 if planning gets richer → all numbers +60% |
 | 18x BlackBox tokens with cache hit rate 75% | resume.txt L55-56; risk: cache hit < 50% → LLM line $144K/mo |
-| 50% peak conversation read+write RPS | Best estimate from chat UX patterns; not directly anchored — load test to validate |
+| 50% peak conversation read+write RPS | Best estimate from chat UX patterns; not directly anchored - load test to validate |
 | Provider per-tenant rate limits 100-500 RPS | Industry-typical for Plaid / Setu / Zoho APIs; per-provider contract negotiation may shift this |
 | Self-host break-even at 10M MAU | Based on H100 hourly cost vs $5/M blended; if model prices fall further, break-even moves to 20M+ |
 | Aurora write IOPS shard boundary at 700K MAU | Extrapolated from observed 50K writes/sec ceiling on r8g.16xlarge writer; not load-tested at full scale |

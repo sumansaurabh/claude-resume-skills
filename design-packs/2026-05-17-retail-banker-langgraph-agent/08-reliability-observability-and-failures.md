@@ -21,7 +21,7 @@
    if class can't be matched, the explainer falls back to a templated
    answer with the deterministic calculator output.
 6. **Bounded retries.** Default 2 retries with jitter for transient I/O.
-   No retry on policy-denied or schema-validation errors — those are
+   No retry on policy-denied or schema-validation errors - those are
    user-visible.
 
 This is the same durability story we built at BlackBox: graph workflow
@@ -36,17 +36,17 @@ banking surface is mostly about *more aggressive* circuit-breaking and
 | Class | Example | Detection | Handling | User-visible |
 |---|---|---|---|---|
 | **Transient I/O** | Core Banking 5xx | 5xx + retryable code | retry 2x w/ jitter | none if recovered, else degraded answer |
-| **Tool timeout** | RAG store slow | timeout > spec | drop tool, continue, mark partial | "I couldn't fetch full context — quick answer below" |
+| **Tool timeout** | RAG store slow | timeout > spec | drop tool, continue, mark partial | "I couldn't fetch full context - quick answer below" |
 | **LLM provider down** | 429 / 5xx storm | error-rate + p99 | failover to alt provider, then template | none if failover succeeds |
-| **Schema validation** | LLM returned malformed JSON | Pydantic raises | one repair attempt with stricter prompt; else templated | "I had trouble formatting — here's the data" |
-| **Policy deny** | action disallowed | OPA decision = deny | surface as decline w/ reason | yes — explicit refusal |
+| **Schema validation** | LLM returned malformed JSON | Pydantic raises | one repair attempt with stricter prompt; else templated | "I had trouble formatting - here's the data" |
+| **Policy deny** | action disallowed | OPA decision = deny | surface as decline w/ reason | yes - explicit refusal |
 | **Reflection failure** | LLM cited number drifted | comparator | force retry with hard-pinned number | none |
-| **Calculator error** | invalid input from tool | Pydantic raises | fail closed; user sees "couldn't compute right now"; alert on-call | yes — apologetic |
-| **Idempotency conflict** | replayed confirm with different payload | unique constraint | reject 409 | yes — "this looks like a duplicate" |
-| **Quota exhausted** | user hit 200 turns/day | gateway | 429 w/ Retry-After | yes — "please come back tomorrow" |
-| **PII redaction failure** | egress regex catch | telemetry alert | fail closed; reject prompt | yes — generic "try again" + page on-call |
+| **Calculator error** | invalid input from tool | Pydantic raises | fail closed; user sees "couldn't compute right now"; alert on-call | yes - apologetic |
+| **Idempotency conflict** | replayed confirm with different payload | unique constraint | reject 409 | yes - "this looks like a duplicate" |
+| **Quota exhausted** | user hit 200 turns/day | gateway | 429 w/ Retry-After | yes - "please come back tomorrow" |
+| **PII redaction failure** | egress regex catch | telemetry alert | fail closed; reject prompt | yes - generic "try again" + page on-call |
 | **Memory contamination** | fact write rejected by review gate | gate decision | skip write; log | none (silent correctness) |
-| **HITL backlog** | aged ticket | queue monitor | escalate; notify customer | yes — proactive update |
+| **HITL backlog** | aged ticket | queue monitor | escalate; notify customer | yes - proactive update |
 
 ## Retry and backoff matrix
 
@@ -61,7 +61,7 @@ banking surface is mostly about *more aggressive* circuit-breaking and
 ## Observability stack
 
 Same shape as BlackBox's LLMOps telemetry mesh (50M spans/day, 2.5 TB
-monthly, 60% MTTR cut — `resume.txt` L58-59) sized down to this
+monthly, 60% MTTR cut - `resume.txt` L58-59) sized down to this
 product:
 
 | Layer | Tool | What it captures |
@@ -114,7 +114,7 @@ Same pattern as BlackBox (`blackbox-experience.md` #20).
 **Replay = re-execute a turn deterministically, given:**
 
 1. The original `BankerState` at the turn's entry.
-2. The captured tool envelopes (input + output hash) — *or*, in
+2. The captured tool envelopes (input + output hash) - *or*, in
    **live-replay** mode, re-execute the tools against current data.
 3. The pinned model versions and seeds (where the provider exposes them).
 4. The policy bundle hash that was active at the time.
@@ -164,12 +164,12 @@ their balance was ₹30k":
 
 1. Open trace by `customer_id` + timestamp → find `turn_id`.
 2. Inspect `state_redacted` at every node.
-3. Read `calc.balance_delta` — was the number wrong at the source?
-4. Read tool envelope for `core_banking.get_balances` — what did core
+3. Read `calc.balance_delta` - was the number wrong at the source?
+4. Read tool envelope for `core_banking.get_balances` - what did core
    actually return?
-5. Read `draft.numbers_cited` vs `calc.balance_delta` — did reflection
+5. Read `draft.numbers_cited` vs `calc.balance_delta` - did reflection
    pass when it shouldn't have?
-6. Read LLM `explainer` span — did the model invent the number? If
+6. Read LLM `explainer` span - did the model invent the number? If
    `prompt_hash` shows the right number in input but output drifted,
    that's a reflection-gap bug; fix the comparator.
 7. Reproduce with **Fixture replay**; verify fix removes the bug.

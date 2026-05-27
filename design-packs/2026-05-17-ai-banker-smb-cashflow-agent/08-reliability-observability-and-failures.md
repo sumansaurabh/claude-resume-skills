@@ -1,6 +1,6 @@
-# 08 — Reliability, Observability, and Failures
+# 08 - Reliability, Observability, and Failures
 
-> AI Banker for SMB Owners — cashflow intelligence agent. Multi-tenant LangGraph runtime, durable execution, 1M SMB target.
+> AI Banker for SMB Owners - cashflow intelligence agent. Multi-tenant LangGraph runtime, durable execution, 1M SMB target.
 
 This document specifies the reliability contract, the failure taxonomy, the retry/circuit policy, the observability spine, and the on-call interface. The design transfers two pieces of prior infrastructure directly: the **graph workflow engine with DAG execution, checkpointing, retry semantics, durable resumable agents, and memory persistence** (resume L52–54; blackbox-experience.md #12–15) and the **LLMOps telemetry mesh that ingested 50M spans/day, 2.5TB/month, supporting deterministic replay and a 60% org-wide MTTR cut** (resume L58–59; blackbox-experience.md #20). Both were proven at BlackBox at 10K+ agent runs/day (blackbox-experience.md #11); here they are re-sized for ~8M runs/month at 1M MAU.
 
@@ -24,7 +24,7 @@ Composite SLO for "answer my cashflow question end-to-end" = 99.9% × 99.95% × 
 
 | # | Failure | Layer | Detection | Mitigation | User-visible behavior |
 |---|---|---|---|---|---|
-| F1 | LLM provider 5xx / 429 / p99 latency > 30s | model-router | per-provider rolling error rate (1-min window) + latency histogram | route to fallback provider; capability-aware re-rank (anchor resume L55–56) | seamless if backup healthy; otherwise "I'm catching up — try again in a moment" with run paused, not failed |
+| F1 | LLM provider 5xx / 429 / p99 latency > 30s | model-router | per-provider rolling error rate (1-min window) + latency histogram | route to fallback provider; capability-aware re-rank (anchor resume L55–56) | seamless if backup healthy; otherwise "I'm catching up - try again in a moment" with run paused, not failed |
 | F2 | Tool provider (bank, accounting, GST) 5xx | tool gateway | circuit breaker on 50% error rate / 30s window | serve stale cached read with `as_of=<ts>` banner; halt all writes; HITL recovery path | "Showing data from 14 min ago. Payments paused while we reconnect to ICICI." |
 | F3 | Forecast engine timeout (> 8s) | orchestrator | hop deadline timer | return partial answer with confidence dropped to "medium"; flag run as `degraded=true` | answer rendered with a "based on partial data" badge |
 | F4 | Postgres write contention on `run_state` | run state store | p99 write latency > 200ms alarm | retry with exponential backoff (capped 3); batch checkpoints when hop count > 10 | invisible if recovered in < 2s; otherwise run pauses |
@@ -32,7 +32,7 @@ Composite SLO for "answer my cashflow question end-to-end" = 99.9% × 99.95% × 
 | F6 | Worker pod OOM mid-run | agent runtime | Kubernetes pod restart + OOMKilled event | new worker claims run by lease; loads max(version) of `run_state`; resumes from last checkpoint (anchor resume L52–54, durable resumable agents) | user sees a brief "thinking..." indicator; same answer arrives |
 | F7 | Webhook flood from bank provider | ingestion | per-tenant queue depth p95 > 1k | apply tenant-scoped token bucket (50 webhook/s/tenant); reply 429 to provider for backpressure | per-document freshness SLO may briefly slip to 10 min for the noisy tenant only |
 | F8 | Cross-tenant cache poisoning in model-router prompt cache | model-router cache | content-hash mismatch alarm (cache key includes `tenant_id || prompt_sha256`) | invalidate affected cache shard; reroute uncached; raise SEV-1 security incident | answer regenerated; no user-visible cross-tenant leak (the alarm fires before serve) |
-| F9 | Stuck graph — loop without state change | supervisor | hop counter > 30 AND no-state-delta detector across 3 consecutive hops | halt run; emit `agent.run.stuck` metric; HITL recovery path (anchored on cycle detection per agentic checklist) | run marked "needs review"; SMB sees "I got stuck — a human will follow up" |
+| F9 | Stuck graph - loop without state change | supervisor | hop counter > 30 AND no-state-delta detector across 3 consecutive hops | halt run; emit `agent.run.stuck` metric; HITL recovery path (anchored on cycle detection per agentic checklist) | run marked "needs review"; SMB sees "I got stuck - a human will follow up" |
 | F10 | Idempotency-key collision on payment | action executor | `(tenant_id, idempotency_key)` lookup before execute | if request hash matches prior → return prior result (200 with `replayed=true`); else → 409 Conflict | exactly-once semantics; no double-debit |
 
 Every row above is wired to a Prometheus alert and a runbook in §8.
@@ -41,14 +41,14 @@ Every row above is wired to a Prometheus alert and a runbook in §8.
 
 ## 3. Retry, backoff, and circuit-breaker policy
 
-Numbers are not placeholders — they are the values the platform actually enforces.
+Numbers are not placeholders - they are the values the platform actually enforces.
 
 | Tier | Retries | Backoff | Jitter | Per-attempt timeout | Total ceiling | Circuit breaker |
 |---|---|---|---|---|---|---|
 | **Read tools** (bank balance, invoice list, GL fetch) | 3 | exponential, base 200ms, factor 2 | full-jitter | 1.5s | 4s elapsed | opens at 50% error rate over 30s; half-open after 15s with 1 probe |
 | **Write tools** (irreversible: payment, return filing, email send) | **0 implicit retries** | n/a | n/a | 5s | 5s | opens at 20% error rate over 60s; only the saga coordinator may retry, and only when the original carries a verified idempotency key |
 | **LLM calls** (chat completion, structured output) | 2 (second attempt on a *different* provider) | exponential, base 500ms | full-jitter | 12s per attempt | 30s p99 ceiling | per-provider; opens at 30% error rate over 60s |
-| **Database** (Aurora Postgres) | 3 (transient only: 40001 serialization_failure, 40P01 deadlock_detected, 08006 connection_failure) | exponential, base 50ms | full-jitter | 500ms | 2s | none — pool failure surfaces directly |
+| **Database** (Aurora Postgres) | 3 (transient only: 40001 serialization_failure, 40P01 deadlock_detected, 08006 connection_failure) | exponential, base 50ms | full-jitter | 500ms | 2s | none - pool failure surfaces directly |
 | **Kafka producer** (ingestion, audit log) | `retries=Int.MAX` with `delivery.timeout.ms=120000`, `acks=all`, `enable.idempotence=true` | broker-managed | n/a | 30s per broker | 120s | broker rebalance only; no app-layer breaker |
 | **Vector store** (Qdrant query) | 2 | exponential, base 100ms | full-jitter | 800ms | 2s | opens at 40% / 30s |
 
@@ -97,7 +97,7 @@ Two non-negotiable rules: **compensation failures alert immediately**, and **pay
 
 ---
 
-## 6. Observability — the BlackBox telemetry mesh, re-applied
+## 6. Observability - the BlackBox telemetry mesh, re-applied
 
 The BlackBox LLMOps telemetry mesh (resume L58–59; blackbox-experience.md #20) is the direct pattern: structured spans into ClickHouse, OpenTelemetry instrumentation, tail-based sampling, deterministic replay against captured LLM I/O. AI Banker reuses the same architecture, re-sized:
 
@@ -107,7 +107,7 @@ The BlackBox LLMOps telemetry mesh (resume L58–59; blackbox-experience.md #20)
 |---|---|
 | `request_id` | yes (HTTP edge generates) |
 | `run_id` | yes when in agent runtime |
-| `tenant_id` | yes — every line, no exceptions |
+| `tenant_id` | yes - every line, no exceptions |
 | `business_id` | yes when business context exists |
 | `user_id` | yes when user context exists |
 | `node_id` | yes inside graph executor |
@@ -136,12 +136,12 @@ Prometheus scrape via OpenTelemetry SDK. Per-tier **RED** (rate, errors, duratio
 
 OpenTelemetry. **One trace per run**, span per node, sub-span per tool call and per LLM call. Span attributes include `prompt_hash`, `model`, `provider`, `tokens_in`, `tokens_out`, `tool_name`, `cache_hit`, `retry_attempt`, `idempotency_key`.
 
-**Volume projection** — anchored on BlackBox 50M spans/day (resume L58–59):
+**Volume projection** - anchored on BlackBox 50M spans/day (resume L58–59):
 - 8M runs/month → 267K runs/day → **~150M spans/day** at 1M MAU
   (267K runs/day × 5 hops/run × ~5 spans/hop ≈ 6.7M; the 150M figure includes upstream HTTP, tool sub-spans, ingestion, and LLM I/O spans across the fleet; conservative bound is 100–200M/day)
 - ~7.5 TB/month of trace data (vs BlackBox's 2.5 TB)
 
-Trace storage: **ClickHouse** (anchored on blackbox-experience.md technology list — Clickhouse, OpenTelemetry). One table per day, partitioned by hour, sorted by `(tenant_id, trace_id, span_start)`. TTL 14 days hot, then S3 with Parquet for replay-on-demand.
+Trace storage: **ClickHouse** (anchored on blackbox-experience.md technology list - Clickhouse, OpenTelemetry). One table per day, partitioned by hour, sorted by `(tenant_id, trace_id, span_start)`. TTL 14 days hot, then S3 with Parquet for replay-on-demand.
 
 ### 6.4 Sampling
 
@@ -164,9 +164,9 @@ The single highest-leverage debugging primitive, transferred directly from Black
 
 For every LLM call we persist: `(prompt_hash, seed, model_version, params, response, latency, tokens_in, tokens_out)`. The replay tool reconstructs a run by re-executing the graph against the captured LLM I/O cache. Three modes:
 
-1. **Exact replay** — re-execute with cached LLM responses; verify state diffs at each hop match. Used for "did the agent really do what it did?" post-mortem.
-2. **What-if replay** — re-execute with a new prompt template, new model, or new tool routing; diff outcome. Used in eval harness and incident regression checks.
-3. **Forward replay from checkpoint** — resume a stuck/failed run from version `N` with a code fix deployed. The runtime mechanism used to recover incidents in flight.
+1. **Exact replay** - re-execute with cached LLM responses; verify state diffs at each hop match. Used for "did the agent really do what it did?" post-mortem.
+2. **What-if replay** - re-execute with a new prompt template, new model, or new tool routing; diff outcome. Used in eval harness and incident regression checks.
+3. **Forward replay from checkpoint** - resume a stuck/failed run from version `N` with a code fix deployed. The runtime mechanism used to recover incidents in flight.
 
 ---
 
@@ -195,17 +195,17 @@ Applied per surface from §1 (control plane, read API, write API, ingestion).
 | Payment failure rate | > 0.1% over 15m | **page** |
 | Ingestion lag p95 | > 10 min | ticket |
 | Ingestion lag p95 | > 30 min | **page** |
-| Cross-tenant cache mismatch (F8) | any | **page — SEV1 security** |
+| Cross-tenant cache mismatch (F8) | any | **page - SEV1 security** |
 | HITL backlog | > 200 items > 4h old | ticket |
 
 ### 7.3 Anomaly alerts (distribution shift)
 
 | Signal | Test | Action |
 |---|---|---|
-| `agent_tokens_used` per run | KS-test vs 7-day baseline, p < 0.01 | ticket — possible prompt regression |
-| `agent_hop_count` distribution | KS-test vs 7-day baseline | ticket — possible loop or cycle |
-| `forecast_accuracy_mape` | > 1.5σ above 7-day baseline | ticket — possible model drift |
-| HITL escalation rate | > 1.5σ above 7-day baseline | ticket — possible quality regression |
+| `agent_tokens_used` per run | KS-test vs 7-day baseline, p < 0.01 | ticket - possible prompt regression |
+| `agent_hop_count` distribution | KS-test vs 7-day baseline | ticket - possible loop or cycle |
+| `forecast_accuracy_mape` | > 1.5σ above 7-day baseline | ticket - possible model drift |
+| HITL escalation rate | > 1.5σ above 7-day baseline | ticket - possible quality regression |
 
 ---
 
@@ -214,8 +214,8 @@ Applied per surface from §1 (control plane, read API, write API, ingestion).
 | ID | Title | Linked failure | Triggering alert |
 |---|---|---|---|
 | RB-001 | Stuck run identification and recovery | F9 | `agent.run.stuck > 0.5%` |
-| RB-002 | LLM provider outage — failover playbook | F1 | `llm_provider_error_rate > 5%` |
-| RB-003 | Bank provider outage — degraded read mode | F2 | tool circuit-breaker open |
+| RB-002 | LLM provider outage - failover playbook | F1 | `llm_provider_error_rate > 5%` |
+| RB-003 | Bank provider outage - degraded read mode | F2 | tool circuit-breaker open |
 | RB-004 | Cross-tenant cache contamination | F8 | content-hash mismatch alarm |
 | RB-005 | Mass payment failure | F10 + saga | payment failure rate > 0.1% |
 | RB-006 | Ingestion lag spike | F7 | ingestion lag p95 > 30 min |
@@ -228,11 +228,11 @@ Applied per surface from §1 (control plane, read API, write API, ingestion).
 
 | Cadence | Exercise | Pass criteria |
 |---|---|---|
-| Monthly | Provider outage simulation — block primary bank API for 30 min in stage | failover routes complete; read-tier serves stale ≤ 15 min; zero payment-class side effects |
+| Monthly | Provider outage simulation - block primary bank API for 30 min in stage | failover routes complete; read-tier serves stale ≤ 15 min; zero payment-class side effects |
 | Quarterly | AZ-loss simulation in prod (one AZ blackholed for 20 min) | composite SLO budget consumption < 5% during window; no run lost |
 | Per-release | 1.5× peak load test for 30 min before promotion | p95 latency within 20% of baseline; error rate < 0.5% |
 | Continuous | chaos-mesh pod kills in dev (random worker every 10 min); weekly in stage | no run lost; resume from checkpoint succeeds 100% |
-| Quarterly | DR drill — restore in non-prod region from PITR | restore completes within RTO (15 min); RPO ≤ 5 min validated |
+| Quarterly | DR drill - restore in non-prod region from PITR | restore completes within RTO (15 min); RPO ≤ 5 min validated |
 
 ---
 
@@ -248,7 +248,7 @@ Applied per surface from §1 (control plane, read API, write API, ingestion).
 
 ---
 
-## 11. Eval harness — a reliability lever specific to agentic systems
+## 11. Eval harness - a reliability lever specific to agentic systems
 
 Reliability for an agentic system is partly a **quality** problem: a "correct" run with a wrong answer is a worse outage than a 500. The eval harness blocks deploys that regress quality:
 
@@ -262,7 +262,7 @@ Reliability for an agentic system is partly a **quality** problem: a "correct" r
 
 ---
 
-## 12. MTTR target — and why the 60% number transfers
+## 12. MTTR target - and why the 60% number transfers
 
 At BlackBox, the same telemetry-mesh + deterministic-replay investment cut org-wide MTTR for complex AI logic anomalies by **60%** (resume L58–59; blackbox-experience.md #20). The mechanism was specific: one trace per run, structured LLM spans with prompt/response/seed captured, ClickHouse-backed query latency under a second for the common queries, and replay against the captured I/O so an engineer could diff "what changed" without re-running expensive non-deterministic LLM calls.
 

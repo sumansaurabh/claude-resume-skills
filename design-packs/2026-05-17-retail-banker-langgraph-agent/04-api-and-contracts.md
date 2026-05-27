@@ -2,9 +2,9 @@
 
 Two contract layers exist:
 
-1. **External HTTP/WebSocket API** — what the bank app, WhatsApp adapter, and
+1. **External HTTP/WebSocket API** - what the bank app, WhatsApp adapter, and
    branch banker UI call.
-2. **Internal tool registry** — what nodes inside the LangGraph DAG call. Every
+2. **Internal tool registry** - what nodes inside the LangGraph DAG call. Every
    tool has a Pydantic input/output schema and a JSON-schema export for
    LLM tool-calling.
 
@@ -86,7 +86,7 @@ Confirm an offered action (separates *suggestion* from *execution*).
 { "action_id": "set_weekly_alert", "confirm": true }
 ```
 
-The server validates `action_id` against `actions_offered` for the turn —
+The server validates `action_id` against `actions_offered` for the turn -
 clients cannot synthesize actions out of band. This is the seam where
 **HITL** lives: a money-moving action's confirmation can be gated on a
 second-factor or banker approval.
@@ -245,5 +245,5 @@ Memory writes from agents go through a **review gate**: an LLM proposal
 to remember a fact is validated against a schema (`Fact { kind,
 value, evidence_turn_id }`) and stored only if `confidence ≥ medium`.
 This prevents the agent from hallucinating itself into a false belief
-across sessions — the same memory-poisoning risk we've discussed in
+across sessions - the same memory-poisoning risk we've discussed in
 the agent-memory-persistence pack.

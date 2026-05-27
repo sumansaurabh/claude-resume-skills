@@ -1,4 +1,4 @@
-# 07 — Security and Isolation
+# 07 - Security and Isolation
 
 **Scope:** Infrastructure security for the AI Banker for SMB owners. Multi-tenant, India-primary (RBI/DPDP), US/EU secondary (SOC-2/GDPR/CCPA). Target 1M businesses.
 
@@ -8,7 +8,7 @@
 
 ---
 
-## 1. Threat model — STRIDE
+## 1. Threat model - STRIDE
 
 Applied to the SMB AI Banker. Money-moving and consent-bearing surfaces are the crown jewels; the agentic surface (tool calls, memory, RAG) is a novel threat layer that classical STRIDE under-rates.
 
@@ -16,7 +16,7 @@ Applied to the SMB AI Banker. Money-moving and consent-bearing surfaces are the 
 |---|---|---|---|---|---|---|
 | S1 | Spoofing | Stolen tenant JWT replayed against payment API | Payment-initiation endpoint | Mobile app, browser session | Short-lived JWT (15 min access, 24h refresh), `jti` replay cache in Redis (60-min TTL), device-bound key for refresh, MFA step-up on write | Coerced device + active session window |
 | S2 | Spoofing | OAuth code interception for AA / bank connect | Account-Aggregator FI token | Redirect URI hijack, mobile deep link | PKCE mandatory, exact-match redirect, per-tenant state nonce, AA consent artifact pinned to `(business_id, purpose_code)` | Malware-controlled handset can still complete the flow |
-| S3 | Spoofing | Forged bank webhook claiming "payment succeeded" | Reconciliation state | `webhook.aibanker.in` ingress | Per-provider HMAC signature + provider source-IP allow-list + mTLS where bank supports it; webhook events are *advisory* — truth is reasserted by pull from bank balance API | Bank IP block change → temporary self-DoS, not bleed |
+| S3 | Spoofing | Forged bank webhook claiming "payment succeeded" | Reconciliation state | `webhook.aibanker.in` ingress | Per-provider HMAC signature + provider source-IP allow-list + mTLS where bank supports it; webhook events are *advisory* - truth is reasserted by pull from bank balance API | Bank IP block change → temporary self-DoS, not bleed |
 | T1 | Tampering | Modified payment payload mid-flight (amount/beneficiary swap) | Pending payment | Client → API → tool gateway → bank | Canonical-JSON request signed by client (Ed25519 device key) + server re-derives idempotency key from `(business_id, beneficiary_hash, amount, nonce)`; tool gateway re-validates against the user-approved plan diff | Compromised app build can sign a tampered payload |
 | T2 | Tampering | Replayed approval token after the user reversed intent | Pending payment | Approval link / push action | Approvals are single-use bearer tokens tied to `(plan_run_id, step_id)`; consumed atomically; revocation propagates within 5s via Redis pub/sub | Race between approve and revoke within ~1s |
 | T3 | Tampering | Tampered embeddings in vector store causing biased retrieval | Agent reasoning quality | Ingestion pipeline, vector DB | Signed embedding manifest per ingest batch; per-tenant namespace; row-checksum verified at retrieval; periodic re-embedding diff alarm | Insider with DB write can still poison until next re-embed |
@@ -24,11 +24,11 @@ Applied to the SMB AI Banker. Money-moving and consent-bearing surfaces are the 
 | I1 | Info disclosure | Cross-tenant bleed via shared LLM prompt cache | Transactions/PAN of other SMB | Provider-side prompt cache, our semantic cache | All cache keys salted with `tenant_id`; provider-side caching disabled for P0/P1 fields; PII redaction layer pre-egress; per-tenant cache namespaces verified by Postgres RLS-style sentinel rows in chaos drills | Provider misconfig outside our control |
 | I2 | Info disclosure | Embedding inversion leaking transaction descriptions | Bank statement narration | Vector DB dump | Embeddings stored at-rest with KMS DEK per tenant; tenant DEK destroy on offboard purges retrievability; no embeddings of raw PAN/account numbers (only tokens) | Theoretical embedding inversion on remaining P1 narration text |
 | I3 | Info disclosure | Application logs containing PAN/account numbers | Customer trust, DPDP fine | App + agent + provider SDK logs | Structured-logging redaction filter (regex + Luhn + GSTIN/PAN format) at log SDK; CI test asserts no raw P0/P1 fields exit the redactor; sample audit by SOC nightly | Novel field shapes can slip until grammar updated |
-| D1 | DoS | Per-tenant flood of "forecast my cashflow" | Agent compute, LLM tokens | Public API | Per-`(tenant, route)` token bucket; per-business monthly LLM-token quota; weighted fair queueing across tiers (Free/Pro/Enterprise) | Adversary across many free tenants — covered by per-IP + per-device fingerprint quotas |
+| D1 | DoS | Per-tenant flood of "forecast my cashflow" | Agent compute, LLM tokens | Public API | Per-`(tenant, route)` token bucket; per-business monthly LLM-token quota; weighted fair queueing across tiers (Free/Pro/Enterprise) | Adversary across many free tenants - covered by per-IP + per-device fingerprint quotas |
 | D2 | DoS | Expensive Monte Carlo forecast abused as compute amplifier | Forecast workers | Authenticated UI | Monte Carlo capped at 10k paths/run, 3 runs/day/business on Free tier; cached deterministic-seed result reused for same input within 1h | Tenant on Enterprise can still burn their own quota |
-| D3 | DoS | Agent-loop token burn (tool-call infinite recursion) | Provider spend, latency | Agent runtime | Per-run budget (tokens, wall-clock, tool-call count); circuit breaker on repeated `(node, tool_name, arg_hash)` tuples — detail in `15-guardrails.md` | Novel loop patterns may exhaust budget before tripping |
-| E1 | EoP | Low-privilege agent node invoking write tools | Money movement | Tool gateway | Capability allow-list per node ID, signed by graph compiler; gateway rejects on mismatch; write tools additionally require user MFA-bound capability token | Compromised compiler signing key — mitigated by HSM-stored key + dual-control issuance |
-| E2 | EoP | Lender-API token abuse to fetch other businesses' offers | Lender consent scope | Lender adapter | Tokens stored per-`(business_id, lender_id)` in Vault, scoped Vault policy `path "lenders/{business_id}/*"`; broker service forbids cross-business fetch | Misconfigured Vault policy — caught by nightly policy diff alarm |
+| D3 | DoS | Agent-loop token burn (tool-call infinite recursion) | Provider spend, latency | Agent runtime | Per-run budget (tokens, wall-clock, tool-call count); circuit breaker on repeated `(node, tool_name, arg_hash)` tuples - detail in `15-guardrails.md` | Novel loop patterns may exhaust budget before tripping |
+| E1 | EoP | Low-privilege agent node invoking write tools | Money movement | Tool gateway | Capability allow-list per node ID, signed by graph compiler; gateway rejects on mismatch; write tools additionally require user MFA-bound capability token | Compromised compiler signing key - mitigated by HSM-stored key + dual-control issuance |
+| E2 | EoP | Lender-API token abuse to fetch other businesses' offers | Lender consent scope | Lender adapter | Tokens stored per-`(business_id, lender_id)` in Vault, scoped Vault policy `path "lenders/{business_id}/*"`; broker service forbids cross-business fetch | Misconfigured Vault policy - caught by nightly policy diff alarm |
 | E3 | EoP | OCR worker escapes sandbox via crafted PDF | Cluster compromise | Email-ingest OCR pipeline | gVisor + read-only FS + no egress + seccomp + 256MB / 30s caps; pattern continues the BlackBox WASM sandbox approach (`resume.txt L49-50`) for untrusted code, applied here to untrusted *data* | gVisor zero-day; mitigated by namespace-level network policy denying all egress |
 
 Residual-risk theme: the surfaces we cannot fully close are (a) compromised end-user devices, (b) provider-side cache/policy misconfig, (c) novel embedding-inversion research. These feed the incident-response runbooks in §12.
@@ -43,13 +43,13 @@ Residual-risk theme: the surfaces we cannot fully close are (a) compromised end-
 | MFA on writes | Required on any payment, GST filing, loan acceptance, beneficiary add. TOTP first, SMS OTP fallback, biometric on mobile | Repudiation defense (R1); legal-evidence quality | TOTP secret on rooted device |
 | Tenant context | Signed JWT `{tenant_id, business_id, user_id, scopes, exp, jti, dev_id}`. Start HS256 (single issuer), migrate to RS256 + JWKS as services federate. Verified at *every* hop, not just edge | Microsoft pattern: never trust an upstream's claim of who the caller is (`microsoft-experience.md #10`) | Token-theft window equals access TTL (15 min) |
 | Service-to-service | mTLS via SPIFFE/SPIRE; SVIDs valid 24h, auto-rotated; identity = `spiffe://aibanker/<region>/<service>` | Identity-first networking; aligns with the secure-protocol mentoring track from Microsoft (`resume.txt L93`, `microsoft-experience.md #16`) | Compromised SPIRE control plane → ring-fenced in its own namespace + HSM-rooted CA |
-| Intra-cluster bulk transport | **TunDRA-style QUIC tunnels** for high-fanout intra-region links (LLM gateway → model providers, telemetry mesh shippers) where the mTLS-on-TCP handshake tax matters; reuses the protocol class shipped to 1M+ compute instances at Microsoft (`resume.txt L97-98`, `microsoft-experience.md #20`) | 0-RTT resume cuts agent-step latency; connection migration survives NAT rebinding for mobile-originated streams | QUIC middlebox interference in some Indian ISPs — falls back to TLS 1.3/TCP |
-| Third-party provider creds | **HashiCorp Vault**; dynamic secrets for Postgres/AWS/RabbitMQ; static creds (bank, lender, payroll APIs) under tenant-scoped paths; every fetch audited | "No secrets in code, env, image" is a hard rule | Vault root-token compromise — root sealed, unseal keys split via Shamir 3-of-5 |
-| AA consent | RBI Account Aggregator framework: `ConsentRequest → ConsentHandle → encrypted FI-Data`. Consent artifact stored signed, with `purpose_code`, `frequency`, `expiry`, `data_life`. Data fetched under that consent is purged or re-fetched per consent terms | Compliance plus minimization | User-revoked consent must propagate to caches — handled by §9 erasure flow |
+| Intra-cluster bulk transport | **TunDRA-style QUIC tunnels** for high-fanout intra-region links (LLM gateway → model providers, telemetry mesh shippers) where the mTLS-on-TCP handshake tax matters; reuses the protocol class shipped to 1M+ compute instances at Microsoft (`resume.txt L97-98`, `microsoft-experience.md #20`) | 0-RTT resume cuts agent-step latency; connection migration survives NAT rebinding for mobile-originated streams | QUIC middlebox interference in some Indian ISPs - falls back to TLS 1.3/TCP |
+| Third-party provider creds | **HashiCorp Vault**; dynamic secrets for Postgres/AWS/RabbitMQ; static creds (bank, lender, payroll APIs) under tenant-scoped paths; every fetch audited | "No secrets in code, env, image" is a hard rule | Vault root-token compromise - root sealed, unseal keys split via Shamir 3-of-5 |
+| AA consent | RBI Account Aggregator framework: `ConsentRequest → ConsentHandle → encrypted FI-Data`. Consent artifact stored signed, with `purpose_code`, `frequency`, `expiry`, `data_life`. Data fetched under that consent is purged or re-fetched per consent terms | Compliance plus minimization | User-revoked consent must propagate to caches - handled by §9 erasure flow |
 
 ---
 
-## 3. Authorization — RBAC + ABAC
+## 3. Authorization - RBAC + ABAC
 
 Two-layer model. RBAC for coarse role gates; ABAC for region, risk-tier, and per-business scoping. Per-agent-node capability allow-lists live in `15-guardrails.md` and are referenced, not duplicated.
 
@@ -73,10 +73,10 @@ Two-layer model. RBAC for coarse role gates; ABAC for region, risk-tier, and per
 
 ### 3.2 ABAC overlay
 
-- `attr.region ∈ {IN, EU, US}` — must match resource region; cross-region read denied at the data layer (§4, §9).
-- `attr.risk_tier ∈ {low, med, high}` — derived from velocity model (§11); `high` blocks single-approver payments above ₹50k.
-- `attr.device_attested ∈ {true, false}` — payments above ₹1L require `true` (Play Integrity / App Attest).
-- `attr.session_age_minutes` — writes blocked beyond 60 min without re-auth.
+- `attr.region ∈ {IN, EU, US}` - must match resource region; cross-region read denied at the data layer (§4, §9).
+- `attr.risk_tier ∈ {low, med, high}` - derived from velocity model (§11); `high` blocks single-approver payments above ₹50k.
+- `attr.device_attested ∈ {true, false}` - payments above ₹1L require `true` (Play Integrity / App Attest).
+- `attr.session_age_minutes` - writes blocked beyond 60 min without re-auth.
 
 Decision engine: OPA sidecar; policies in Rego; bundled and signed; admission controller refuses pods running unsigned bundles. Decision latency budget 5 ms p99 (cached); cold path 15 ms.
 
@@ -88,10 +88,10 @@ Decision engine: OPA sidecar; policies in Rego; bundled and signed; admission co
 |---|---|---|---|
 | Edge | CloudFront / Cloudflare → ALB | WAF (managed + custom rules), mTLS optional for partner API, rate-limit per IP and per device fingerprint | DDoS L7 shield |
 | App tier | Private subnets per AZ | NodePort closed; only ALB and internal NLBs reach pods | No public IPs |
-| Egress to providers | NAT GW + provider IP allow-list; **bank-whitelisted egress** rides NLB EIPs (static IPs registered with each bank), see `03-architecture.md` LB section | Some banks require fixed source IPs — NLB EIPs are pinned and change-controlled | EIP churn requires compliance ticket + bank-side update |
+| Egress to providers | NAT GW + provider IP allow-list; **bank-whitelisted egress** rides NLB EIPs (static IPs registered with each bank), see `03-architecture.md` LB section | Some banks require fixed source IPs - NLB EIPs are pinned and change-controlled | EIP churn requires compliance ticket + bank-side update |
 | Inbound webhooks | Dedicated `webhook.aibanker.in` subdomain → segregated NLB → webhook-ingest service | Per-provider HMAC sig, mTLS where supported, IP allow-list per provider; webhook events treated advisory, never authoritative | Spoofing class S3 |
 | Cross-region | Private VPC peering via AWS Transit Gateway; no internet hop; data plane traffic stays on AWS backbone | Required for control-plane sync (auth, billing); user data does not cross region | Bug bar: any service path that *could* serialize a row across regions trips an alarm |
-| Intra-cluster | Calico/Cilium NetworkPolicies, default deny; mTLS via SPIFFE; **TunDRA-class QUIC tunnels** for the LLM gateway and telemetry shipper hot paths (`resume.txt L97-98`) | mTLS-on-TCP handshake cost dominates at 50M spans/day shipping — same scale class as the BlackBox telemetry mesh (`blackbox-experience.md #20`) | Operational complexity — QUIC observability tooling thinner than TCP |
+| Intra-cluster | Calico/Cilium NetworkPolicies, default deny; mTLS via SPIFFE; **TunDRA-class QUIC tunnels** for the LLM gateway and telemetry shipper hot paths (`resume.txt L97-98`) | mTLS-on-TCP handshake cost dominates at 50M spans/day shipping - same scale class as the BlackBox telemetry mesh (`blackbox-experience.md #20`) | Operational complexity - QUIC observability tooling thinner than TCP |
 | K8s namespaces | Tenant-tier-segregated (`free`, `pro`, `enterprise`), one namespace per data-domain service | NetworkPolicy denies cross-namespace except via service mesh ingress | Namespace ≠ tenant; per-tenant namespace only for Enterprise (§6) |
 
 ---
@@ -109,11 +109,11 @@ Decision engine: OPA sidecar; policies in Rego; bundled and signed; admission co
 
 ### 5.2 Mechanics
 
-- **Envelope encryption** — per-tenant DEK wraps row data; DEK wrapped by region KEK; KEK in CloudHSM. Tenant DEK *destruction* is the GDPR/DPDP erasure primitive (§9).
+- **Envelope encryption** - per-tenant DEK wraps row data; DEK wrapped by region KEK; KEK in CloudHSM. Tenant DEK *destruction* is the GDPR/DPDP erasure primitive (§9).
 - **Field-level encryption** for P0 inside Postgres rows (`pgcrypto` + KMS-issued DEKs).
-- **Tokenization** for PAN/Aadhaar/account-number — token at app layer, detokenize requires service identity + user-session JWT + reason code, all logged.
-- **Key rotation** — KEKs 365d, DEKs 90d background re-wrap, JWT signing keys 30d, webhook signing keys 180d, payment-rail creds 30d, generic provider creds 90d.
-- **Crypto agility** — algorithm IDs stored next to ciphertext; rotation runbook covers AES-GCM → AES-GCM-SIV migration, and TLS suite changes.
+- **Tokenization** for PAN/Aadhaar/account-number - token at app layer, detokenize requires service identity + user-session JWT + reason code, all logged.
+- **Key rotation** - KEKs 365d, DEKs 90d background re-wrap, JWT signing keys 30d, webhook signing keys 180d, payment-rail creds 30d, generic provider creds 90d.
+- **Crypto agility** - algorithm IDs stored next to ciphertext; rotation runbook covers AES-GCM → AES-GCM-SIV migration, and TLS suite changes.
 
 ---
 
@@ -131,7 +131,7 @@ The default is **logical isolation with hard enforcement**; Enterprise tier upgr
 | Networking | NetworkPolicies per namespace, default deny | Dedicated namespace + dedicated SPIFFE trust domain segment | NetworkPolicy CI test; periodic Cilium drift scan |
 | Secrets | Vault path `tenants/{tenant_id}/...`; policy requires JWT subject match | Dedicated Vault namespace | Vault audit log replayed nightly for cross-tenant access attempts |
 
-Residual: noisy-neighbor on shared LLM-provider quotas remains for Free/Pro — mitigated by per-tenant token buckets, not by physical isolation.
+Residual: noisy-neighbor on shared LLM-provider quotas remains for Free/Pro - mitigated by per-tenant token buckets, not by physical isolation.
 
 ---
 
@@ -185,7 +185,7 @@ audit_log (
 
 - Written transactionally with the business mutation (outbox pattern); audit-svc signs asynchronously within 5s.
 - Mirrored to **S3 Object Lock (WORM, compliance mode, 7-year retention)**.
-- Daily **Merkle root** of all signed rows posted to an internal append-only ledger (separate AWS account, separate KMS key); root + previous-day hash chained — tamper-evident.
+- Daily **Merkle root** of all signed rows posted to an internal append-only ledger (separate AWS account, separate KMS key); root + previous-day hash chained - tamper-evident.
 - SMB owner gets a **self-serve audit explorer** (read-only, filterable, exportable as signed PDF).
 
 ### 8.3 Compliance mapping
@@ -198,7 +198,7 @@ audit_log (
 | Tamper-evidence | `signature`, daily Merkle root | SOC-2 CC7.2 |
 | Data subject access | filter by `business_id`, export | GDPR Art 15, DPDP §11 |
 
-Residual: audit-svc HSM key compromise — mitigated by dual-control rotation and ledger-side anchoring on a separate AWS account.
+Residual: audit-svc HSM key compromise - mitigated by dual-control rotation and ledger-side anchoring on a separate AWS account.
 
 ---
 
@@ -223,9 +223,9 @@ Residual: audit-svc HSM key compromise — mitigated by dual-control rotation an
 
 ### 9.3 PAN / Aadhaar / GST
 
-- PAN — tokenized; raw value only retrievable inside detokenize service with audited reason code.
-- Aadhaar — never stored unless Aadhaar-based KYC; stored in HSM-vault as hashed + last-4; raw discarded post-verification.
-- GST data — encrypted P1; GSTIN tokenized for joins.
+- PAN - tokenized; raw value only retrievable inside detokenize service with audited reason code.
+- Aadhaar - never stored unless Aadhaar-based KYC; stored in HSM-vault as hashed + last-4; raw discarded post-verification.
+- GST data - encrypted P1; GSTIN tokenized for joins.
 
 ---
 
@@ -233,26 +233,26 @@ Residual: audit-svc HSM key compromise — mitigated by dual-control rotation an
 
 | Surface | Trust | Control |
 |---|---|---|
-| Forecast engine | Trusted internal code only — no user-supplied code path | Normal pod; standard limits |
+| Forecast engine | Trusted internal code only - no user-supplied code path | Normal pod; standard limits |
 | OCR / PDF parsing | **Untrusted** PDFs from invoice email, bank statement uploads | gVisor + read-only root FS + no egress + seccomp + 256MB / 30s CPU / 10MB output cap; same isolation discipline as the BlackBox WASM sandbox plane built for 1M+/day executions (`resume.txt L49-50`, `blackbox-experience.md #3-5`) |
-| Agent tool calls | Tools are first-party adapters — no arbitrary code | Capability allow-list at tool gateway (see `15-guardrails.md`); per-tool circuit breaker; idempotency keys |
+| Agent tool calls | Tools are first-party adapters - no arbitrary code | Capability allow-list at tool gateway (see `15-guardrails.md`); per-tool circuit breaker; idempotency keys |
 | LLM-generated SQL / code | If ever exposed (e.g. ad-hoc analytics) | Routed through the WASM sandbox plane (same pattern), read-only DB role, query-cost budget, EXPLAIN-gate |
 
 **CI/CD supply chain** (the standardized model from Microsoft, `resume.txt L93-94`, `microsoft-experience.md #17`):
 
-- **CodeQL** on every PR — taint analysis tuned for SQL injection, SSRF, deserialization, secrets-in-logs.
-- **GitHub Advanced Security** — secret scanning, dependency review, Dependabot for high CVEs (block release).
-- **Snyk SCA** — container + dependency scan; high CVE blocks merge; medium opens issue.
+- **CodeQL** on every PR - taint analysis tuned for SQL injection, SSRF, deserialization, secrets-in-logs.
+- **GitHub Advanced Security** - secret scanning, dependency review, Dependabot for high CVEs (block release).
+- **Snyk SCA** - container + dependency scan; high CVE blocks merge; medium opens issue.
 - **SBOM** (CycloneDX) per image; published; signed.
-- **Image signing** — cosign with CloudHSM-backed key; **Kyverno admission controller** rejects unsigned images.
-- **Reproducible builds** — distroless base, pinned digests, build provenance per SLSA L3.
-- **Branch protection** — required reviews from CODEOWNERS, security review required for changes in `services/payments/**`, `services/agent/**`, `services/audit/**`, `iac/**`.
+- **Image signing** - cosign with CloudHSM-backed key; **Kyverno admission controller** rejects unsigned images.
+- **Reproducible builds** - distroless base, pinned digests, build provenance per SLSA L3.
+- **Branch protection** - required reviews from CODEOWNERS, security review required for changes in `services/payments/**`, `services/agent/**`, `services/audit/**`, `iac/**`.
 
 ---
 
 ## 11. Payment-rail safety controls
 
-These sit *between* the agent and the bank adapter. Same trust boundary as the WASM sandbox plane at BlackBox — assume the layer above can be wrong, and gate at the trust boundary.
+These sit *between* the agent and the bank adapter. Same trust boundary as the WASM sandbox plane at BlackBox - assume the layer above can be wrong, and gate at the trust boundary.
 
 | Control | Rule | Bypass / escalation |
 |---|---|---|
@@ -265,7 +265,7 @@ These sit *between* the agent and the bank adapter. Same trust boundary as the W
 | Recipient sanity | Cross-check beneficiary IFSC + name against NPCI name-match before initiating; mismatch blocks send | Owner override with explicit acknowledgment |
 | Circuit breaker | Bank-adapter error rate > 5% / 5 min freezes new payments to that bank; existing in-flight unaffected | Auto-recover when rate < 1% for 10 min; pageable |
 
-These controls run *in front of* the bank adapter, not inside the agent — assumes agent layer can be wrong (prompt injection, model regression). Cross-reference `15-guardrails.md` for the agent-side counterparts.
+These controls run *in front of* the bank adapter, not inside the agent - assumes agent layer can be wrong (prompt injection, model regression). Cross-reference `15-guardrails.md` for the agent-side counterparts.
 
 ---
 
@@ -276,9 +276,9 @@ Runbooks per incident class. Each has owner, paging rules, containment SLA, cust
 | Class | Owner | Containment SLA | Notification SLA | Forensic artifacts |
 |---|---|---|---|---|
 | Provider creds leaked | SecOps + on-call | 15 min revoke | 24h customer notice if data accessed (DPDP/GDPR) | Vault audit log, NetworkFlow logs, S3 access logs |
-| Payment misroute / wrong beneficiary | Payments on-call + SecOps | 30 min — initiate recall via bank API | Same-day to affected SMB | Audit row, justification_run_id, agent trace |
-| Cross-tenant data bleed | SecOps lead + CTO | 1 hr — feature-flag off, drain cache, redact logs | 72h to all potentially affected tenants (DPDP) | RLS sentinel results, cache key dump, span trace |
-| Prompt-injection chain leading to payout | SecOps + Agent on-call | 1 hr — kill switch on relevant tool capability | 72h customer notice | Full agent run replay (see below); injected content snapshot |
+| Payment misroute / wrong beneficiary | Payments on-call + SecOps | 30 min - initiate recall via bank API | Same-day to affected SMB | Audit row, justification_run_id, agent trace |
+| Cross-tenant data bleed | SecOps lead + CTO | 1 hr - feature-flag off, drain cache, redact logs | 72h to all potentially affected tenants (DPDP) | RLS sentinel results, cache key dump, span trace |
+| Prompt-injection chain leading to payout | SecOps + Agent on-call | 1 hr - kill switch on relevant tool capability | 72h customer notice | Full agent run replay (see below); injected content snapshot |
 | GDPR / DPDP data subject request | Privacy lead | 30 day SLA / 72h in practice | per regulation | Erasure log, DEK destruction proof, vector-store namespace delete |
 | RBI inspection | Compliance lead + CTO | n/a (cooperative) | per regulator | Audit-log extracts, signed exports, Merkle root verification |
 
@@ -288,10 +288,10 @@ Runbooks per incident class. Each has owner, paging rules, containment SLA, cust
 
 - Read-only IAM role `forensic-investigator` with audit-only access, MFA-gated, just-in-time provisioned via Vault.
 - All logs immutable (S3 Object Lock, CloudWatch log groups with delete-protection).
-- **Deterministic agent replay** for any `run_id` — same pattern that cut org-wide MTTR for AI logic anomalies by 60% at BlackBox (`resume.txt L58-59`, `blackbox-experience.md #20`). Reduces RCA on a prompt-injection or tool-abuse incident from days to hours.
+- **Deterministic agent replay** for any `run_id` - same pattern that cut org-wide MTTR for AI logic anomalies by 60% at BlackBox (`resume.txt L58-59`, `blackbox-experience.md #20`). Reduces RCA on a prompt-injection or tool-abuse incident from days to hours.
 - Quarterly tabletop exercise covering at least one runbook per class.
 
-Residual: notification SLA assumes detection — see §13 on detection coverage.
+Residual: notification SLA assumes detection - see §13 on detection coverage.
 
 ---
 
@@ -300,25 +300,25 @@ Residual: notification SLA assumes detection — see §13 on detection coverage.
 | Activity | Cadence | Scope | Owner |
 |---|---|---|---|
 | External pentest | Quarterly | App, API, mobile, infra (rotating focus); SOC-2 evidence | Third-party firm |
-| Internal red-team — classic | Monthly | Auth, RBAC bypass, IDOR, SSRF, secrets exfil | SecOps |
-| Internal red-team — **agentic surface** | Monthly | Prompt-injection chains, tool-call abuse, capability-escalation across nodes, memory poisoning via ingestion (see `15-guardrails.md` for behavioral counterparts); cross-tenant bleed via vector store | SecOps + Agent team |
+| Internal red-team - classic | Monthly | Auth, RBAC bypass, IDOR, SSRF, secrets exfil | SecOps |
+| Internal red-team - **agentic surface** | Monthly | Prompt-injection chains, tool-call abuse, capability-escalation across nodes, memory poisoning via ingestion (see `15-guardrails.md` for behavioral counterparts); cross-tenant bleed via vector store | SecOps + Agent team |
 | Sentinel-row drill | Weekly | Insert tenant-A sentinel into every shared store; assert zero retrieval from tenant B path | Platform |
-| Chaos-security drill | Monthly | Inject expired JWT, expired SPIFFE SVID, revoked AA consent — verify all hops fail closed | Platform |
+| Chaos-security drill | Monthly | Inject expired JWT, expired SPIFFE SVID, revoked AA consent - verify all hops fail closed | Platform |
 | Dependency / image scan | Per build | CodeQL, Snyk, cosign verify | CI |
-| Threat-model refresh | Per major feature | New surface added to STRIDE; design review signed by security | Architect + SecOps — same governance pattern as the 30+ architecture reviews and standardized threat modeling at Microsoft (`resume.txt L93-96`, `microsoft-experience.md #18-19`) |
+| Threat-model refresh | Per major feature | New surface added to STRIDE; design review signed by security | Architect + SecOps - same governance pattern as the 30+ architecture reviews and standardized threat modeling at Microsoft (`resume.txt L93-96`, `microsoft-experience.md #18-19`) |
 | Compliance evidence collection | Continuous (drata-style) | SOC-2, DPDP, GDPR control evidence auto-collected from CI, IAM, Vault, KMS | Compliance |
 | Bug bounty | Continuous | Public scope: web/API; private scope: agent tools, payment rails | SecOps |
 
-Residual: red-team coverage of the agentic surface is *new ground* for the industry — we expect to discover unknown-unknown chains, which is why incident response (§12) is built around deterministic replay rather than around assuming we will detect every novel chain at first occurrence.
+Residual: red-team coverage of the agentic surface is *new ground* for the industry - we expect to discover unknown-unknown chains, which is why incident response (§12) is built around deterministic replay rather than around assuming we will detect every novel chain at first occurrence.
 
 ---
 
 ## Cross-references
 
-- `03-architecture.md` — LB topology, NLB EIPs, regional routing.
-- `15-guardrails.md` — prompt-injection defense, tool-gateway capability ACL, output content safety, memory-poisoning behavioral controls.
-- `22-ingestion-pipeline.md` — embedding manifest signing and ingestion provenance (if present in pack).
-- `19-agentic-graph-structure.md` — node capability declarations consumed by §3 ABAC and §11 payment-rail gates.
+- `03-architecture.md` - LB topology, NLB EIPs, regional routing.
+- `15-guardrails.md` - prompt-injection defense, tool-gateway capability ACL, output content safety, memory-poisoning behavioral controls.
+- `22-ingestion-pipeline.md` - embedding manifest signing and ingestion provenance (if present in pack).
+- `19-agentic-graph-structure.md` - node capability declarations consumed by §3 ABAC and §11 payment-rail gates.
 
 ## Confidence and assumptions
 

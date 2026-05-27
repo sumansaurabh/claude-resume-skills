@@ -1,4 +1,4 @@
-# 12a — Checkpoint Implementation (LLD)
+# 12a - Checkpoint Implementation (LLD)
 
 > **Scope.** This file is the low-level implementation detail behind every
 > "the run pauses / resumes / recovers" claim in `12-agentic-graph-structure.md`,
@@ -8,7 +8,7 @@
 > failure modes the design defends against.
 >
 > **Audience.** Engineers who will implement, operate, or debug the checkpoint
-> layer. Read this *after* file 12 — the contracts come from there; this is
+> layer. Read this *after* file 12 - the contracts come from there; this is
 > the machinery underneath.
 
 ---
@@ -17,9 +17,9 @@
 
 Think of a checkpoint as the **save-game** for an in-progress AI run.
 
-An AI banker conversation can take dozens of steps — pull the bank balance, project cash, draft an advisory, ask the user to approve a payment, wait two days for the approval to come back, then execute the payment. The system cannot keep all of that in memory the whole time. Pods get killed by Kubernetes. CFOs go on vacation mid-approval. A region might fail over.
+An AI banker conversation can take dozens of steps - pull the bank balance, project cash, draft an advisory, ask the user to approve a payment, wait two days for the approval to come back, then execute the payment. The system cannot keep all of that in memory the whole time. Pods get killed by Kubernetes. CFOs go on vacation mid-approval. A region might fail over.
 
-So after **every single step**, we write the *entire state of the run* — the user's request, the plan, the data we've fetched, the calcs we've done, the partial outputs — to a row in Postgres. If anything goes wrong, the next worker pod loads that row and picks up exactly where the last one stopped. Nothing is lost.
+So after **every single step**, we write the *entire state of the run* - the user's request, the plan, the data we've fetched, the calcs we've done, the partial outputs - to a row in Postgres. If anything goes wrong, the next worker pod loads that row and picks up exactly where the last one stopped. Nothing is lost.
 
 That's it. The rest of this file is just: what does that row look like, when is it written, how is it loaded, and what stops two pods from trying to resume the same run at the same time.
 
@@ -43,7 +43,7 @@ It is **not** a memory snapshot. We don't dump pod RAM. We serialize a well-defi
 
 ## 2. The Postgres schema
 
-**In plain words.** Two tables. One stores the checkpoints (the save-games). The other stores a *lease* — basically a "this pod is currently working on this run" flag that prevents two pods from accidentally resuming the same run at the same time.
+**In plain words.** Two tables. One stores the checkpoints (the save-games). The other stores a *lease* - basically a "this pod is currently working on this run" flag that prevents two pods from accidentally resuming the same run at the same time.
 
 ```sql
 CREATE TABLE agent_checkpoints (
@@ -72,7 +72,7 @@ ALTER TABLE agent_checkpoints ENABLE ROW LEVEL SECURITY;
 CREATE POLICY ckpt_tenant_isolation ON agent_checkpoints
   USING (tenant = current_setting('app.current_tenant')::text);
 
--- The run lease — at most one worker owns an active run at a time
+-- The run lease - at most one worker owns an active run at a time
 CREATE TABLE run_leases (
   run_id         TEXT        PRIMARY KEY,
   tenant         TEXT        NOT NULL,
@@ -91,18 +91,18 @@ CREATE POLICY lease_tenant_isolation ON run_leases
 
 | Choice | Why |
 |---|---|
-| `state_blob BYTEA`, not `JSONB` | We never query *inside* the state — we always load the whole thing. Going opaque lets us encrypt it without losing functionality. |
+| `state_blob BYTEA`, not `JSONB` | We never query *inside* the state - we always load the whole thing. Going opaque lets us encrypt it without losing functionality. |
 | Client-side encrypt with tenant DEK | Even if Postgres RLS were misconfigured, tenant A's blob is unreadable without tenant A's key. Defense in depth. |
 | `checkpoint_seq` monotonic per run, not global | Lets us walk one run's history with a single index scan; avoids global write contention. |
 | `parent_seq` pointer | Enables the debug viewer to reconstruct the full history without scanning the whole run's rows. |
 | `hitl_pending` partial index | The expiry sweeper scans this index every 60s. A partial index containing only pending rows stays tiny even when the main table has 10M+ rows. |
 | Separate `run_leases` table | Decouples "who's working on this" from "what does it know" so the lease can be acquired/released without touching the heavy state row. |
-| `lease_version` (optimistic CAS) | Detects stale leases — see §4 split-brain protection. |
+| `lease_version` (optimistic CAS) | Detects stale leases - see §4 split-brain protection. |
 | Postgres RLS, not application-layer filters | Application code can have bugs; RLS is enforced by the database itself, immune to ORM mistakes. |
 
 ---
 
-## 2.5 The run lease — in plain language
+## 2.5 The run lease - in plain language
 
 The `run_leases` table is the most important small thing in this whole design. It is what makes crash recovery work without ever producing two pods doing the same work. Two questions cover what it is and what it's for.
 
@@ -110,13 +110,13 @@ The `run_leases` table is the most important small thing in this whole design. I
 
 **Analogy.** Think of the lease as a **hotel room key with a 30-second timer**.
 
-When a worker pod starts processing a run, it picks up the key. The key has a timer that counts down from 30 seconds. As long as the pod is actively working, it keeps tapping the key against the reader to **reset the timer back to 30** — this is the heartbeat. We extend `expires_at` to `NOW() + 30s` on every checkpoint write.
+When a worker pod starts processing a run, it picks up the key. The key has a timer that counts down from 30 seconds. As long as the pod is actively working, it keeps tapping the key against the reader to **reset the timer back to 30** - this is the heartbeat. We extend `expires_at` to `NOW() + 30s` on every checkpoint write.
 
 If the pod is healthy, the timer never runs out. The pod owns the room as long as it's working.
 
-If the pod **dies** — crash, OOM, k8s evicted it, network blip — it stops tapping. The timer runs down to zero. Now, any other pod that comes by can pick up the key and take over the room.
+If the pod **dies** - crash, OOM, k8s evicted it, network blip - it stops tapping. The timer runs down to zero. Now, any other pod that comes by can pick up the key and take over the room.
 
-**Why we need this.** A run is a sequence of expensive, side-effecting steps — calling tools, charging payment processors, sending emails. **Two pods working the same run at the same time would be catastrophic**: the customer gets charged twice, the email gets sent twice, the audit log gets two contradictory entries.
+**Why we need this.** A run is a sequence of expensive, side-effecting steps - calling tools, charging payment processors, sending emails. **Two pods working the same run at the same time would be catastrophic**: the customer gets charged twice, the email gets sent twice, the audit log gets two contradictory entries.
 
 The lease guarantees: **at most one pod owns a run at a time. Always. No exceptions.**
 
@@ -131,9 +131,9 @@ The lease guarantees: **at most one pod owns a run at a time. Always. No excepti
 
 **The three things the lease does, in one sentence each.**
 
-1. **Reservation** — "this pod is currently working on this run, hands off"
-2. **Liveness signal** — "I'm still alive, don't take the run from me" (via heartbeat)
-3. **Handoff protocol** — "I'm dead, someone else come take over" (via expiry + claim loop)
+1. **Reservation** - "this pod is currently working on this run, hands off"
+2. **Liveness signal** - "I'm still alive, don't take the run from me" (via heartbeat)
+3. **Handoff protocol** - "I'm dead, someone else come take over" (via expiry + claim loop)
 
 **Why not just trust the pod to release the lease when it's done?** Because dead pods can't release anything. A pod that crashes can't politely call `DELETE FROM run_leases`. The whole point is to recover from situations where the pod cannot communicate. So we **invert the contract**: the lease auto-expires unless the pod actively keeps it alive. Silence = the pod is dead = someone else can take over.
 
@@ -145,14 +145,14 @@ The lease guarantees: **at most one pod owns a run at a time. Always. No excepti
 
 What holding that lease *permits* the worker to do, exclusively:
 
-1. **Execute graph nodes for that specific run** — call the LLM, invoke tools, write to state
-2. **Write checkpoints for that specific run** — every `put()` first verifies "do I still hold this lease?"
-3. **Mutate state for that specific run** — including `hitl_status`, `pending_action`, anything
+1. **Execute graph nodes for that specific run** - call the LLM, invoke tools, write to state
+2. **Write checkpoints for that specific run** - every `put()` first verifies "do I still hold this lease?"
+3. **Mutate state for that specific run** - including `hitl_status`, `pending_action`, anything
 
 What it does **not** permit:
 - Any access to other runs (you hold the lease for `run_id=R`, not for the platform)
 - Any access to other tenants' data (RLS is a separate layer)
-- Permanent ownership — it always expires in 30s without a heartbeat
+- Permanent ownership - it always expires in 30s without a heartbeat
 
 **When the lease is acquired (the three cases).**
 
@@ -167,14 +167,14 @@ What it does **not** permit:
 | Trigger | What happens |
 |---|---|
 | Run reaches `Terminator` | Worker explicitly `DELETE`s the lease row |
-| Run reaches `ForcedTermination` | Same — worker `DELETE`s on exit |
-| Run reaches `HITLGate` (pause) | Worker explicitly `DELETE`s the lease — pause may last days, don't hold the pod |
+| Run reaches `ForcedTermination` | Same - worker `DELETE`s on exit |
+| Run reaches `HITLGate` (pause) | Worker explicitly `DELETE`s the lease - pause may last days, don't hold the pod |
 | Worker crashes | Lease is not deleted, but `expires_at` is in the past after 30s → effectively released |
 
 **What the lease is *not*.** This is the part that confuses people. The lease is:
 
 - **Not a lock on data.** Postgres row-level locks already exist for that. The lease is a higher-level "I'm the operator" claim, not a "this row is frozen" claim.
-- **Not a lock on the user's session.** Multiple runs for the same user can run in parallel — each has its own lease on its own `run_id`.
+- **Not a lock on the user's session.** Multiple runs for the same user can run in parallel - each has its own lease on its own `run_id`.
 - **Not a lock on tools.** Two different runs can both call `bank.balance` at the same time; the lease scopes execution of a run, not the tools the run uses.
 - **Not a queue position.** It doesn't say "you're next to process this." It says "you are *currently* processing this, and no one else may, until you stop heartbeating."
 
@@ -182,15 +182,15 @@ What it does **not** permit:
 
 > A lease is the right to advance one specific run by one or more graph nodes, for as long as you keep proving you're alive.
 
-That's it. One run, one worker, one heartbeat at a time. The moment the worker either finishes the run, pauses it for HITL, or stops heartbeating — the lease ends and someone else can claim it (or the run terminates cleanly).
+That's it. One run, one worker, one heartbeat at a time. The moment the worker either finishes the run, pauses it for HITL, or stops heartbeating - the lease ends and someone else can claim it (or the run terminates cleanly).
 
-**In one concrete sentence.** When Pod A "takes the lease on `run_id=R`," what it has actually done is **claim exclusive authorization to execute the next graph node for run R, write the resulting checkpoint, and proceed to the node after that — repeatedly, until either the run finishes or the pod stops heartbeating**. The lease is the contract that says the platform recognizes Pod A as the current operator of run R.
+**In one concrete sentence.** When Pod A "takes the lease on `run_id=R`," what it has actually done is **claim exclusive authorization to execute the next graph node for run R, write the resulting checkpoint, and proceed to the node after that - repeatedly, until either the run finishes or the pod stops heartbeating**. The lease is the contract that says the platform recognizes Pod A as the current operator of run R.
 
 ---
 
 ## 3. The LangGraph checkpointer interface
 
-**In plain words.** LangGraph already defines an interface — `BaseCheckpointSaver` with `put()` and `get_tuple()` methods. Whenever a graph node finishes, LangGraph automatically calls `put()`. Whenever a run resumes, it calls `get_tuple()`. We just implement those two methods against Postgres. The orchestrator never explicitly calls "save" or "load" — the framework handles it.
+**In plain words.** LangGraph already defines an interface - `BaseCheckpointSaver` with `put()` and `get_tuple()` methods. Whenever a graph node finishes, LangGraph automatically calls `put()`. Whenever a run resumes, it calls `get_tuple()`. We just implement those two methods against Postgres. The orchestrator never explicitly calls "save" or "load" - the framework handles it.
 
 ```python
 class PostgresBankerCheckpointer(BaseCheckpointSaver):
@@ -204,7 +204,7 @@ class PostgresBankerCheckpointer(BaseCheckpointSaver):
         self.kms = kms         # for tenant DEK envelope encryption
 
     # =========================================================================
-    # WRITE — called automatically by LangGraph after every node completes
+    # WRITE - called automatically by LangGraph after every node completes
     # =========================================================================
     async def put(
         self,
@@ -260,7 +260,7 @@ class PostgresBankerCheckpointer(BaseCheckpointSaver):
                                             "checkpoint_seq": next_seq}}
 
     # =========================================================================
-    # READ — called when a run starts or resumes
+    # READ - called when a run starts or resumes
     # =========================================================================
     async def get_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         run_id = config["configurable"]["run_id"]
@@ -303,9 +303,9 @@ class PostgresBankerCheckpointer(BaseCheckpointSaver):
 
 ---
 
-## 4. Write lifecycle — what happens after every node completes
+## 4. Write lifecycle - what happens after every node completes
 
-**In plain words.** The Specialist finishes its reasoning, returns its `PartialOutput`. LangGraph immediately calls our `put()`. We confirm we still own the lease, encrypt the state, INSERT the row, extend the lease, commit. Done. If anything in that sequence fails, LangGraph treats the node as failed and the run halts — no silent loss.
+**In plain words.** The Specialist finishes its reasoning, returns its `PartialOutput`. LangGraph immediately calls our `put()`. We confirm we still own the lease, encrypt the state, INSERT the row, extend the lease, commit. Done. If anything in that sequence fails, LangGraph treats the node as failed and the run halts - no silent loss.
 
 ```
 Specialist node returns
@@ -335,19 +335,19 @@ LangGraph proceeds to next node
 **Two invariants this enforces.**
 
 1. **No checkpoint without a valid lease.** If a worker's lease was stolen (e.g. its pod was thought dead by k8s and another worker was scheduled), the `SELECT FOR UPDATE` shows a different `worker_id`, and the INSERT is aborted before commit. Split-brain is structurally impossible.
-2. **No silent skip.** If `put()` raises, LangGraph treats the node as failed and the run halts. The worst case is the node re-executes on resume — and every node has an idempotency key (file 12 L2.2.5 common contract) so re-execution is safe.
+2. **No silent skip.** If `put()` raises, LangGraph treats the node as failed and the run halts. The worst case is the node re-executes on resume - and every node has an idempotency key (file 12 L2.2.5 common contract) so re-execution is safe.
 
-**Latency budget.** Target p99 for `put()` is **150 ms** — this is on the hot path of every node. Most of it is the network round trip; the encryption and INSERT are sub-millisecond. The 30-node worst-case run pays about 4.5 s in checkpoint overhead total, which is a small fraction of the overall LLM-bound latency.
+**Latency budget.** Target p99 for `put()` is **150 ms** - this is on the hot path of every node. Most of it is the network round trip; the encryption and INSERT are sub-millisecond. The 30-node worst-case run pays about 4.5 s in checkpoint overhead total, which is a small fraction of the overall LLM-bound latency.
 
 ---
 
-## 5. Resume lifecycle — two flavors
+## 5. Resume lifecycle - two flavors
 
 There are two kinds of resume. They look similar but differ in how the worker discovers the run.
 
-### 5.1 Flavor A — crash recovery (the pod died)
+### 5.1 Flavor A - crash recovery (the pod died)
 
-**In plain words.** A worker pod was running a request. The pod crashed (OOM, k8s preemption, hardware failure). The lease it was holding stops getting heartbeats. After 30 seconds, the lease is "expired." A fresh worker notices the expired lease, claims it, loads the last checkpoint, and continues the run as if nothing happened — except the node that was mid-execution gets re-run from the top, which is fine because every node is idempotent.
+**In plain words.** A worker pod was running a request. The pod crashed (OOM, k8s preemption, hardware failure). The lease it was holding stops getting heartbeats. After 30 seconds, the lease is "expired." A fresh worker notices the expired lease, claims it, loads the last checkpoint, and continues the run as if nothing happened - except the node that was mid-execution gets re-run from the top, which is fine because every node is idempotent.
 
 ```
 Pod A is running run_R. Crashes at T=10s.
@@ -370,14 +370,14 @@ For each claimed run:
     ↓
     Resume execution from the node AFTER state.last_completed_node.
     ↓
-    The just-failed node (if any) re-executes. Its idempotency key —
-    (run_id, node_id, step_id) — ensures any side effects it already emitted
+    The just-failed node (if any) re-executes. Its idempotency key -
+    (run_id, node_id, step_id) - ensures any side effects it already emitted
     are deduplicated by the downstream consumer (tool sandbox, event bus, etc.)
 ```
 
-**What the user sees.** Nothing. The total delay is the lease-expiry window (30s) plus the re-execution of the failed node (typically 1–5s for an LLM call). For an interactive run that crashes mid-flight, the user sees a slightly slow response. For a HITL paused run, they see nothing — there is no human in the loop yet who's watching a spinner.
+**What the user sees.** Nothing. The total delay is the lease-expiry window (30s) plus the re-execution of the failed node (typically 1–5s for an LLM call). For an interactive run that crashes mid-flight, the user sees a slightly slow response. For a HITL paused run, they see nothing - there is no human in the loop yet who's watching a spinner.
 
-### 5.2 Flavor B — HITL pause (the human is thinking)
+### 5.2 Flavor B - HITL pause (the human is thinking)
 
 **In plain words.** A run reaches the HITLGate node, which means we proposed an action and need a human to approve it. The run writes a checkpoint with `hitl_pending=true`, **releases the lease entirely** (we don't want to hold a pod hostage for days), and exits the worker thread. The pod is now free to do other work. Days later, an approval event arrives, a worker picks it up, re-acquires the lease, loads the checkpoint, injects the approval decision into state, and continues.
 
@@ -417,16 +417,16 @@ HITLResume worker (a separate pool) receives the event:
 
 ---
 
-## 6. What gets serialized — and what does not
+## 6. What gets serialized - and what does not
 
-**In plain words.** We save *data*, not *connections*. The state TypedDict — the user's request, the plan, the data we fetched, the calcs we computed — all goes in. Live network connections, file handles, and in-flight LLM streams are not saved; they're re-established on resume.
+**In plain words.** We save *data*, not *connections*. The state TypedDict - the user's request, the plan, the data we fetched, the calcs we computed - all goes in. Live network connections, file handles, and in-flight LLM streams are not saved; they're re-established on resume.
 
 **In the blob:**
 - The full `BankerState` TypedDict (file 12 L2.1)
-- `tool_calls_so_far`, `calc_results`, `partial_outputs`, `plan`, `retrieved_context`, `retrieved_memory` — everything substantive
-- `tokens_consumed`, `step_count`, `critic_revisions` — all bookkeeping
-- `pending_action`, `hitl_envelope`, `hitl_status` — governance state
-- `errors[]` — the full error history including transient retries
+- `tool_calls_so_far`, `calc_results`, `partial_outputs`, `plan`, `retrieved_context`, `retrieved_memory` - everything substantive
+- `tokens_consumed`, `step_count`, `critic_revisions` - all bookkeeping
+- `pending_action`, `hitl_envelope`, `hitl_status` - governance state
+- `errors[]` - the full error history including transient retries
 
 **Explicitly NOT in the blob:**
 
@@ -444,7 +444,7 @@ HITLResume worker (a separate pool) receives the event:
 - Faster to (de)serialize at our scale
 
 **Why encrypt at all?**
-- Defense in depth. Even if Postgres RLS were misconfigured, even if a DBA accidentally `pg_dump`ed a tenant's data, even if a backup leaked — the blob is opaque without the tenant's DEK in KMS.
+- Defense in depth. Even if Postgres RLS were misconfigured, even if a DBA accidentally `pg_dump`ed a tenant's data, even if a backup leaked - the blob is opaque without the tenant's DEK in KMS.
 - Per-tenant DEKs mean revoking a tenant's keys also revokes access to all their historical checkpoints. This is the GDPR "right to be forgotten" implementation: rotate-and-burn the DEK; cipher text is now permanently unreadable.
 
 ---
@@ -461,37 +461,37 @@ These are the failure modes you'll actually see in production. Each one is defen
 
 ### 7.2 State schema evolves while paused runs exist
 
-**In plain words.** We add a new field to `BankerState` (e.g. `token_budget_total` — which we actually did in this design). A run was paused for HITL approval *before* the field was added. The new code tries to load the old checkpoint and crashes because the field is missing.
+**In plain words.** We add a new field to `BankerState` (e.g. `token_budget_total` - which we actually did in this design). A run was paused for HITL approval *before* the field was added. The new code tries to load the old checkpoint and crashes because the field is missing.
 
 **Defense.** The `state_schema_ver` column. On `get_tuple()`, mismatch raises `IncompatibleCheckpointError`. A separate migration worker reads old-schema checkpoints, transforms them (e.g. backfills `token_budget_total` from `PolicyConfig.budget_by_persona[persona]`), and writes new-schema rows. File 12 §10 says in-flight runs are sticky to their graph version, so this only kicks in across state-schema migrations, not graph rolls.
 
-### 7.3 Checkpoint write succeeds, side effect did not — or vice versa
+### 7.3 Checkpoint write succeeds, side effect did not - or vice versa
 
 **In plain words.** A node calls a payment tool, the payment processes, but the pod crashes before writing the checkpoint. On resume, we re-run the node and accidentally double-charge the customer. Or the reverse: we checkpoint that we sent an email, but the email send actually failed.
 
-**Defense.** Side effects use idempotency keys tied to `(run_id, node_id, step_id, action_id)` — see file 12 L2.2.5 common contract and L2.2.8 ToolCaller. On resume, the re-executed node re-emits the same key; downstream tool/event processors dedupe. **The checkpoint represents the *intent*; idempotency represents the *commitment*.** They are decoupled, deliberately.
+**Defense.** Side effects use idempotency keys tied to `(run_id, node_id, step_id, action_id)` - see file 12 L2.2.5 common contract and L2.2.8 ToolCaller. On resume, the re-executed node re-emits the same key; downstream tool/event processors dedupe. **The checkpoint represents the *intent*; idempotency represents the *commitment*.** They are decoupled, deliberately.
 
 ### 7.4 Pg primary fails over during a `put()`
 
 **In plain words.** We're writing a checkpoint when the Postgres primary dies and replication fails over to a replica. The transaction may or may not have committed before failover.
 
-**Defense.** Pg client retries the transaction with the same `(run_id, checkpoint_seq)` primary key. If the txn committed before failover, the retry sees a PK conflict and is treated as success. If not, the retry succeeds against the new primary. Worst case: the node re-executes — same idempotency story as crash recovery.
+**Defense.** Pg client retries the transaction with the same `(run_id, checkpoint_seq)` primary key. If the txn committed before failover, the retry sees a PK conflict and is treated as success. If not, the retry succeeds against the new primary. Worst case: the node re-executes - same idempotency story as crash recovery.
 
 ### 7.5 Clock skew on lease expiry
 
 **In plain words.** Worker A's clock is 10 seconds ahead of Worker B's. A says the lease doesn't expire until T+30. B's clock says it expired at T+20 and claims it. Both think they own the run.
 
-**Defense.** All lease comparisons use Postgres's `NOW()`, not the worker's local clock. The worker never compares times itself — it just sets `expires_at = NOW() + 30s` and lets Postgres be the authority. As long as Postgres's clock is consistent (NTP-disciplined, single primary at a time), there is no skew window.
+**Defense.** All lease comparisons use Postgres's `NOW()`, not the worker's local clock. The worker never compares times itself - it just sets `expires_at = NOW() + 30s` and lets Postgres be the authority. As long as Postgres's clock is consistent (NTP-disciplined, single primary at a time), there is no skew window.
 
 ### 7.6 Burst of HITL approvals at once
 
 **In plain words.** A CFO sits down at 9am and approves 50 pending requests in 30 seconds. Each one triggers a resume. The HITLResume worker pool gets slammed.
 
-**Defense.** HITLResume workers are a separately-scaled pool from the interactive-run workers — they autoscale on the `approval.decided.v1` queue depth. The `ON CONFLICT DO NOTHING` on lease insert means duplicate event processing is harmless. The DB write rate for resumes is bounded by the worker pool's concurrency cap, and the work per resume is small (one row read, one mutation, one resume). Even a burst of 1,000 simultaneous approvals processes in seconds.
+**Defense.** HITLResume workers are a separately-scaled pool from the interactive-run workers - they autoscale on the `approval.decided.v1` queue depth. The `ON CONFLICT DO NOTHING` on lease insert means duplicate event processing is harmless. The DB write rate for resumes is bounded by the worker pool's concurrency cap, and the work per resume is small (one row read, one mutation, one resume). Even a burst of 1,000 simultaneous approvals processes in seconds.
 
 ---
 
-## 8. Multi-tenant isolation — recapped from `03-architecture.md` §9.2
+## 8. Multi-tenant isolation - recapped from `03-architecture.md` §9.2
 
 **In plain words.** Three independent layers. Each one alone could be broken without compromising the others.
 
@@ -506,7 +506,7 @@ These are the failure modes you'll actually see in production. Each one is defen
 
 ## 9. Garbage collection and storage lifecycle
 
-**In plain words.** Active runs keep their checkpoints in Postgres for fast resume. Once a run is done, we don't need fast access anymore — we move it to cold storage (S3) for audit retention.
+**In plain words.** Active runs keep their checkpoints in Postgres for fast resume. Once a run is done, we don't need fast access anymore - we move it to cold storage (S3) for audit retention.
 
 | Lifecycle stage | Storage | TTL policy |
 |---|---|---|
@@ -588,12 +588,12 @@ UPDATE run_leases
   WHERE run_id = R AND expires_at < NOW();
 ```
 
-**T=35.1s. Pod B loads checkpoint at seq=4.** State has plan with `current_step=s1`, but `partial_outputs` for s1 is empty — CashflowForecaster never finished. Pod B re-runs CashflowForecaster from the top.
+**T=35.1s. Pod B loads checkpoint at seq=4.** State has plan with `current_step=s1`, but `partial_outputs` for s1 is empty - CashflowForecaster never finished. Pod B re-runs CashflowForecaster from the top.
 
 **T=35.1s → T=41s. CashflowForecaster runs again on Pod B.**
 - Tries to call `bank.balance` with `client_request_id=(R, call_id_X)` → tool sandbox sees the idempotency key, returns the cached result instantly (no double-charge of the upstream bank API)
 - Same for `accounting.invoices_outstanding`, `accounting.recurring_bills`
-- Calls `payroll.next_run` for real (this is the one that was mid-flight at crash — re-issued with same idempotency key)
+- Calls `payroll.next_run` for real (this is the one that was mid-flight at crash - re-issued with same idempotency key)
 - Calls the two `Calc.*` formulas; CalcInvoker also dedupes by `(formula_id, input_digest)` → instant cache hit because inputs are identical
 - Self-check passes, emits PartialOutput, writes checkpoint seq=5
 
@@ -615,7 +615,7 @@ run_leases: row deleted by Terminator's cleanup
 
 **T=90 days.** S3 lifecycle policy removes the archive.
 
-**What the user saw.** A slightly slower-than-usual response — about 35 seconds instead of 12. The retry was invisible.
+**What the user saw.** A slightly slower-than-usual response - about 35 seconds instead of 12. The retry was invisible.
 
 ---
 
@@ -623,10 +623,10 @@ run_leases: row deleted by Terminator's cleanup
 
 | Operation | Target p99 | Where this matters |
 |---|---|---|
-| `put()` write (single node completion) | **150 ms** | Hot path of every node — adds to total run latency |
+| `put()` write (single node completion) | **150 ms** | Hot path of every node - adds to total run latency |
 | `get_tuple()` read (resume start) | **80 ms** | Adds to time-to-first-token on resumed runs |
 | Lease claim (claim loop) | **50 ms** | Adds to recovery time after pod crash |
-| Lease expiry detection latency | **≤ 30s** | Recovery time floor — can't tighten without false-positive lease theft |
+| Lease expiry detection latency | **≤ 30s** | Recovery time floor - can't tighten without false-positive lease theft |
 | Storage growth per run | **~600 KB** (12 checkpoints × 50 KB) | 6 GB/day at 10K runs/day baseline |
 | Postgres rows per active 10K-runs/day tenant | **~120K rows/day** | Index size manageable; `idx_ckpt_hitl_pending` stays under 1% the size of the table |
 | Concurrent paused HITL runs supportable | **10M+** | Just rows in Postgres; no pod memory held |
@@ -643,8 +643,8 @@ run_leases: row deleted by Terminator's cleanup
 
 1. Get the `run_id` from the support ticket
 2. Query: `SELECT * FROM agent_checkpoints WHERE run_id = '<R>' ORDER BY checkpoint_seq;`
-3. Look at the most recent row's `last_completed_node` — that's where it stopped
-4. Check `run_leases` — is there a current lease? If yes, the run is *actively* executing; if no, it's paused or orphaned
+3. Look at the most recent row's `last_completed_node` - that's where it stopped
+4. Check `run_leases` - is there a current lease? If yes, the run is *actively* executing; if no, it's paused or orphaned
 5. If `hitl_pending=true` on the last checkpoint → check the approval UI; the human is the bottleneck, not us
 6. If lease exists but is stale (no recent heartbeats in `expires_at` history) → the worker is wedged. Force claim with: `UPDATE run_leases SET expires_at = NOW() - INTERVAL '1m' WHERE run_id = '<R>'` and let the claim loop pick it up
 
@@ -670,7 +670,7 @@ Access is logged. Tenant DEK use is logged. Compliance can audit who looked at w
 
 ### 12.3 How to safely abort a paused run
 
-**In plain words.** The user changed their mind during a HITL pause and wants to cancel. We can't just delete the row — the approval might already be in flight.
+**In plain words.** The user changed their mind during a HITL pause and wants to cancel. We can't just delete the row - the approval might already be in flight.
 
 ```sql
 BEGIN;
@@ -688,14 +688,14 @@ We never delete checkpoints directly; we always go through the graph's terminal 
 
 why would two different pods would be running on same runid? can you answer                                                                                               
 
-⏺ Great question — and the answer is that in a distributed system, you cannot prevent it; you can only design to handle it safely. Here are the actual scenarios where two
+⏺ Great question - and the answer is that in a distributed system, you cannot prevent it; you can only design to handle it safely. Here are the actual scenarios where two
   pods end up running the same run_id, drawn from real production incidents in systems like this.
 
   The seven realistic scenarios
 
   1. Kubernetes false-positive eviction (the most common one)
 
-  Pod A is alive and processing run R. It misses 3 consecutive liveness probes — maybe because it's CPU-pinned on a slow LLM call, maybe because of node pressure. K8s
+  Pod A is alive and processing run R. It misses 3 consecutive liveness probes - maybe because it's CPU-pinned on a slow LLM call, maybe because of node pressure. K8s
   declares Pod A dead and schedules Pod B with the work assignment.
 
   But Pod A is not actually dead. It's just slow. It comes back from the CPU stall, looks at its in-memory state, and happily continues processing R. Meanwhile, Pod B has
@@ -720,7 +720,7 @@ why would two different pods would be running on same runid? can you answer
   A run is triggered from a Kafka/SQS message ("process this approval"). Pod A picks up the message, starts processing, but its ack is delayed (network, GC, slow handler).
   The queue's visibility timeout fires and it redelivers the same message to Pod B. Now two consumers are processing the same trigger.
 
-  This is especially common for the HITL resume path — approval.decided.v1 events go through an event bus, and at-least-once delivery means duplicates are inevitable at
+  This is especially common for the HITL resume path - approval.decided.v1 events go through an event bus, and at-least-once delivery means duplicates are inevitable at
   scale.
 
   5. HITL double-resume from human action
@@ -735,7 +735,7 @@ why would two different pods would be running on same runid? can you answer
 
   7. Manual operator action
 
-  An SRE is debugging a stuck run. They run a "force resume" script that claims the lease and resumes R — not realizing R is actually still being processed by a healthy
+  An SRE is debugging a stuck run. They run a "force resume" script that claims the lease and resumes R - not realizing R is actually still being processed by a healthy
   pod, just slowly. Two pods now run R.
 
   Why we can't just prevent this
@@ -744,44 +744,44 @@ why would two different pods would be running on same runid? can you answer
 
   - K8s liveness probes are heuristics. They will sometimes be wrong. The cost of false negatives (declaring a healthy pod dead) is reassignment; the cost of false
   positives (declaring a dead pod alive) is a hung run. Operators tune toward false negatives because they're recoverable. So pods will be reassigned while still alive.
-  - At-least-once delivery is the only safe guarantee for any meaningful queue. Exactly-once delivery is a marketing term — what people actually do is "at-least-once
+  - At-least-once delivery is the only safe guarantee for any meaningful queue. Exactly-once delivery is a marketing term - what people actually do is "at-least-once
   delivery + idempotent consumers." So queues will redeliver.
   - The CAP theorem applies. In any network partition, you must choose between availability (let Pod B take over even if A might still be alive) or consistency (refuse to
   reassign until you're certain). Banking workloads choose availability for liveness and rely on the lease for consistency. Both pods may try to run R; only one will
   succeed in writing.
   - Distributed systems do not have a single source of truth about which pod is alive other than the database itself. The database is the authority. The lease in Postgres
-  is the source of truth — not k8s, not the worker registry, not memory.
+  is the source of truth - not k8s, not the worker registry, not memory.
 
   What the lease actually achieves in these scenarios
 
   In every one of the seven scenarios, both pods try to process R. The lease ensures only one of them succeeds in writing anything:
 
-  Scenario 1 — false-positive eviction:
+  Scenario 1 - false-positive eviction:
     Pod A (slow, alive)          Pod B (newly assigned)
          │                              │
-         │ tries put() — lease check:   │
+         │ tries put() - lease check:   │
          │   "is worker_id still me?"   │
          │   → still A → SUCCESS        │
-         │                              │ tries claim — but lease not expired
+         │                              │ tries claim - but lease not expired
          │                              │   → cannot claim, sleeps and retries
          │                              │
          │ heartbeats, continues run    │ never gets in
          ↓ run completes normally       ↓
 
-  Scenario 3 — GC pause:
+  Scenario 3 - GC pause:
     Pod A (in GC pause)          Pod B (claimed expired lease)
          │ (frozen)                     │ UPDATE run_leases SET worker_id=B
          │                              │   → lease_version 1 → 2
          │                              │ processes run R, writes checkpoints
          │                              │
          │ wakes up from GC             │
-         │ tries put() — lease check:   │
+         │ tries put() - lease check:   │
          │   "is worker_id still me?"   │
          │   → now B → StaleLeaseError  │
          │   → abort, surface error     │
          ↓ pod logs the conflict        ↓ continues run cleanly
 
-  Scenario 5 — HITL double-resume:
+  Scenario 5 - HITL double-resume:
     HITLResume worker X          HITLResume worker Y
          │ INSERT lease            │ INSERT lease
          │   ON CONFLICT DO NOTHING│   ON CONFLICT DO NOTHING
@@ -789,11 +789,11 @@ why would two different pods would be running on same runid? can you answer
          │                         │
          ↓ resumes run R           ↓ silently drops; metric incremented
 
-  In each case, the database is the arbiter. K8s, the queue, the human — none of them are trusted to know who owns R. Only the lease row knows.
+  In each case, the database is the arbiter. K8s, the queue, the human - none of them are trusted to know who owns R. Only the lease row knows.
 
   The principle behind the design
 
-  ▎ In distributed systems, you don't design to prevent concurrent claims. You design so concurrent claims are safe — at most one wins, the rest fail cleanly without side 
+  ▎ In distributed systems, you don't design to prevent concurrent claims. You design so concurrent claims are safe - at most one wins, the rest fail cleanly without side 
   ▎ effects.
 
   This is why the lease check happens inside the same transaction as the checkpoint write. There's no window between "verify I own the lease" and "write the checkpoint"
@@ -807,7 +807,7 @@ why would two different pods would be running on same runid? can you answer
   - Audit trails with conflicting state transitions (regulatory nightmare for a bank)
   - Memory corruption (two pods writing different partial_outputs to the same checkpoint chain)
 
-  The lease is the cheapest possible defense — one Postgres row, one SELECT FOR UPDATE per checkpoint write — and it eliminates this entire class of failure mode in one
+  The lease is the cheapest possible defense - one Postgres row, one SELECT FOR UPDATE per checkpoint write - and it eliminates this entire class of failure mode in one
   stroke. It's worth its weight a thousand times over.
 
   Want me to add this as §2.5.3 "Why would two pods ever run the same run?" alongside the lease explanations already in 12a?
@@ -832,7 +832,7 @@ why would two different pods would be running on same runid? can you answer
 
  So each message is one particular run in one chat window. Something like what GPT does is a single run.                                                                   
 
-⏺ Mostly yes — but with a few important refinements that matter for this design. Let me map it cleanly to ChatGPT terms first, then show where the AI Banker diverges.
+⏺ Mostly yes - but with a few important refinements that matter for this design. Let me map it cleanly to ChatGPT terms first, then show where the AI Banker diverges.
 
   The ChatGPT analogy, refined
 
@@ -845,7 +845,7 @@ why would two different pods would be running on same runid? can you answer
   ├──────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┼────────────────────────────────┤
   │ The "thinking" indicator while ChatGPT works │ One run's nodes executing (Planner → Specialists → Critic → ...) │ each step = one checkpoint row │
   ├──────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┼────────────────────────────────┤
-  │ You opening a new chat                       │ New session — fresh memory, fresh context                        │ new session_id                 │
+  │ You opening a new chat                       │ New session - fresh memory, fresh context                        │ new session_id                 │
   ├──────────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┼────────────────────────────────┤
   │ Going back to an old chat days later         │ Same session, new run; ContextBuilder loads the prior memory     │ same session_id, new run_id    │
   └──────────────────────────────────────────────┴──────────────────────────────────────────────────────────────────┴────────────────────────────────┘
@@ -859,7 +859,7 @@ why would two different pods would be running on same runid? can you answer
 
   1. A run can have no user message (proactive runs)
 
-  The AI Banker fires proactively — daily nudges for Retail, twice-daily for SME, critical-only for CFO (file 12 §4). When the Proactive Trigger Service fires
+  The AI Banker fires proactively - daily nudges for Retail, twice-daily for SME, critical-only for CFO (file 12 §4). When the Proactive Trigger Service fires
   intent=proactive, the same graph runs, with no user message at all. That's still a run with its own run_id. ChatGPT has no equivalent.
 
   trigger_kind = "user"          → user typed something → run
@@ -873,15 +873,15 @@ why would two different pods would be running on same runid? can you answer
 
   T=0       User: "Should I delay the $80K payment?"
   T=0..15s  Run executes nodes 1–8, reaches HITLGate
-  T=15s     Run pauses — lease released, checkpoint saved with hitl_pending=true
+  T=15s     Run pauses - lease released, checkpoint saved with hitl_pending=true
   T+3days   CFO clicks Approve
-  T+3days   Same run resumes — nodes 9–14 execute, payment fires, reply sent
+  T+3days   Same run resumes - nodes 9–14 execute, payment fires, reply sent
 
   That entire 3-day span is one run with one run_id. The user sees one question and (eventually) one answer. ChatGPT doesn't have anything like this.
 
   3. A session has many runs that share memory
 
-  In ChatGPT, all messages in a chat share context — the model sees the full history. Same for the AI Banker. A "session" is the persistent conversation; ContextBuilder
+  In ChatGPT, all messages in a chat share context - the model sees the full history. Same for the AI Banker. A "session" is the persistent conversation; ContextBuilder
   loads short-term memory (last 24h conversation) and the user's profile at the start of every run within that session.
 
   Session S contains many runs:
@@ -917,18 +917,18 @@ why would two different pods would be running on same runid? can you answer
 
   Why this matters for the lease
 
-  The lease is on the run, not the session, not the message. Two pods can absolutely work on the same session at the same time — if a user fires off two messages
+  The lease is on the run, not the session, not the message. Two pods can absolutely work on the same session at the same time - if a user fires off two messages
   back-to-back, those are two different runs (R1 and R2), each with its own lease. Both can execute in parallel on different pods.
 
-  What the lease prevents is two pods working on the same R1 — the same single send/reply cycle being processed twice.
+  What the lease prevents is two pods working on the same R1 - the same single send/reply cycle being processed twice.
 
   So back to your question, precisely
 
   ▎ "Each message is one particular run in one chat window. Something like what GPT does is a single run."
 
-  ✅ Yes — for the simple interactive case (user types, system replies), one message = one run.
+  ✅ Yes - for the simple interactive case (user types, system replies), one message = one run.
 
-  ⚠ But also — runs can exist without messages (proactive), span multi-day pauses (HITL), and many runs share one session's memory. The "run" is the unit of graph 
+  ⚠ But also - runs can exist without messages (proactive), span multi-day pauses (HITL), and many runs share one session's memory. The "run" is the unit of graph 
   execution; the "message" is the unit of user-facing exchange. They usually align 1:1, but not always.
 
   The reason we model it as "run" rather than "message" is that the checkpoint, the lease, the token budget, the hop cap, and the audit trail all need to track one
@@ -945,11 +945,11 @@ why would two different pods would be running on same runid? can you answer
   1. "Why does idempotency need to exist in addition to the lease? They look like they do the same job."
   
   Why this signals senior thinking. Most candidates conflate lease (one writer at a time) with idempotency (no double side-effects). They are defenses against different 
-  failure modes — confusing them means you'll over-rely on one and leave gaps in the other.
+  failure modes - confusing them means you'll over-rely on one and leave gaps in the other.
 
   The 60-second answer. The lease prevents two pods from concurrently writing checkpoints for the same run. Idempotency prevents the same pod from double-emitting a side
   effect when a node re-executes after recovery. Concrete: Pod A calls the payment tool, the call succeeds, but Pod A crashes before checkpointing. On resume, Pod B (now
-  lease holder) re-runs the node — the lease check passes because B legitimately owns the run. Without idempotency on the payment tool, the customer gets charged twice. The
+  lease holder) re-runs the node - the lease check passes because B legitimately owns the run. Without idempotency on the payment tool, the customer gets charged twice. The
    lease says "who can write"; idempotency says "what counts as already-done." Both are required.
 
   ---
@@ -959,7 +959,7 @@ why would two different pods would be running on same runid? can you answer
    done long-running workflow systems has been burned by this. Bringing it up unprompted shows you've operated such systems.
 
   The 60-second answer. Three mechanisms together. (1) Every checkpoint row carries state_schema_ver; on get_tuple(), mismatch raises IncompatibleCheckpointError rather
-  than silently misinterpreting. (2) In-flight runs are sticky to their graph version (file 12 §10) — a run started on version N completes on version N, even if N+1 ships.
+  than silently misinterpreting. (2) In-flight runs are sticky to their graph version (file 12 §10) - a run started on version N completes on version N, even if N+1 ships.
   (3) For state-schema migrations specifically, a separate migration worker reads old-schema blobs, transforms them (e.g., backfills token_budget_total from
   PolicyConfig.budget_by_persona[persona]), and rewrites them with the new schema version. The graph version pin prevents the common case; the migration worker handles the
   legitimate case.
@@ -967,73 +967,73 @@ why would two different pods would be running on same runid? can you answer
   ---
   3. "Why is the Critic a separate node and not just the Specialist self-validating before returning?"
   
-  Why this signals senior thinking. Reveals understanding of same-model evaluator bias — a known failure mode where an LLM grading its own output shares the producer's
+  Why this signals senior thinking. Reveals understanding of same-model evaluator bias - a known failure mode where an LLM grading its own output shares the producer's
   blind spots and reliably misses the same errors. Most candidates suggest "let the agent self-check" without realizing this is structurally weak.
 
   The 60-second answer. Two reasons. (1) Evaluator independence. A fresh LLM session with only the artifact (no producer's scratchpad, no priors from the reasoning path)
-  catches things the producer missed. Same model evaluating its own work has known shared-blindspot bias — the same prompt that produced the error rationalizes the error.
+  catches things the producer missed. Same model evaluating its own work has known shared-blindspot bias - the same prompt that produced the error rationalizes the error.
   (2) Cross-specialist consistency. CashflowForecaster has no visibility into what PayrollReadinessAgent or AnomalyExplainer concluded. If they contradict each other,
-  that's only detectable at the merge boundary — after Aggregator, before user output. A producer-side self-check cannot see this class of error. The Critic is positioned
+  that's only detectable at the merge boundary - after Aggregator, before user output. A producer-side self-check cannot see this class of error. The Critic is positioned
   exactly where it can.
 
   ---
   4. "How do we enforce a per-run token budget without trusting the LLM to self-bound?"
 
   Why this signals senior thinking. LLMs cannot self-bound. Prompts that say "don't use more than 8K tokens" are statistical suggestions, not hard limits. The enforcement
-  has to live in code, in the dispatch loop, with a hard kill — and most candidates skip past this.
+  has to live in code, in the dispatch loop, with a hard kill - and most candidates skip past this.
 
-  The 60-second answer. The Router enforces it (file 12 L2.2.4 rows 1b/1c). Persona-tiered budgets come from PolicyConfig.budget_by_persona — Retail 8K, SME 24K, CFO 60K.
-  Every LLM-class node returns tokens_used; Router accumulates into tokens_consumed after each return. Two rules: (1b) Hard kill — tokens_consumed >= budget → route to
-  ForcedTermination. (1c) Pre-flight refusal — if the next LLM node's estimated cost would tip us over, refuse to dispatch before calling. Pre-flight matters because a
+  The 60-second answer. The Router enforces it (file 12 L2.2.4 rows 1b/1c). Persona-tiered budgets come from PolicyConfig.budget_by_persona - Retail 8K, SME 24K, CFO 60K.
+  Every LLM-class node returns tokens_used; Router accumulates into tokens_consumed after each return. Two rules: (1b) Hard kill - tokens_consumed >= budget → route to
+  ForcedTermination. (1c) Pre-flight refusal - if the next LLM node's estimated cost would tip us over, refuse to dispatch before calling. Pre-flight matters because a
   single Claude Opus call at 8K context can blow Retail's whole budget in one hop. User-facing message: "This turned out more complex than expected; a human will follow up"
-   — never "we ran out of tokens" (operational leakage). The tokens_per_node map streams to observability so SREs can find hotspot nodes.
+   - never "we ran out of tokens" (operational leakage). The tokens_per_node map streams to observability so SREs can find hotspot nodes.
 
   ---
-  5. "Three-layer Tool RBAC — why isn't compile-time pruning alone enough?"
+  5. "Three-layer Tool RBAC - why isn't compile-time pruning alone enough?"
   
   Why this signals senior thinking. Single-layer security in an LLM system is a death sentence the moment prompt injection lands. Defense-in-depth thinking is the
   principal-engineer signal.
 
-  The 60-second answer. Three independent layers because each one fails differently. (1) Compile-time pruning — ToolCaller_<Specialist> nodes that are not in this persona's
-   compile do not exist as edges in the runtime graph. A jailbroken LLM cannot call what has no edge. (2) Tool Router runtime allow-list — every (tool_id, persona, tenant, 
+  The 60-second answer. Three independent layers because each one fails differently. (1) Compile-time pruning - ToolCaller_<Specialist> nodes that are not in this persona's
+   compile do not exist as edges in the runtime graph. A jailbroken LLM cannot call what has no edge. (2) Tool Router runtime allow-list - every (tool_id, persona, tenant, 
   entitlements) tuple is re-checked at dispatch. Defends against a compromised Specialist emitting a forbidden call that was in its allowed set but should be blocked for
-  this tenant's entitlements. (3) Critic check — inspects every pending_action.tool_id against the persona's allow-list as rule 2 of its rule set. Three independent layers
+  this tenant's entitlements. (3) Critic check - inspects every pending_action.tool_id against the persona's allow-list as rule 2 of its rule set. Three independent layers
   means a compromise of any one (jailbreak, RBAC config bug, race condition) still leaves two more. The cost is microseconds per check; the value is structural.
 
   ---
   6. "Why a deterministic Calc Service for money math instead of letting the LLM compute?"
   
-  Why this signals senior thinking. Hits the prep guide's "biggest mistake" #3 directly. The deeper move is to explain how enforcement works — not just "we shouldn't use
+  Why this signals senior thinking. Hits the prep guide's "biggest mistake" #3 directly. The deeper move is to explain how enforcement works - not just "we shouldn't use
   LLMs for math" but "here is the structural rule that prevents anyone from sneaking LLM math into the output."
 
-  The 60-second answer. Two intertwined reasons. (1) Reproducibility. Money math has to be byte-identical given the same inputs — for audit, for regulatory compliance, for
+  The 60-second answer. Two intertwined reasons. (1) Reproducibility. Money math has to be byte-identical given the same inputs - for audit, for regulatory compliance, for
   "the customer disputes the projection." LLMs at temperature > 0 are nondeterministic; even at temp=0 they drift across model versions. The Calc Service is a versioned,
   deterministic function: (formula_id, formula_version, input_digest) → output. (2) Structural enforcement. The Critic's rule 1 (L2.2.10) rejects any money amount in
   aggregated_output that doesn't trace to a calc_results[k] entry with an allow-listed formula_version. This is what makes "LLMs don't do financial math" enforceable rather
-   than aspirational — even if an LLM hallucinates a number, the Critic refuses to publish it because there's no backing CalcResult. The deterministic service plus the
+   than aspirational - even if an LLM hallucinates a number, the Critic refuses to publish it because there's no backing CalcResult. The deterministic service plus the
   calc-ref rule is the two-part lock.
 
   ---
   7. "How do we actually implement GDPR right-to-be-forgotten across years of checkpoint history?"
   
   Why this signals senior thinking. Banking systems must answer this, but most candidates wave at "we'd delete the data." Deleting from Postgres, S3 archive, replicas,
-  backups, and any cached state across years of history is operationally impossible at scale. The correct answer is crypto-shredding — and bringing it up shows you've
+  backups, and any cached state across years of history is operationally impossible at scale. The correct answer is crypto-shredding - and bringing it up shows you've
   actually had this conversation with a compliance team.
 
   The 60-second answer. Per-tenant DEK envelope encryption is the entire mechanism. Every state_blob is encrypted with a tenant-scoped Data Encryption Key in KMS. When a
-  user invokes right-to-be-forgotten, we don't try to find and delete every checkpoint, archive, and backup row — that's an unbounded scan across multiple storage tiers
-  with no guarantee of completeness. Instead, we rotate and burn the tenant's DEK. Every existing encrypted blob — in Postgres, in S3 archive, in cold backups, in replicas,
-   anywhere — becomes permanently unreadable in the same instant. Storage costs continue, but the data is gone in any meaningful sense. This is called crypto-shredding and
-  is the accepted compliance pattern for distributed AI systems. Bonus: it's also the recovery story if a tenant's data is exfiltrated — burn the DEK, the dump is dead.
+  user invokes right-to-be-forgotten, we don't try to find and delete every checkpoint, archive, and backup row - that's an unbounded scan across multiple storage tiers
+  with no guarantee of completeness. Instead, we rotate and burn the tenant's DEK. Every existing encrypted blob - in Postgres, in S3 archive, in cold backups, in replicas,
+   anywhere - becomes permanently unreadable in the same instant. Storage costs continue, but the data is gone in any meaningful sense. This is called crypto-shredding and
+  is the accepted compliance pattern for distributed AI systems. Bonus: it's also the recovery story if a tenant's data is exfiltrated - burn the DEK, the dump is dead.
 
   ---
-  Bonus — the meta-suggestion (use this last)
+  Bonus - the meta-suggestion (use this last)
   
-  ▎ "For each of these, I'd argue we should also document the failure mode without it — the postmortem you'd write if you skipped this defense. That makes the design review
+  ▎ "For each of these, I'd argue we should also document the failure mode without it - the postmortem you'd write if you skipped this defense. That makes the design review
   ▎  actionable for the implementing engineer."
 
   This signals you're thinking about the next person who reads this design, not just about getting the design right. It's the strongest staff-level move you can make in an
-  interview — owning the document's downstream usability, not just its technical correctness.
+  interview - owning the document's downstream usability, not just its technical correctness.
 
 
 
@@ -1043,7 +1043,7 @@ why would two different pods would be running on same runid? can you answer
 
   Where persona comes from
 
-  Persona is resolved in IntakeAndPersona (file 12, L2.2.1) — but the raw inputs it reads come from upstream:
+  Persona is resolved in IntakeAndPersona (file 12, L2.2.1) - but the raw inputs it reads come from upstream:
 
   API Gateway (validates JWT)
       │
@@ -1069,7 +1069,7 @@ why would two different pods would be running on same runid? can you answer
   - The Planner sees persona=CFO in context, prunes to CFO tools, fans out to CashflowForecaster.
   - Retail user just escalated to CFO-tier data because persona was a string in user-controlled input.
 
-  By binding persona to the authenticated identity at the gateway, the LLM physically cannot see a "promote me" instruction — because by the time the prompt is assembled,
+  By binding persona to the authenticated identity at the gateway, the LLM physically cannot see a "promote me" instruction - because by the time the prompt is assembled,
   state.persona is already set from the JWT, and the Tool Router will reject any tool call that doesn't match.
 
   This is the same reason entitlements lives in state (not in the prompt as instructions): prompts are advisory; code-enforced state is authoritative.
@@ -1095,25 +1095,25 @@ why would two different pods would be running on same runid? can you answer
 
   Multi-role users (e.g., SME owner who is also their company's CFO)
 
-  For users who legitimately wear multiple hats, the UX is a persona switcher — but the switch is not "user types CFO into chat." It's a re-auth event:
+  For users who legitimately wear multiple hats, the UX is a persona switcher - but the switch is not "user types CFO into chat." It's a re-auth event:
 
   1. User clicks "Switch to CFO mode" in the UI.
   2. Frontend calls POST /session/switch-persona with the new role.
   3. Identity service verifies they actually have that role on that tenant, issues a new JWT with persona=CFO.
   4. Next chat message uses the new JWT → IntakeAndPersona reads CFO → all downstream pruning happens.
 
-  Each run_id is bound to whatever persona was active at the moment the message was sent. You can't change persona mid-run — that would mean re-planning the graph and
+  Each run_id is bound to whatever persona was active at the moment the message was sent. You can't change persona mid-run - that would mean re-planning the graph and
   re-pruning tools, which is not safe.
 
   Two sentences for your interview
 
-  ▎ "Persona is bound to the authenticated identity at the gateway, not passed by the user — otherwise it's a trivial privilege-escalation vector. IntakeAndPersona reads it
-  ▎  from the JWT/identity service into BankerState.persona, and from there it drives structural pruning, prompt flavor, and Tool RBAC — all enforced in code, never trusted
+  ▎ "Persona is bound to the authenticated identity at the gateway, not passed by the user - otherwise it's a trivial privilege-escalation vector. IntakeAndPersona reads it
+  ▎  from the JWT/identity service into BankerState.persona, and from there it drives structural pruning, prompt flavor, and Tool RBAC - all enforced in code, never trusted
   ▎  from prompt text."
 
 
 ## 14. Resume anchor
 
-This entire checkpoint design extends the BlackBox graph workflow engine's checkpointing primitive — DAG execution, checkpointing, retry semantics, memory persistence, fault-tolerant execution shipping at 10K+ runs/day in production (resume.txt L51-54). The schema, lease model, encryption layer, and HITL pause semantics are the productionized version of that pattern applied to the multi-persona AI banker's specific requirements (long pauses, multi-tenant isolation, regulatory retention).
+This entire checkpoint design extends the BlackBox graph workflow engine's checkpointing primitive - DAG execution, checkpointing, retry semantics, memory persistence, fault-tolerant execution shipping at 10K+ runs/day in production (resume.txt L51-54). The schema, lease model, encryption layer, and HITL pause semantics are the productionized version of that pattern applied to the multi-persona AI banker's specific requirements (long pauses, multi-tenant isolation, regulatory retention).
 
-The deep familiarity with this pattern from BlackBox is what makes this implementation credible — we're not designing the checkpoint primitive from scratch, we're scoping a known pattern to a known requirement.
+The deep familiarity with this pattern from BlackBox is what makes this implementation credible - we're not designing the checkpoint primitive from scratch, we're scoping a known pattern to a known requirement.

@@ -1,21 +1,21 @@
-# 02 — Design Estimates: Multi-Persona AI Banker (Shared Platform)
+# 02 - Design Estimates: Multi-Persona AI Banker (Shared Platform)
 
 ## 1. Use case and problem statement
 
 Retail customers, SME owner-operators, and CFO/treasury teams all interact with the same bank but with radically different mental models, risk appetites, and regulatory exposure. Today they get either three disjoint chatbots (each shallow), one generic copilot (which over-explains to a CFO and under-protects a retail user), or no AI at all. The cost of *not* solving this is real: (a) duplicated infra and on-call burden across three vertical agents, (b) inconsistent guardrails that leak to the regulator (RBI, DPDP, SOC-2 boundary violations between SME and CFO tenants), (c) missed cross-sell because the platform never sees the same user across personas (retail → small-business owner → CFO is a known lifecycle), and (d) hallucinated financial math that survives review because each vertical built its own thin numeric layer.
 
-The thesis is to build **one shared agent platform** where persona is a *parameter* — driving permissions, context, tone, allowed tools, proactive cadence — rather than a *fork* of the codebase. This mirrors the prep guide framing: differences are in **what tools the agent can call, what data it sees, how it sounds, and when it nudges**; the orchestrator, memory tiers, deterministic calculation service, and audit plane are reused across all three personas.
+The thesis is to build **one shared agent platform** where persona is a *parameter* - driving permissions, context, tone, allowed tools, proactive cadence - rather than a *fork* of the codebase. This mirrors the prep guide framing: differences are in **what tools the agent can call, what data it sees, how it sounds, and when it nudges**; the orchestrator, memory tiers, deterministic calculation service, and audit plane are reused across all three personas.
 
 ## 2. Users and access patterns
 
 | Persona | Population | Sync chat / user / day | Proactive nudges / user / day | Avg tool calls / chat | Notes |
 |---|---|---|---|---|---|
-| Retail | 7.0M MAU | 0.2 (1 chat / 5 days) | 0.5 | 2 | Spiky — payday, EMI dates, festivals |
+| Retail | 7.0M MAU | 0.2 (1 chat / 5 days) | 0.5 | 2 | Spiky - payday, EMI dates, festivals |
 | SME owner/operator | 2.5M MAU | 0.8 (multiple touchpoints) | 1.5 | 4 | GST cycle, payroll, vendor payments |
 | CFO / treasury | 0.5M MAU | 1.5 (sessions, not single Q) | 2.0 | 6 | Long sessions, multi-leg reconciliation |
-| Internal: notification orchestrator | — | — | drives all proactive QPS | — | Worker pool, not human |
-| Internal: ingestion pipeline | — | — | continuous | — | OCR invoices, statement parse, rulebook updates |
-| Internal: on-call / compliance | ~50 users | bursty | — | — | HITL approver UI, audit search |
+| Internal: notification orchestrator | - | - | drives all proactive QPS | - | Worker pool, not human |
+| Internal: ingestion pipeline | - | - | continuous | - | OCR invoices, statement parse, rulebook updates |
+| Internal: on-call / compliance | ~50 users | bursty | - | - | HITL approver UI, audit search |
 
 **Assumption:** ~10M MAU total, 30-day month, peak-to-average ratio 4x for chat (lunchtime + post-market 15:30–17:00 IST), 2x for proactive (events bursty around 09:00 IST and 18:30 IST).
 
@@ -33,10 +33,10 @@ None of these give the combination of **persona-aware shared orchestration + det
 
 ## 4. Why we are building it
 
-- **Shared infra, persona as parameter.** One orchestrator, one memory mesh, one tool registry — three persona configs. The DAG workflow engine I built at BlackBox executed 10K+ agent runs/day across heterogeneous workloads on shared infra (resume.txt:51-54); the same pattern, scaled, fits here.
+- **Shared infra, persona as parameter.** One orchestrator, one memory mesh, one tool registry - three persona configs. The DAG workflow engine I built at BlackBox executed 10K+ agent runs/day across heterogeneous workloads on shared infra (resume.txt:51-54); the same pattern, scaled, fits here.
 - **Deterministic financial math boundary.** The LLM proposes; a typed calc service decides. This is the only path to a defensible regulator answer when balance, interest, or tax is involved.
 - **Multi-tenant + regulator posture by construction.** Tenant ID flows through every span; SOC-2-style isolation reused from the WASM sandbox plane (resume.txt:49-50) that ran 1M+ daily executions with hard tenant boundaries.
-- **HITL + audit as first-class platform features**, not vertical bolt-ons — so adding a 4th persona later (wealth, NRI) is a config change.
+- **HITL + audit as first-class platform features**, not vertical bolt-ons - so adding a 4th persona later (wealth, NRI) is a config change.
 
 ## 5. Capacity and load estimates
 
@@ -62,9 +62,9 @@ Daily proactive notifications:
 - Total: **8.25M proactive events / day**
 
 Average QPS = 8.25M / 86,400 ≈ **96 QPS**.
-Peak QPS (2x, but burst-concentrated to two 1-hour windows) — effective peak inside a window: 8.25M × 0.35 / 3,600 ≈ **800 QPS** during 09:00 and 18:30 IST windows. Round to **1,000 QPS peak** for the proactive lane.
+Peak QPS (2x, but burst-concentrated to two 1-hour windows) - effective peak inside a window: 8.25M × 0.35 / 3,600 ≈ **800 QPS** during 09:00 and 18:30 IST windows. Round to **1,000 QPS peak** for the proactive lane.
 
-This is the ShareChat-style bursty pattern (resume.txt:109-114) — the platform has to absorb load shaped like an ad-decisioning spike, not a smooth web service.
+This is the ShareChat-style bursty pattern (resume.txt:109-114) - the platform has to absorb load shaped like an ad-decisioning spike, not a smooth web service.
 
 ### 5.3 Daily agent runs and token spend
 
@@ -78,14 +78,14 @@ Tokens per run (assumption, mixed across personas, ~3 tool calls average, ~2 mod
 - Weighted: (4.15M chats avg ~6K) + (2.5M proactive avg ~3K) ≈ 4.15M × 6K + 2.5M × 3K = 24.9B + 7.5B = **~32B tokens / day**
 - Monthly: **~960B ≈ ~1T tokens / month**
 
-This is the same order of magnitude as the BlackBox model router I built which handled 1B+ tokens/month across Claude/GPT/Grok (resume.txt:55-56) — but **1,000x larger**. The implication is that the capability-aware routing layer is non-negotiable: cheap-model fallback for templated proactive, premium-model only for CFO multi-step, exactly the routing pattern that worked at 1B scale (resume.txt:55-56) re-applied with stricter budget tiers.
+This is the same order of magnitude as the BlackBox model router I built which handled 1B+ tokens/month across Claude/GPT/Grok (resume.txt:55-56) - but **1,000x larger**. The implication is that the capability-aware routing layer is non-negotiable: cheap-model fallback for templated proactive, premium-model only for CFO multi-step, exactly the routing pattern that worked at 1B scale (resume.txt:55-56) re-applied with stricter budget tiers.
 
 ### 5.4 Storage growth
 
 | Store | Per-event size | Daily volume | Monthly | Retention | Steady state |
 |---|---|---|---|---|---|
-| Session memory (Redis) | 2 KB / turn | 4.15M chats × 5 turns × 2 KB = 41 GB/day | — | 24h sliding | ~40 GB hot |
-| Long-term user memory (Postgres + pgvector) | 1 KB profile + 4 KB embeddings | 10M users × 5 KB ≈ 50 GB | — | indefinite | 50 GB + growth |
+| Session memory (Redis) | 2 KB / turn | 4.15M chats × 5 turns × 2 KB = 41 GB/day | - | 24h sliding | ~40 GB hot |
+| Long-term user memory (Postgres + pgvector) | 1 KB profile + 4 KB embeddings | 10M users × 5 KB ≈ 50 GB | - | indefinite | 50 GB + growth |
 | Financial historical (TimescaleDB) | 200 B / txn | 10M users × 50 txn/day × 200 B = 100 GB/day | 3 TB | 7 years (regulator) | ~250 TB at steady state |
 | Org / KB (rulebook + OCR'd invoices + contracts) | 100 KB / doc | 50K new docs/day × 100 KB = 5 GB/day | 150 GB | 10 years | ~20 TB |
 | Audit log (immutable, append-only) | 4 KB / event | (6.6M runs + 8.25M nudges) × 4 KB ≈ 60 GB/day | 1.8 TB | 7 years | ~150 TB |
@@ -134,13 +134,13 @@ Headroom: 1.4 for stateless tiers (gateway, orchestrator, tool router, calc), 1.
 - Peak 1,000 QPS during burst windows; m8g.2xlarge does ~400 QPS per worker (channel fan-out: push, SMS, email).
 - ceil(1,000 / 400 × 1.8) = **5 m8g.2xlarge** → 40 vCPU, 160 GiB. **$358/mo**.
 
-**Total compute (excluding KB, audit, observability storage):** ~**$4,791/mo** for compute alone. Storage and managed services (Kafka, S3, OpenSearch) add roughly 2-3x; full BoE ~$15-18K/mo. This is for a 10M MAU footprint — the model router on premium models will dwarf this (1T tokens/month is the dominant cost line, not compute).
+**Total compute (excluding KB, audit, observability storage):** ~**$4,791/mo** for compute alone. Storage and managed services (Kafka, S3, OpenSearch) add roughly 2-3x; full BoE ~$15-18K/mo. This is for a 10M MAU footprint - the model router on premium models will dwarf this (1T tokens/month is the dominant cost line, not compute).
 
 ## 6. Functional and non-functional requirements
 
 ### Functional
 
-- **FR-1 Shared orchestration.** One LangGraph DAG with persona-parameterized nodes: identity → policy → context → planner → tool loop → calc → response → audit emit. Same DAG executes Retail/SME/CFO, differing only in the policy and context nodes — same checkpointing and retry semantics the BlackBox graph engine used (resume.txt:52-54).
+- **FR-1 Shared orchestration.** One LangGraph DAG with persona-parameterized nodes: identity → policy → context → planner → tool loop → calc → response → audit emit. Same DAG executes Retail/SME/CFO, differing only in the policy and context nodes - same checkpointing and retry semantics the BlackBox graph engine used (resume.txt:52-54).
 - **FR-2 Persona-aware context.** Context manager loads {session, long-term-user, financial-historical, organizational} memory based on persona scope. Retail never sees org memory; CFO always does.
 - **FR-3 Deterministic calc service.** All numeric outputs (balance, interest, tax, FX, EMI, runway) must flow through the typed calc service; the LLM may *describe* but not *compute*. Hard boundary, enforced by the tool router.
 - **FR-4 Tool registry with RBAC.** Tools are typed, versioned, and gated by `(persona, scope, risk_tier)`. Risk tiers: read-only / low / medium / high. Medium and high require HITL.

@@ -1,6 +1,6 @@
-# AI Banker for SMB Owners — Cashflow Intelligence Agent
+# AI Banker for SMB Owners - Cashflow Intelligence Agent
 
-A multi-agent cashflow intelligence platform that behaves like a real small-business banker: it ingests bank, accounting, payroll, and tax data; answers questions like *"will I have enough for payroll on the 5th?"* or *"should I delay this vendor?"*; and reasons across receivables, payables, GST, payroll, and credit lines under a supervisor + specialist agent topology. India-first (UPI/GST/RazorpayX/Tally/Zoho) with a global-ready abstraction layer. This is an **intelligence layer**, not a bank — read-only data ingest plus consented write APIs to PSPs and accounting systems.
+A multi-agent cashflow intelligence platform that behaves like a real small-business banker: it ingests bank, accounting, payroll, and tax data; answers questions like *"will I have enough for payroll on the 5th?"* or *"should I delay this vendor?"*; and reasons across receivables, payables, GST, payroll, and credit lines under a supervisor + specialist agent topology. India-first (UPI/GST/RazorpayX/Tally/Zoho) with a global-ready abstraction layer. This is an **intelligence layer**, not a bank - read-only data ingest plus consented write APIs to PSPs and accounting systems.
 
 ## File map
 
@@ -23,13 +23,13 @@ A multi-agent cashflow intelligence platform that behaves like a real small-busi
 | 14 | `14-ingestion-pipeline.md` | Bank/accounting/payroll/tax connectors, CDC, ledger normalization, embeddings |
 | 15 | `15-guardrails.md` | Input/output filters, action policy gates, human-in-the-loop on writes, PII scrubbers |
 | 16 | `16-challenges-by-stage.md` | Failure modes by lifecycle stage (ingest → reason → act → observe) |
-| 17 | `17-graph-store.md` | Durable LangGraph state store — `run_state` / `agent_checkpoint` build plan, two state classes, lease + resume, hop-batch checkpointing, schema versioning |
+| 17 | `17-graph-store.md` | Durable LangGraph state store - `run_state` / `agent_checkpoint` build plan, two state classes, lease + resume, hop-batch checkpointing, schema versioning |
 
 ## Resume anchors
 
-- **LangGraph DAG agent runtime at 10K+ runs/day** — direct precedent for the supervisor + specialist topology and durable graph state (`resume.txt` L51-54, `blackbox-experience.md` #7-#13).
-- **Graph workflow engine with checkpointing, retry semantics, memory persistence** — load-bearing for multi-day cashflow conversations and resumable approval flows (`resume.txt` L52-54, `blackbox-experience.md` #12-#15).
-- **Model router across Claude/GPT/Grok at 1B+ tokens/month** — reused for capability-aware routing: cheap models for retrieval/summaries, frontier models for forecasting explanations and loan reasoning (`resume.txt` L55-56, `blackbox-experience.md` #16-#19).
-- **LLMOps telemetry mesh ingesting 50M spans/day, 2.5TB/month, deterministic replay, 60% MTTR cut** — directly applied to debugging "why is my cash lower than expected" via tool-call replay (`resume.txt` L58-59, `blackbox-experience.md` #20).
-- **Golang WASM sandbox plane, 1M+ daily executions, SOC-2 compliant** — reused to safely execute customer-uploaded reconciliation rules and what-if scripts (`resume.txt` L49-50, `blackbox-experience.md` #3-#5).
-- **Microsoft AutoML / AI Fine-tuning, 15M+ jobs/month, multi-tenant K8s isolation** — precedent for SMB multi-tenancy, gang scheduling of forecast jobs, and cost-aware resource allocation (`resume.txt` L73-92).
+- **LangGraph DAG agent runtime at 10K+ runs/day** - direct precedent for the supervisor + specialist topology and durable graph state (`resume.txt` L51-54, `blackbox-experience.md` #7-#13).
+- **Graph workflow engine with checkpointing, retry semantics, memory persistence** - load-bearing for multi-day cashflow conversations and resumable approval flows (`resume.txt` L52-54, `blackbox-experience.md` #12-#15).
+- **Model router across Claude/GPT/Grok at 1B+ tokens/month** - reused for capability-aware routing: cheap models for retrieval/summaries, frontier models for forecasting explanations and loan reasoning (`resume.txt` L55-56, `blackbox-experience.md` #16-#19).
+- **LLMOps telemetry mesh ingesting 50M spans/day, 2.5TB/month, deterministic replay, 60% MTTR cut** - directly applied to debugging "why is my cash lower than expected" via tool-call replay (`resume.txt` L58-59, `blackbox-experience.md` #20).
+- **Golang WASM sandbox plane, 1M+ daily executions, SOC-2 compliant** - reused to safely execute customer-uploaded reconciliation rules and what-if scripts (`resume.txt` L49-50, `blackbox-experience.md` #3-#5).
+- **Microsoft AutoML / AI Fine-tuning, 15M+ jobs/month, multi-tenant K8s isolation** - precedent for SMB multi-tenancy, gang scheduling of forecast jobs, and cost-aware resource allocation (`resume.txt` L73-92).

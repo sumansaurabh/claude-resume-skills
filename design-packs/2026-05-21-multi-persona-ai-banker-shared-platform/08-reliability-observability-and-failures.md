@@ -1,8 +1,8 @@
-# 08 — Reliability, Observability, and Failure Modes
+# 08 - Reliability, Observability, and Failure Modes
 
 This file specifies the reliability, observability, and failure-handling design for the Multi-Persona AI Banker (Retail / SME / CFO) running on the shared platform. It is the operational counterpart to the architecture and the agentic graph: the architecture says *what runs*, this file says *how it stays running, how we know it is running correctly, and what we do when it isn't.*
 
-The design intentionally borrows from two anchors on the resume. First, the LangGraph durable-execution stack with checkpointing, retry semantics, memory persistence, and fault-tolerant execution across distributed environments (`resume.txt:52-54`) — that is the substrate that lets an agent run survive a pod crash. Second, the LLMOps telemetry mesh at BlackBox.AI: 50M spans/day, 2.5TB monthly trace data, deterministic replay, and a 60% MTTR cut for AI logic anomalies (`resume.txt:58-59`) — that is the observability spine we replicate here so a regulated banking workflow is debuggable, replayable, and auditable in production.
+The design intentionally borrows from two anchors on the resume. First, the LangGraph durable-execution stack with checkpointing, retry semantics, memory persistence, and fault-tolerant execution across distributed environments (`resume.txt:52-54`) - that is the substrate that lets an agent run survive a pod crash. Second, the LLMOps telemetry mesh at BlackBox.AI: 50M spans/day, 2.5TB monthly trace data, deterministic replay, and a 60% MTTR cut for AI logic anomalies (`resume.txt:58-59`) - that is the observability spine we replicate here so a regulated banking workflow is debuggable, replayable, and auditable in production.
 
 ---
 
@@ -42,9 +42,9 @@ The reliability budget above is only credible if it's built against quantified f
 | Kafka broker loss (MSK) | <1 per quarter | 3-AZ replication factor 3 | None |
 | pgvector replica lag spike | ~5 per month | Heavy ingest bursts | Retrieval p99 inflates ~30%; allowed by 80 ms memory-tier budget headroom |
 | Whole-AZ loss | ≤2 per year (assumption) | Historical us-east-1 record | 60-90 s control-plane re-route; fleet absorbs at 66% capacity (PDB 80%) |
-| Region loss | ≤1 per 3 years (assumption) | Multi-AZ DR drilled quarterly; cross-region DR is RTO 1 h / RPO 15 m | DR drill — see §9 |
+| Region loss | ≤1 per 3 years (assumption) | Multi-AZ DR drilled quarterly; cross-region DR is RTO 1 h / RPO 15 m | DR drill - see §9 |
 
-The aggregate failure rate driving error-budget burn is dominated by transient tool failures (~3750/day across all classes) and model provider partial outages. Pod loss is structurally invisible to users because of the durable-execution model (§3) — it shows up as a 5-15 s latency tail on a tiny fraction of runs, not as an availability event.
+The aggregate failure rate driving error-budget burn is dominated by transient tool failures (~3750/day across all classes) and model provider partial outages. Pod loss is structurally invisible to users because of the durable-execution model (§3) - it shows up as a 5-15 s latency tail on a tiny fraction of runs, not as an availability event.
 
 **What this rules out.** With these numbers, the chat-availability SLO of 99.9% over 30 days gives a budget of ~43 m/month. Provider outages alone (1.25e-7 joint × 3 providers × ~17M chat runs/month ≈ 6 runs/month) are negligible; pod loss masked by checkpointing is ~0 runs; the budget is essentially consumed by long-tail tool failures that cascade past FallbackHandler. This is why the saga contract below (§4.1) matters: side-effect compensation is the difference between "tool failed cleanly" (1 budget event) and "tool half-succeeded, downstream node failed, run aborted with money already moved" (1 incident).
 
@@ -60,7 +60,7 @@ The system has four distinct retry surfaces, each with its own semantics. Mixing
 - Retry policy: exponential backoff with full jitter (`base=200ms, cap=4s, attempts ≤ 3`).
 - Retryable error classes: network timeout, 502/503/504, 429 (rate limit). Backoff doubled on 429.
 - Non-retryable: 4xx (except 408 and 429), policy-block from the tool router, schema-validation failure on the tool input.
-- Each retry emits a span with `retry_attempt` attribute. After cap exhaustion, the agent supervisor decides the next step — either circuit-break the tool and degrade gracefully (Section 4), or surface the error to the user.
+- Each retry emits a span with `retry_attempt` attribute. After cap exhaustion, the agent supervisor decides the next step - either circuit-break the tool and degrade gracefully (Section 4), or surface the error to the user.
 - Money-moving tool calls (e.g., schedule transfer) require the tool registry to confirm idempotency support; tools without idempotency keys are disallowed from the money-moving allow-list.
 
 **2.2 LLM calls (via the model router, anchored on `resume.txt:55-56`)**
@@ -69,7 +69,7 @@ The system has four distinct retry surfaces, each with its own semantics. Mixing
 - On a 5xx or timeout from provider A, the router waits `min(50ms, jitter)`, then routes to provider B with the same prompt and stop conditions.
 - A `model_fallback` span is emitted on every switch with `from_model`, `to_model`, `reason`, and `degradation_class`.
 - Retries are capped at 2 internal hops. Beyond that, the router returns a `model_unavailable` failure to the orchestrator, which decides whether to (a) wait and retry the whole node with backoff, (b) degrade to a non-LLM answer (Calc-only), or (c) escalate to a human.
-- Deterministic-mode runs (replay/audit) skip retries to preserve reproducibility — the original response is fetched from the replay store instead.
+- Deterministic-mode runs (replay/audit) skip retries to preserve reproducibility - the original response is fetched from the replay store instead.
 
 **2.3 HITL approval**
 
@@ -87,11 +87,11 @@ The system has four distinct retry surfaces, each with its own semantics. Mixing
 
 ## 3. Durable execution model
 
-This is where the LangGraph anchor (`resume.txt:52-54`) does the heavy lifting. Agent runs are not in-memory python coroutines — they are durable state machines whose state is checkpointed and recoverable.
+This is where the LangGraph anchor (`resume.txt:52-54`) does the heavy lifting. Agent runs are not in-memory python coroutines - they are durable state machines whose state is checkpointed and recoverable.
 
 **3.1 State model**
 
-A run has `(run_id, persona, tenant, user, current_node, state_blob, last_checkpoint_ts, status)`. The `state_blob` is the LangGraph state — accumulated tool outputs, retrieved memory, model responses, intermediate reasoning, and the node-transition history.
+A run has `(run_id, persona, tenant, user, current_node, state_blob, last_checkpoint_ts, status)`. The `state_blob` is the LangGraph state - accumulated tool outputs, retrieved memory, model responses, intermediate reasoning, and the node-transition history.
 
 **3.2 Where checkpoints land**
 
@@ -133,8 +133,8 @@ The single largest table in this document. Each row is a specific, named failure
 | Notification channel down (push provider) | Provider error rate > 20% over 60s | Channel failover (push → SMS → email per user preference); per-user channel-preference cache invalidated for that user | Channel change for that one notification |
 | Approval reviewer SLA breach | Ticket age > tier SLA threshold | Escalate to backup reviewer pool; if breach severity high, auto-deny + notify user with explanation and human-callback option | Slower decision; user knows it's slower |
 | Persona memory cross-bleed detected | Memory query trace shows wrong tenant attribute on result row | **Halt run, alarm SOC, audit chain entry, quarantine the offending memory row, page on-call** | Run failure with apology message and ticket reference |
-| Audit log write fail | Postgres + S3 dual-write inconsistency detected by reconciliation | **Run halted until audit guaranteed; refusal to proceed.** This is the right answer — we do not proceed without audit guarantee | Run failure (correct behavior) |
-| LLM hallucination on advice | Output guardrail (hallucination check against retrieved context) fails | Suppress output, retry with stricter prompt and explicit citation requirement; if persistent, fall through to "I'm not confident enough — let me connect you to a relationship manager" | Advice withheld, fallback offered |
+| Audit log write fail | Postgres + S3 dual-write inconsistency detected by reconciliation | **Run halted until audit guaranteed; refusal to proceed.** This is the right answer - we do not proceed without audit guarantee | Run failure (correct behavior) |
+| LLM hallucination on advice | Output guardrail (hallucination check against retrieved context) fails | Suppress output, retry with stricter prompt and explicit citation requirement; if persistent, fall through to "I'm not confident enough - let me connect you to a relationship manager" | Advice withheld, fallback offered |
 | Looping ReAct agent | `step_count > cap (20)` or cycle-detector matches repeated `(node, state_hash)` pair | Force termination, return partial state with explanation, alarm on graph; run captured for offline analysis | Truncated answer with apology |
 | Forecast outside confidence band | Posterior variance on cashflow forecast exceeds threshold | Suppress numerical prediction, give qualitative answer with hedge, mark `confidence: low` in trace | Answer is hedged, not false |
 | Cost budget breach (per-tenant) | Token-cost-per-hour > tier budget cap | Switch tier to lower-cost models for non-critical paths; alert tenant admin; never silently degrade money-moving paths | Slightly lower-quality answers on browse-y questions, no impact on critical paths |
@@ -144,28 +144,28 @@ Two rows in this table deserve emphasis: **audit log write fail** and **persona 
 
 ### 4.1 Saga and compensating transactions for partially-executed actions
 
-Idempotency keeps a single tool retry safe. It does **not** keep a *multi-step action* safe when the action has been partially executed and a later step fails. The canonical scenario: the agent has already executed `bank_transfer.move_funds(...)` (returning a `transfer_ref`), the funds are gone from account A, and the subsequent `audit.write(transfer_ref, ...)` write fails because the audit cluster is in failover. The transfer cannot just be "retried" — the money already moved. The transfer cannot just be "abandoned" — the regulator requires a chain. The orchestrator must run a **compensating transaction**.
+Idempotency keeps a single tool retry safe. It does **not** keep a *multi-step action* safe when the action has been partially executed and a later step fails. The canonical scenario: the agent has already executed `bank_transfer.move_funds(...)` (returning a `transfer_ref`), the funds are gone from account A, and the subsequent `audit.write(transfer_ref, ...)` write fails because the audit cluster is in failover. The transfer cannot just be "retried" - the money already moved. The transfer cannot just be "abandoned" - the regulator requires a chain. The orchestrator must run a **compensating transaction**.
 
 We model multi-step actions as **sagas**: an ordered list of `(forward, compensation)` pairs, recorded durably alongside the run's checkpoint, executed step-by-step with each forward's result and compensation's input keyed by the action's `action_id`.
 
 | Step | Forward action | Compensation action | When compensation fires |
 |---|---|---|---|
-| 1 | `holds.create(amount, account_id)` — soft-reserve funds | `holds.release(hold_id)` | If any later step in the saga fails after step 1 succeeded |
-| 2 | `bank_transfer.move_funds(hold_id, dest)` — convert hold to debit | `bank_transfer.reverse(transfer_ref, reason)` — issue reversal txn | If step 3 or 4 fails after step 2 succeeded |
+| 1 | `holds.create(amount, account_id)` - soft-reserve funds | `holds.release(hold_id)` | If any later step in the saga fails after step 1 succeeded |
+| 2 | `bank_transfer.move_funds(hold_id, dest)` - convert hold to debit | `bank_transfer.reverse(transfer_ref, reason)` - issue reversal txn | If step 3 or 4 fails after step 2 succeeded |
 | 3 | `audit.write(action_id, transfer_ref, decision_chain)` | `audit.write_compensation(action_id, "reverted", reason)` | If step 4 fails after step 3 succeeded |
 | 4 | `notify.send(user_id, "transfer complete", ...)` | `notify.send(user_id, "transfer was reversed due to a system issue", ...)` | Never fires (last step); failures here are logged-only because reversal would cause confusion |
 
 **Saga state machine.** The orchestrator's checkpoint includes a `saga_log: list[SagaStep]` where each step has `{step_no, forward_ref, forward_result, compensation_ref, status ∈ {PENDING, FORWARD_DONE, COMPENSATED, FAILED_OPEN}}`. Forward execution writes `FORWARD_DONE` before advancing. On any downstream failure, the orchestrator runs the compensation pipeline **in reverse order** of forward execution, marking each step `COMPENSATED`. The saga is closed only when all `FORWARD_DONE` steps are `COMPENSATED` or all steps reached `FORWARD_DONE` cleanly.
 
-**The hardest case: compensation itself fails.** If `bank_transfer.reverse(...)` returns a 5xx for a transfer that already moved, the saga step transitions to `FAILED_OPEN`. This is a P1 — pages the on-call directly with the `action_id`, freezes that user's money-movement allow-list, and creates a manual reconciliation ticket pre-populated with the transfer reference, original instruction, and the failure span. The system does **not** retry the compensation in a loop — repeated reverse attempts on the same transaction can themselves cause double-reversal in some rails. The system fails loudly to a human; this is the right answer.
+**The hardest case: compensation itself fails.** If `bank_transfer.reverse(...)` returns a 5xx for a transfer that already moved, the saga step transitions to `FAILED_OPEN`. This is a P1 - pages the on-call directly with the `action_id`, freezes that user's money-movement allow-list, and creates a manual reconciliation ticket pre-populated with the transfer reference, original instruction, and the failure span. The system does **not** retry the compensation in a loop - repeated reverse attempts on the same transaction can themselves cause double-reversal in some rails. The system fails loudly to a human; this is the right answer.
 
 **Why not just two-phase commit?** Two-phase commit would require the bank rails, audit cluster, and notification provider to participate as resource managers in a distributed transaction. None of them do; this is a reality of integrating with external financial systems. Sagas are the correct primitive when the participants don't support 2PC, which is essentially always in banking integrations. The cost is that compensation must be designed per-action; the benefit is that the design works across heterogeneous external systems with weeks-old recovery semantics.
 
-**Tooling rule.** Every tool in the money-moving allow-list must declare a compensation handler in the tool registry. A tool without a registered compensation handler is statically rejected from money-moving sagas at registry-load time — it can only appear as the *last* step of a saga (because nothing after it can need a compensation), or in read-only contexts. This is enforced in CI against the tool registry manifest.
+**Tooling rule.** Every tool in the money-moving allow-list must declare a compensation handler in the tool registry. A tool without a registered compensation handler is statically rejected from money-moving sagas at registry-load time - it can only appear as the *last* step of a saga (because nothing after it can need a compensation), or in read-only contexts. This is enforced in CI against the tool registry manifest.
 
 **Where the saga fits in the graph.** The `ApprovalCoordinator` specialist constructs the saga from the approved `ActionDescriptor`; the `ToolCaller` executes saga steps and updates the saga log; the `FallbackHandler` is where the reverse pipeline runs on failure. The full saga log is part of the run's audit chain and replays deterministically.
 
-This is the closest the design gets to a transactional guarantee across external systems. It is not perfect — `FAILED_OPEN` exists for a reason — but it bounds the unrecoverable surface to "compensation itself returned 5xx," which is rare and gets a human eyes-on response within minutes via the P1 page.
+This is the closest the design gets to a transactional guarantee across external systems. It is not perfect - `FAILED_OPEN` exists for a reason - but it bounds the unrecoverable surface to "compensation itself returned 5xx," which is rare and gets a human eyes-on response within minutes via the P1 page.
 
 ---
 
@@ -224,7 +224,7 @@ Spans → OTLP collector → Kafka → ClickHouse cluster (the BlackBox-style sh
 - Model-router health: success rate, fallback rate, per-provider availability, cost-per-1k-tokens.
 - Tool-call success rate: per-tool, with circuit-breaker state overlay.
 - HITL SLA: open tickets by tier, age distribution, reviewer load.
-- Proactive fatigue: notifications-per-user-per-day, opt-out rate, snooze rate. (Fatigue is a reliability metric — over-notifying erodes trust.)
+- Proactive fatigue: notifications-per-user-per-day, opt-out rate, snooze rate. (Fatigue is a reliability metric - over-notifying erodes trust.)
 - Memory layer: read/write latencies, contention rate, cache hit ratio.
 - Calc Service: input-distribution drift, determinism check pass rate.
 
@@ -232,7 +232,7 @@ Spans → OTLP collector → Kafka → ClickHouse cluster (the BlackBox-style sh
 
 ## 6. Deterministic replay
 
-This is the second-half of the BlackBox.AI anchor (`resume.txt:58-59`) — deterministic replay was the mechanism that produced the 60% MTTR cut for AI logic anomalies. We replicate the pattern exactly because the regulated context demands it even more strongly than the developer-tool context did.
+This is the second-half of the BlackBox.AI anchor (`resume.txt:58-59`) - deterministic replay was the mechanism that produced the 60% MTTR cut for AI logic anomalies. We replicate the pattern exactly because the regulated context demands it even more strongly than the developer-tool context did.
 
 **6.1 What we capture per run**
 
@@ -253,12 +253,12 @@ A replay reconstructs a run by feeding the captured tool outputs and model respo
 Tool outputs can be large (a transaction-history pull is hundreds of KB; a market-data pull can be MB). At 10M+ runs/day, replay storage is non-trivial. The retention policy reflects this:
 
 - **30 days** default retention for ordinary runs.
-- **7 years** retention for any run that produced a money-moving action — driven by financial regulation, this is a hard requirement, not a nice-to-have.
+- **7 years** retention for any run that produced a money-moving action - driven by financial regulation, this is a hard requirement, not a nice-to-have.
 - **Tiered storage:** hot tier on S3 standard for the first 30 days, transitions to S3 Glacier Deep Archive for the 7-year tail. Retrieval latency from Glacier (hours) is acceptable because regulator audits are scheduled, not real-time.
 
 **6.4 What replay buys us**
 
-The same thing it bought at BlackBox.AI: an engineer triaging a customer complaint can pull the run, replay it, step through the agent graph node by node, see exactly which context was retrieved, see exactly which tool returned what, and see exactly which policy decision was made. The 60% MTTR cut came from eliminating the "I can't reproduce this" failure mode — and a regulated banking workload makes that even more valuable because the alternative is reading raw logs, which a regulator will not accept as a satisfactory investigation.
+The same thing it bought at BlackBox.AI: an engineer triaging a customer complaint can pull the run, replay it, step through the agent graph node by node, see exactly which context was retrieved, see exactly which tool returned what, and see exactly which policy decision was made. The 60% MTTR cut came from eliminating the "I can't reproduce this" failure mode - and a regulated banking workload makes that even more valuable because the alternative is reading raw logs, which a regulator will not accept as a satisfactory investigation.
 
 ---
 
@@ -271,14 +271,14 @@ Three concentric layers, each with a distinct purpose.
 - TCP socket open + `/healthz` returning 200 with a static payload.
 - Goal: detect a deadlocked or hung process so k8s can restart it.
 - Cheap, fast (< 50ms target), runs every 10s.
-- Does *not* depend on downstream services — a hung process should restart even if Postgres is down.
+- Does *not* depend on downstream services - a hung process should restart even if Postgres is down.
 
 **7.2 Readiness**
 
 - `/ready` returns 200 only when the pod is genuinely able to serve traffic.
 - Dependency-aware: Postgres reachable, Redis reachable, model router reachable, tool registry reachable, memory layer reachable.
 - Slower (200–400ms acceptable), runs every 5s.
-- A failed readiness probe pulls the pod from the load balancer rotation without restarting it — so transient downstream issues don't restart-storm the pods.
+- A failed readiness probe pulls the pod from the load balancer rotation without restarting it - so transient downstream issues don't restart-storm the pods.
 - For the orchestrator, readiness also checks LangGraph state-store connectivity. A pod that can't checkpoint shouldn't accept new runs.
 
 **7.3 LB chain (matches the architecture in `03-architecture.md`)**
@@ -307,7 +307,7 @@ The pattern here is anchored in the Microsoft AutoML retry-and-circuit experienc
 
 - Same window-and-threshold pattern at the model router.
 - When OPEN on provider A, all traffic for that capability tier flows to provider B until A recovers.
-- If all providers in a tier are OPEN simultaneously (rare but real — a multi-provider outage), the router returns `model_unavailable` and the orchestrator drops into degraded mode (Section 4 row "Model provider 5xx").
+- If all providers in a tier are OPEN simultaneously (rare but real - a multi-provider outage), the router returns `model_unavailable` and the orchestrator drops into degraded mode (Section 4 row "Model provider 5xx").
 
 **8.3 Per-tenant rate quota**
 
@@ -318,7 +318,7 @@ The pattern here is anchored in the Microsoft AutoML retry-and-circuit experienc
 
 **8.4 Backpressure ladder**
 
-When the system is overall hot — high CPU on orchestrators, model-router queue depth growing — we apply backpressure top-down:
+When the system is overall hot - high CPU on orchestrators, model-router queue depth growing - we apply backpressure top-down:
 
 1. Shed lowest-priority proactive runs (educational nudges).
 2. Shed medium-priority proactive runs (informational alerts).
@@ -361,7 +361,7 @@ Critical paths (notifications for money-moving events, HITL approvals) are never
 
 ---
 
-## 10. Runbooks — top 5
+## 10. Runbooks - top 5
 
 These are the on-call's daily-driver runbooks. Full set lives in the internal wiki; the top 5 cover ~80% of expected page volume.
 
@@ -402,7 +402,7 @@ These are the on-call's daily-driver runbooks. Full set lives in the internal wi
 
 ## 11. Eval harness for advice quality
 
-Reliability isn't only "does the system stay up" — for a banking advisor it's also "does the advice stay correct." We treat advice quality as a first-class SLO with its own measurement infrastructure.
+Reliability isn't only "does the system stay up" - for a banking advisor it's also "does the advice stay correct." We treat advice quality as a first-class SLO with its own measurement infrastructure.
 
 **11.1 Offline eval set**
 
@@ -421,7 +421,7 @@ Reliability isn't only "does the system stay up" — for a banking advisor it's 
 
 **11.3 Metrics**
 
-- Advice quality (graded by domain experts on rotating sample) — the headline.
+- Advice quality (graded by domain experts on rotating sample) - the headline.
 - Forecast accuracy: MAPE on cashflow projections (SME/CFO).
 - Action-success rate: fraction of agent-suggested actions that the user actually took and didn't regret (rated 30 days later).
 - User satisfaction: thumbs-up/down per turn, NPS quarterly.
@@ -431,6 +431,6 @@ Reliability isn't only "does the system stay up" — for a banking advisor it's 
 
 ## 12. Why this design hits the BlackBox 60% MTTR target
 
-The BlackBox.AI LLMOps mesh cut MTTR by 60% for AI logic anomalies (`resume.txt:58-59`). The mechanism wasn't a single feature — it was the *combination* of three things working together: dense instrumentation across every step, deterministic replay capturing enough state to reconstruct any run, and tail-based sampling guaranteeing the interesting traces were always available. In a multi-persona regulated banking workload the case for that same combination is even stronger, because the consequence of slow incident response isn't just a delayed feature ship — it's a regulator asking why a money-moving action proceeded incorrectly and us not having an answer.
+The BlackBox.AI LLMOps mesh cut MTTR by 60% for AI logic anomalies (`resume.txt:58-59`). The mechanism wasn't a single feature - it was the *combination* of three things working together: dense instrumentation across every step, deterministic replay capturing enough state to reconstruct any run, and tail-based sampling guaranteeing the interesting traces were always available. In a multi-persona regulated banking workload the case for that same combination is even stronger, because the consequence of slow incident response isn't just a delayed feature ship - it's a regulator asking why a money-moving action proceeded incorrectly and us not having an answer.
 
 We replicate the exact pattern here. Every agent step, every tool call, every model call, every calc invocation, every memory read and write, every policy decision lands in the span schema. Tail-sampling ensures error spans, HITL-required spans, and money-moving spans are 100% captured. Deterministic replay reconstructs any run from durable storage. The LangGraph durable-execution substrate (`resume.txt:52-54`) makes the run state itself replayable, not just the telemetry around it. Circuit breakers and idempotent tool calls (lessons from the AutoML 15M-jobs-per-month operational substrate at `resume.txt:91-92`) prevent the failure cascades that would otherwise inflate MTTR. The result is that when a Retail user complains about an incorrect savings recommendation, when an SME accountant flags a cashflow-forecast error, or when a CFO desk reports an FX advisory that didn't match their playbook, the on-call engineer has a replayable run on screen in under a minute and a root cause in under fifteen. That is the 60% MTTR cut, applied to the higher-stakes context of regulated personal and business finance.

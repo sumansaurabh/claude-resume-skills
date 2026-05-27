@@ -1,12 +1,12 @@
-# 03 — Architecture: AI Banker for SMB Owners
+# 03 - Architecture: AI Banker for SMB Owners
 
-> Principal-engineer architecture for a conversational, proactive, action-taking cashflow intelligence agent targeting 1M SMBs MAU, 50K concurrent agent runs at peak, and 18B LLM tokens/month — roughly 27x the BlackBox baseline of 1B tokens/month and 10K agent runs/day (resume.txt L51-56).
+> Principal-engineer architecture for a conversational, proactive, action-taking cashflow intelligence agent targeting 1M SMBs MAU, 50K concurrent agent runs at peak, and 18B LLM tokens/month - roughly 27x the BlackBox baseline of 1B tokens/month and 10K agent runs/day (resume.txt L51-56).
 
 ---
 
 ## 1. System Overview
 
-The AI Banker is a **multi-agent cashflow intelligence layer** that sits between an SMB owner and their fragmented financial data sources — bank account (UPI/IMPS/NEFT, ACH), accounting ledger (Tally, Zoho Books, QuickBooks), payroll provider, tax authority (GSTN, IRS), vendor invoicing, and lender APIs. It is simultaneously **conversational** (the owner asks "will I make payroll on the 28th?"), **proactive** (morning brief: "₹4.2L invoice from Acme is 14 days overdue, sweep recommended"), and **action-taking** (with approval gates, it triggers AR reminders, schedules payments, files GST). The platform anchors on the agent-runtime + tool-gateway + model-router + telemetry pattern proven at BlackBox (resume.txt L51-59), scaled 27x and re-targeted from no-code AI to regulated SMB finance.
+The AI Banker is a **multi-agent cashflow intelligence layer** that sits between an SMB owner and their fragmented financial data sources - bank account (UPI/IMPS/NEFT, ACH), accounting ledger (Tally, Zoho Books, QuickBooks), payroll provider, tax authority (GSTN, IRS), vendor invoicing, and lender APIs. It is simultaneously **conversational** (the owner asks "will I make payroll on the 28th?"), **proactive** (morning brief: "₹4.2L invoice from Acme is 14 days overdue, sweep recommended"), and **action-taking** (with approval gates, it triggers AR reminders, schedules payments, files GST). The platform anchors on the agent-runtime + tool-gateway + model-router + telemetry pattern proven at BlackBox (resume.txt L51-59), scaled 27x and re-targeted from no-code AI to regulated SMB finance.
 
 ---
 
@@ -24,7 +24,7 @@ Representative query: **"Will I have enough cash for payroll on the 28th?"** ask
    - `PayrollCalendar.next(tenantId)` → payroll provider connector returns date `2026-05-28`, amount `₹18.4L`.
    - `ScheduledPayments.between(today, 28th)` → AP service returns `₹6.1L` outflow.
    - `ExpectedReceivables.between(today, 28th)` → AR service returns `₹9.3L` with confidence scores per invoice.
-7. **Forecast engine (deterministic).** Python/numpy service combines opening balance + scheduled outflows + probability-weighted inflows + recurring debits. Output: `projected_balance_on_27th = ₹3.1L`, `shortfall_vs_payroll = ₹15.3L`, `confidence = 0.82`. **Not an LLM** — auditable, reproducible, regulator-defensible.
+7. **Forecast engine (deterministic).** Python/numpy service combines opening balance + scheduled outflows + probability-weighted inflows + recurring debits. Output: `projected_balance_on_27th = ₹3.1L`, `shortfall_vs_payroll = ₹15.3L`, `confidence = 0.82`. **Not an LLM** - auditable, reproducible, regulator-defensible.
 8. **Explainer LLM.** Sonnet-class model converts the structured projection into natural language: rationale, top three drivers, two suggested actions ("sweep ₹10L FD on the 26th" / "follow up on Acme PO-4421 ₹4.2L"). Streamed token-by-token back through the orchestrator.
 9. **Output guardrails.** Regex + classifier check: no PII leakage, no unhedged financial advice, no actions taken without approval gate, currency symbol matches tenant region.
 10. **Stream to client.** SSE chunks land in the mobile app. Final message contains structured `suggested_actions[]` rendered as one-tap buttons.
@@ -231,7 +231,7 @@ graph TD
 | TLS | mTLS enforced by **Linkerd** service mesh sidecars at the pod, not at the LB |
 | Target groups | `orchestrator-tg`, `tool-gateway-tg`, `forecast-tg`, `model-router-tg`, each with its own health check + autoscaling policy |
 | gRPC TGs | HTTP/2 + protocol version `gRPC`; health check via **gRPC Health Probe** (`grpc.health.v1.Health/Check`) |
-| Sticky sessions | **Off** internally — stateless RPCs |
+| Sticky sessions | **Off** internally - stateless RPCs |
 | Idle timeout | 300s for forecast (large jobs); 60s default elsewhere |
 
 ### 7.4 Hop / OSI / TLS / Health table
@@ -257,11 +257,11 @@ graph TD
 
 ## 8. Leadership and Roadmap Framing
 
-- **Q1 2026 — Read-only intelligence (wedge).** Bank + accounting integration via Account Aggregator + Tally/Zoho. India-only. Single user-visible feature: **"morning cashflow brief"** delivered on WhatsApp at 8:30 am. Zero write actions. Goal: prove the forecast is trustworthy.
-- **Q2 2026 — Begin write actions, low-risk first.** GST reminder filings, AR follow-up emails/WhatsApp to debtors with owner one-tap approve. Action Executor + Saga lights up. Approval gates enforced.
-- **Q3 2026 — AP automation + lender connectivity.** Vendor payment scheduling with approval gates, working-capital qualification check against partner lenders (one-click loan offer).
-- **Q4 2026 — Multi-currency + US/EU expansion.** Plaid for US, GoCardless for EU. Spin up `us-east-1` + `eu-west-1` regions.
-- **Year 2 — Predictive working capital + embedded credit.** Proactive line-of-credit offers triggered by forecast-detected shortfall. Cross-sell to lender partners.
+- **Q1 2026 - Read-only intelligence (wedge).** Bank + accounting integration via Account Aggregator + Tally/Zoho. India-only. Single user-visible feature: **"morning cashflow brief"** delivered on WhatsApp at 8:30 am. Zero write actions. Goal: prove the forecast is trustworthy.
+- **Q2 2026 - Begin write actions, low-risk first.** GST reminder filings, AR follow-up emails/WhatsApp to debtors with owner one-tap approve. Action Executor + Saga lights up. Approval gates enforced.
+- **Q3 2026 - AP automation + lender connectivity.** Vendor payment scheduling with approval gates, working-capital qualification check against partner lenders (one-click loan offer).
+- **Q4 2026 - Multi-currency + US/EU expansion.** Plaid for US, GoCardless for EU. Spin up `us-east-1` + `eu-west-1` regions.
+- **Year 2 - Predictive working capital + embedded credit.** Proactive line-of-credit offers triggered by forecast-detected shortfall. Cross-sell to lender partners.
 
 **Org shape (12-15 engineers).** Anchored on BlackBox's 6-engineer agentic team (resume.txt L51) scaled ~2.5x for the regulated-finance breadth:
 

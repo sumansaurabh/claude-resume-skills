@@ -1,4 +1,4 @@
-# 05 — Low-Level Design: Multi-Persona AI Banker (Shared Platform)
+# 05 - Low-Level Design: Multi-Persona AI Banker (Shared Platform)
 
 > Scope: Internal mechanics that the contracts in `04-api-and-contracts.md` ride on. State machines, persistent schemas, sequence flows, class-level responsibilities, concurrency, idempotency, sandbox isolation, and the LangGraph supervisor integration points.
 >
@@ -54,7 +54,7 @@ stateDiagram-v2
   cancelled --> [*]
 ```
 
-Checkpoint points are at every state transition. The LangGraph checkpointer writes `(run_id, step_no, state_blob_hash)` to Postgres and the full state blob to a Redis-backed value store keyed by `state_blob_hash`. A run can be resumed from any checkpoint, so an Orchestrator pod crash mid-run replays from the last persisted checkpoint without re-charging the model for completed steps — this is the durable-execution discipline carried over from the resume's LangGraph + DAG platform handling 10K+ runs/day (resume.txt:51–54).
+Checkpoint points are at every state transition. The LangGraph checkpointer writes `(run_id, step_no, state_blob_hash)` to Postgres and the full state blob to a Redis-backed value store keyed by `state_blob_hash`. A run can be resumed from any checkpoint, so an Orchestrator pod crash mid-run replays from the last persisted checkpoint without re-charging the model for completed steps - this is the durable-execution discipline carried over from the resume's LangGraph + DAG platform handling 10K+ runs/day (resume.txt:51–54).
 
 ### 2.2 Action lifecycle
 
@@ -316,7 +316,7 @@ Full schema lives in `13-memory-layer-design.md`. Here is how the platform servi
 | Financial historical | Postgres + warehouse pointer | `(user_id, account_id, month)` summaries | aggregates + raw txn pointer | persistent (cold tier after 24 mo) | Calc Service joins on monthly summaries; Tool `txn.summarize` reads raw via warehouse | Ingestion pipeline (separate stream) |
 | Organizational context | Postgres + Neo4j graph | nodes: `Entity`, `Vendor`, `Approver`, `Account`; edges: `pays`, `approves`, `parent_of` | structured graph + scalars | persistent | Context Manager builds the persona-specific subgraph projection | Org-mgmt UI + nightly reconciliation |
 
-The Context Manager hides tier choice behind a single `Build()` call but the underlying storage discipline is different per tier — Redis for hot path latency, Postgres for transactional facts, pgvector for semantic retrieval, Neo4j for the org graph projections that CFO queries hit heavily (multi-hop entity → approver → account walks).
+The Context Manager hides tier choice behind a single `Build()` call but the underlying storage discipline is different per tier - Redis for hot path latency, Postgres for transactional facts, pgvector for semantic retrieval, Neo4j for the org graph projections that CFO queries hit heavily (multi-hop entity → approver → account walks).
 
 ---
 
@@ -666,7 +666,7 @@ class IdempotencyStore:
 | Notification dispatcher | async worker pool (configurable concurrency per channel) | Channel APIs are I/O-bound and rate-limited externally |
 | Audit writer | Single-writer per tenant shard (advisory lock) | Hash chain integrity requires serial append within a shard |
 
-The Orchestrator's per-run state machine is **logically synchronous**: step N+1 cannot start until step N's checkpoint is durable. But many runs co-exist on one pod via asyncio. Pods are sharded by `hash(run_id) % N` so the same run pins to the same pod (or its replacement) during its lifetime, which makes warm caches (context, prompt, plan) effective. This is the same orchestration pattern that ran Microsoft AutoML at 15M+ jobs/month and 200K+ users (resume.txt:91–92) — durable, sharded, recoverable.
+The Orchestrator's per-run state machine is **logically synchronous**: step N+1 cannot start until step N's checkpoint is durable. But many runs co-exist on one pod via asyncio. Pods are sharded by `hash(run_id) % N` so the same run pins to the same pod (or its replacement) during its lifetime, which makes warm caches (context, prompt, plan) effective. This is the same orchestration pattern that ran Microsoft AutoML at 15M+ jobs/month and 200K+ users (resume.txt:91–92) - durable, sharded, recoverable.
 
 ---
 
@@ -681,7 +681,7 @@ The Orchestrator's per-run state machine is **logically synchronous**: step N+1 
 | Calc service | `(formula_id, sha256(canonical_inputs))` | Content-addressed Postgres cache | Cache hit returns identical output hash; provenance preserved |
 | Audit append | `(entry_id)` UNIQUE | Postgres | Idempotent insert via `ON CONFLICT DO NOTHING` |
 
-The persistent **action_id** is the durable dedup anchor — if Redis dies, the Postgres UNIQUE constraint on `(user_id, client_idempotency_key)` still prevents double-execution.
+The persistent **action_id** is the durable dedup anchor - if Redis dies, the Postgres UNIQUE constraint on `(user_id, client_idempotency_key)` still prevents double-execution.
 
 ---
 
@@ -698,9 +698,9 @@ The WASM sandbox plane is the same SOC-2-aligned isolation discipline the resume
 
 A risky-tool invocation has three additional gates layered above the policy engine:
 
-1. **Pre-flight schema check** — the params payload is validated against the tool's signed schema before entering the sandbox.
-2. **Capability assertion** — the sandbox runtime denies any syscall not on the tool's manifest.
-3. **Post-flight reconciliation** — the broker that fronts the bank/ERP API performs a second-stage check that the side effect matches the attested intent.
+1. **Pre-flight schema check** - the params payload is validated against the tool's signed schema before entering the sandbox.
+2. **Capability assertion** - the sandbox runtime denies any syscall not on the tool's manifest.
+3. **Post-flight reconciliation** - the broker that fronts the bank/ERP API performs a second-stage check that the side effect matches the attested intent.
 
 ---
 
@@ -760,9 +760,9 @@ def build_graph(supervisor, tool_node, calc_node, critic_node, memory_writer, ac
     )
 ```
 
-`interrupt_before=["action"]` is the LangGraph primitive that lets the platform pause durably when a tier-1+ action is proposed. The graph yields control with the full state checkpointed; when the `approval.decided.v1` event arrives, an outbox consumer calls `graph.invoke(None, config={"configurable": {"thread_id": run_id}})` to resume from the checkpoint. This is exactly the durable-execution behavior the resume describes for the LangGraph platform handling 10K+ runs/day (resume.txt:51–54) — the run survives pod restarts, infra hiccups, and reviewer delays of hours or days without re-charging the model for completed work.
+`interrupt_before=["action"]` is the LangGraph primitive that lets the platform pause durably when a tier-1+ action is proposed. The graph yields control with the full state checkpointed; when the `approval.decided.v1` event arrives, an outbox consumer calls `graph.invoke(None, config={"configurable": {"thread_id": run_id}})` to resume from the checkpoint. This is exactly the durable-execution behavior the resume describes for the LangGraph platform handling 10K+ runs/day (resume.txt:51–54) - the run survives pod restarts, infra hiccups, and reviewer delays of hours or days without re-charging the model for completed work.
 
-The `Critic` node runs only for action proposals with `confidence < 0.92` or whenever the planner emits a brand-new action type — it re-reads the plan, the tool outputs, and the calc provenance, and either confirms or downgrades confidence (which can re-enter HITL at a higher tier). The `MemoryWriter` node writes durable facts to the long-term tier *only on `run.completed`* so a failed run does not pollute memory.
+The `Critic` node runs only for action proposals with `confidence < 0.92` or whenever the planner emits a brand-new action type - it re-reads the plan, the tool outputs, and the calc provenance, and either confirms or downgrades confidence (which can re-enter HITL at a higher tier). The `MemoryWriter` node writes durable facts to the long-term tier *only on `run.completed`* so a failed run does not pollute memory.
 
 ---
 
@@ -776,6 +776,6 @@ Hot dashboards: per-tenant tail latency on chat, per-persona action approval SLA
 
 ## 12. Closing notes
 
-This LLD reuses three pieces of resume lineage explicitly: the LangGraph ReAct + DAG + durable execution pattern handling 10K+ runs/day (resume.txt:51–54) shows up here as the supervisor graph plus checkpointer plus `interrupt_before` for HITL; the Claude/GPT/Grok model router at 1B+ tokens/month (resume.txt:55–56) shows up here as a single internal gRPC `ModelRouter` with per-tenant budgets and per-provider circuit breakers; the WASM sandbox plane built for SOC-2 (resume.txt:49–50) shows up here as the isolation layer for every risky tool with signed attestation per execution. The fourth piece — Microsoft AutoML state-machine orchestration at 15M+ jobs/month with 200K+ users (resume.txt:91–92) — informs the sharded, durable orchestration pattern that lets one platform serve all three personas at scale without divergent codebases.
+This LLD reuses three pieces of resume lineage explicitly: the LangGraph ReAct + DAG + durable execution pattern handling 10K+ runs/day (resume.txt:51–54) shows up here as the supervisor graph plus checkpointer plus `interrupt_before` for HITL; the Claude/GPT/Grok model router at 1B+ tokens/month (resume.txt:55–56) shows up here as a single internal gRPC `ModelRouter` with per-tenant budgets and per-provider circuit breakers; the WASM sandbox plane built for SOC-2 (resume.txt:49–50) shows up here as the isolation layer for every risky tool with signed attestation per execution. The fourth piece - Microsoft AutoML state-machine orchestration at 15M+ jobs/month with 200K+ users (resume.txt:91–92) - informs the sharded, durable orchestration pattern that lets one platform serve all three personas at scale without divergent codebases.
 
-The shared platform is therefore not just a code-level abstraction — it is a contract-level invariant: every persona pays the same machinery, and divergence is expressed only in policy profiles, action shapes, context shapes, and approval flows, all of which are data, not code.
+The shared platform is therefore not just a code-level abstraction - it is a contract-level invariant: every persona pays the same machinery, and divergence is expressed only in policy profiles, action shapes, context shapes, and approval flows, all of which are data, not code.

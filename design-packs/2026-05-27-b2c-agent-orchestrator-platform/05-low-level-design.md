@@ -1,4 +1,4 @@
-# 05 — Low-Level Design
+# 05 - Low-Level Design
 
 Concrete implementation choices behind the contracts in `04-api-and-contracts.md` and the topology in `03-architecture.md`. Anchored on BlackBox DAG workflow engine with checkpointing (`resume.txt:53-54`) and Microsoft AutoML's 15M+ jobs/month orchestration (`resume.txt:90-92`).
 
@@ -283,7 +283,7 @@ CREATE INDEX idx_hitl_pending ON hitl_requests(status) WHERE status = 'pending';
 Heavy-query indexes:
 - `runs(user_id, status)` partial-index for "show me my running agents" dashboard.
 - `run_events(run_id, seq)` covering index for replay (every read is by `run_id` + `seq` range).
-- `rag_chunks` HNSW with `(m=16, ef_construction=64)` — chosen to mirror BlackBox's HNSW config (`resume.txt:60-61`).
+- `rag_chunks` HNSW with `(m=16, ef_construction=64)` - chosen to mirror BlackBox's HNSW config (`resume.txt:60-61`).
 - `idempotency_keys(expires_at)` for the TTL sweeper.
 
 ---
@@ -292,10 +292,10 @@ Heavy-query indexes:
 
 `run_events` is an **append-only**, monotonic-`seq` log per run. Every node entry, tool call, memory access, model invocation, guardrail decision, and HITL transition writes a row. Used for:
 
-1. **Deterministic replay** — a run can be replayed by re-applying events to the LangGraph state machine, with all stochastic decisions (model outputs, tool results) sourced from the log instead of being re-issued. Anchored on `resume.txt:58-59` (50M spans/day, 2.5TB monthly traces, deterministic replay, 60% MTTR drop) and `blackbox-experience.md` point 20.
-2. **SSE stream resume** — clients reconnect with `Last-Event-ID: <seq>` and we replay events from the log.
-3. **HITL resume** — `HITLPaused` reads the last `node.entered` checkpoint and continues.
-4. **Audit and incident review** — the structured log is the source of truth for what an agent did and why.
+1. **Deterministic replay** - a run can be replayed by re-applying events to the LangGraph state machine, with all stochastic decisions (model outputs, tool results) sourced from the log instead of being re-issued. Anchored on `resume.txt:58-59` (50M spans/day, 2.5TB monthly traces, deterministic replay, 60% MTTR drop) and `blackbox-experience.md` point 20.
+2. **SSE stream resume** - clients reconnect with `Last-Event-ID: <seq>` and we replay events from the log.
+3. **HITL resume** - `HITLPaused` reads the last `node.entered` checkpoint and continues.
+4. **Audit and incident review** - the structured log is the source of truth for what an agent did and why.
 
 Event row shape:
 
@@ -417,15 +417,15 @@ structured rows: `{date, amount, currency, merchant, charge_id}`.
    - Env vars: only those in `env_allowlist` are exposed.
    - Tool calls (`gmail.search`, etc.): host function dispatches via gRPC back to `ConnectorBroker.InvokeTool`, scoped to the run's tenant and user. Tools not in the skill's `allowed-tools` are rejected with `SKILL_DISALLOWED_TOOL`.
 4. CPU and memory caps enforced by wasmtime's metering; wall-clock by a watchdog goroutine in SkillExecutor.
-5. Final stdout line is expected to be a single JSON object — that becomes `ExitResult.result`.
+5. Final stdout line is expected to be a single JSON object - that becomes `ExitResult.result`.
 
-This is the same isolation model BlackBox used at 1M+ daily zero-shot executions (`resume.txt:49-50`, `blackbox-experience.md` points 3-6) — WASM is cheaper to spawn than Firecracker microVMs at that scale, with the tradeoff that the syscall surface is whatever we ourselves expose as host functions (so the surface is small by construction).
+This is the same isolation model BlackBox used at 1M+ daily zero-shot executions (`resume.txt:49-50`, `blackbox-experience.md` points 3-6) - WASM is cheaper to spawn than Firecracker microVMs at that scale, with the tradeoff that the syscall surface is whatever we ourselves expose as host functions (so the surface is small by construction).
 
 ---
 
 ## G. Persona and prompt assembly pipeline
 
-Every call into `ModelGateway` from `Planner`, `Router`, `ModelCalling`, `Critic`, or `Aggregator` first runs through the prompt assembler. The assembler is deterministic given its inputs — it never reaches out to providers, so it's freely re-runnable during replay.
+Every call into `ModelGateway` from `Planner`, `Router`, `ModelCalling`, `Critic`, or `Aggregator` first runs through the prompt assembler. The assembler is deterministic given its inputs - it never reaches out to providers, so it's freely re-runnable during replay.
 
 ```
 1. Load persona system prompt + persona traits
@@ -539,7 +539,7 @@ CREATE TABLE catalog_ratings (
 
 **Fork semantics:** `POST /v1/agents/{id}/fork` inserts a new `agents` row with `forked_from_id = <source_id>` and copies the latest `agent_versions` row as version 1 of the new agent. Connector references that are OAuth-backed are dropped (the forker can't inherit the original owner's Gmail). MCP endpoint references survive only if they're public; private ones are dropped with a warning in the response payload. Skill references survive (skills are immutable bundles). RAG source references survive only if the source visibility is `public`.
 
-**Trending and discovery:** `install_count` is bumped via a debounced upsert; the actual `catalog_installs` insert is the authority. A nightly ClickHouse job computes 7-day trending using time-decayed install velocity, written back to `catalog_listings.trending_score`. Anchored on the ShareChat 22-attribute segmentation pattern (`resume.txt:111-114`) — the same kind of feature pipeline applies to surfacing the right catalog agent to the right user.
+**Trending and discovery:** `install_count` is bumped via a debounced upsert; the actual `catalog_installs` insert is the authority. A nightly ClickHouse job computes 7-day trending using time-decayed install velocity, written back to `catalog_listings.trending_score`. Anchored on the ShareChat 22-attribute segmentation pattern (`resume.txt:111-114`) - the same kind of feature pipeline applies to surfacing the right catalog agent to the right user.
 
 ---
 

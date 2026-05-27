@@ -1,9 +1,9 @@
-# 12 — Agentic Graph Structure (Two-Layer Deep Dive)
+# 12 - Agentic Graph Structure (Two-Layer Deep Dive)
 
 This document is the canonical agentic-graph reference for the AI Banker for SMB owners. It is written in **two layers** and split across two lanes:
 
-- **Layer 1 — Graph Topology** (this lane): node taxonomy, edge taxonomy, supervisor/worker/tool-caller hierarchy, the full Mermaid graph, three traversal examples, graph version metadata, and the rationale for the chosen topology.
-- **Layer 2 — Per-Node State and Edge Conditions** (Lane 12, appended below): per-node checkpointed state shapes, edge condition logic, parallel join semantics, and HITL interrupt/resume contracts.
+- **Layer 1 - Graph Topology** (this lane): node taxonomy, edge taxonomy, supervisor/worker/tool-caller hierarchy, the full Mermaid graph, three traversal examples, graph version metadata, and the rationale for the chosen topology.
+- **Layer 2 - Per-Node State and Edge Conditions** (Lane 12, appended below): per-node checkpointed state shapes, edge condition logic, parallel join semantics, and HITL interrupt/resume contracts.
 
 The topology is anchored on the BlackBox agentic platform that ran LangGraph/LangChain ReAct + DAG orchestration with durable execution at 10K+ runs/day, memory persistence, and a multi-model router across Claude/GPT/Grok (resume.txt L51-56). Tool-authority enforcement and WASM-sandboxed deterministic execution patterns are reused from the same lineage (resume.txt L49-50; blackbox-experience.md #6, #9).
 
@@ -35,7 +35,7 @@ Node IDs in this file are kept **consistent with `03-architecture.md`**. Where 0
 | Sequential | Straight-line transition, no branching | `USER → IN_GUARD → SUP`; `OUT_GUARD → USER_RESPONSE` | None; always taken |
 | Conditional | Branch on classifier output, structured-output schema field, or rule table | `SUP → AR_AGENT` (if `intent=invoice_followup`); `SUP → LENDER_AGENT` (if `intent=loan`) | `state.plan.route == <target_id>` AND `state.plan.confidence >= 0.55`; ties broken by rule table |
 | Parallel-fork | Supervisor fans out to N specialists with **shared state-fork**: each child gets a deep-copied immutable view of `state.context` and writes only to its own namespaced `state.outputs[<agent_id>]` | `SUP → {AR_AGENT, AP_AGENT, PAYROLL_AGENT, FCST_AGENT}` on `intent=payroll_readiness` | Fork allowed only if `hop_counter < N_max` AND fan-out width ≤ 6; per-child timeout 8s |
-| Parallel-join | Aggregator collects N outputs under a named join policy | `{AR_AGENT, AP_AGENT, PAYROLL_AGENT} → JOIN_FORECAST → FCST_AGENT`; `{*} → JOIN_ANSWER → EXP_LLM` | Policy ∈ {`all_of`, `any_of`, `first_success`, `majority_vote`}. Default `all_of` with `degrade_on_partial=true` after timeout — partial join is recorded and a degraded flag is propagated |
+| Parallel-join | Aggregator collects N outputs under a named join policy | `{AR_AGENT, AP_AGENT, PAYROLL_AGENT} → JOIN_FORECAST → FCST_AGENT`; `{*} → JOIN_ANSWER → EXP_LLM` | Policy ∈ {`all_of`, `any_of`, `first_success`, `majority_vote`}. Default `all_of` with `degrade_on_partial=true` after timeout - partial join is recorded and a degraded flag is propagated |
 | Back-edge with guard | Specialist or critic returns control to supervisor for a new ReAct iteration | `CRITIC -- needs_rework --> SUP`; `<agent> -- needs_more_context --> SUP` | `hop_counter < N` (N=4 per run) AND `state_changed == true` (the run has produced *new* observations since last visit, else we abort to prevent loop-of-doom; aligns with blackbox-experience.md #18) |
 | Halt-to-human | Any executor or critic can route to a HITL node when a policy trigger fires | `AP_AGENT → HITL_PAYMENT`; `LENDER_AGENT → HITL_LOAN`; `TAX_AGENT → HITL_GST_FILING` | Trigger = `action.value ≥ policy_threshold` OR `action.class ∈ {write, payment, file}` OR `risk_score ≥ τ`. Resume on signed approval webhook with replay-safe idempotency key |
 
@@ -68,7 +68,7 @@ Node IDs in this file are kept **consistent with `03-architecture.md`**. Where 0
 | Tier | Node(s) | Owns | Allowed Tools | Failure Domain |
 |---|---|---|---|---|
 | 0 | `IN_GUARD` | Pre-supervisor input safety, PII redaction, prompt-injection screen | none | Fail-closed → polite refusal |
-| 1 | `SUP` | Intent classification, plan synthesis, routing decisions | **none directly** — only the routing edge | Fail → bounded retry, then drop to `OUT_GUARD` with degraded mode |
+| 1 | `SUP` | Intent classification, plan synthesis, routing decisions | **none directly** - only the routing edge | Fail → bounded retry, then drop to `OUT_GUARD` with degraded mode |
 | 2 | `AR_AGENT` | Invoice / receivables reasoning | `ar.list_invoices`, `ar.send_reminder` (write → HITL) | Specialist isolated; sibling failure does not abort siblings |
 | 2 | `AP_AGENT` | Vendor / payables reasoning | `ap.list_bills`, `ap.schedule_payment` (write → HITL) | Same |
 | 2 | `PAYROLL_AGENT` | Payroll runs, headcount, dues | `payroll.read_run`, `payroll.read_schedule` | Same |
@@ -82,7 +82,7 @@ Node IDs in this file are kept **consistent with `03-architecture.md`**. Where 0
 | 6 | `OUT_GUARD` | Output safety, hallucination check vs. evidence, PII gate | none | Fail-closed → degraded canned reply |
 | 7 | `MEMORY_SCRIBE` | Writes short-term, episodic, and semantic memory; runs on a separate worker | memory writers | Fail → retried with backoff; never blocks user reply |
 
-**Tool authority is enforced at the graph level by the tool gateway, not by the LLM prompt.** Every `*_TOOL_PROXY → GW` call carries a capability-scoped JWT whose `scope` claim is restricted to the parent agent's allow-list; the gateway rejects out-of-scope calls. This is the same pattern used at BlackBox to keep ReAct agents from breaking the trust boundary regardless of what the LLM "decided" to call (resume.txt L51-56; blackbox-experience.md #6, #9, #19). The LLM cannot escalate by asking nicely — the JWT physically does not let it.
+**Tool authority is enforced at the graph level by the tool gateway, not by the LLM prompt.** Every `*_TOOL_PROXY → GW` call carries a capability-scoped JWT whose `scope` claim is restricted to the parent agent's allow-list; the gateway rejects out-of-scope calls. This is the same pattern used at BlackBox to keep ReAct agents from breaking the trust boundary regardless of what the LLM "decided" to call (resume.txt L51-56; blackbox-experience.md #6, #9, #19). The LLM cannot escalate by asking nicely - the JWT physically does not let it.
 
 ---
 
@@ -92,17 +92,17 @@ Node IDs in this file are kept **consistent with `03-architecture.md`**. Where 0
 graph TD
   USER([SMB Owner<br/>WhatsApp / App])
 
-  subgraph EDGE_GUARD[Tier 0 — Input Guard]
+  subgraph EDGE_GUARD[Tier 0 - Input Guard]
     IN_GUARD[IN_GUARD<br/>PII redact + injection screen]
   end
 
-  subgraph SUPERVISOR_TIER[Tier 1 — Supervisor]
+  subgraph SUPERVISOR_TIER[Tier 1 - Supervisor]
     SUP[SUP<br/>Intent + Plan + Route<br/>Haiku-class]
     INTENT_ROUTER{{INTENT_ROUTER<br/>rule table}}
     BUDGET_ROUTER{{BUDGET_ROUTER<br/>cost / hop guard}}
   end
 
-  subgraph SPECIALISTS[Tier 2 — Specialist Agents]
+  subgraph SPECIALISTS[Tier 2 - Specialist Agents]
     AR_AGENT[AR_AGENT]
     AP_AGENT[AP_AGENT]
     PAYROLL_AGENT[PAYROLL_AGENT]
@@ -112,7 +112,7 @@ graph TD
     FCST_AGENT[FCST_AGENT]
   end
 
-  subgraph TOOL_PLANE[Tier 3 — Tool Proxies + Gateway]
+  subgraph TOOL_PLANE[Tier 3 - Tool Proxies + Gateway]
     AR_TP[AR_TOOL_PROXY]
     AP_TP[AP_TOOL_PROXY]
     PAY_TP[PAYROLL_TOOL_PROXY]
@@ -130,25 +130,25 @@ graph TD
     FCST_ENG[(FORECAST_ENGINE<br/>deterministic)]
   end
 
-  subgraph JOIN_AND_EXPLAIN[Tier 4 — Join + Explain]
+  subgraph JOIN_AND_EXPLAIN[Tier 4 - Join + Explain]
     JOIN_FORECAST{{JOIN_FORECAST<br/>policy=all_of<br/>degrade_on_partial}}
     JOIN_ANSWER{{JOIN_ANSWER<br/>policy=all_of}}
     EXP_LLM[EXP_LLM<br/>Sonnet-class via Model Router]
   end
 
-  subgraph CRITIC_AND_OUT_GUARD[Tier 5 + 6 — Critic + Output Guard]
+  subgraph CRITIC_AND_OUT_GUARD[Tier 5 + 6 - Critic + Output Guard]
     CRITIC[CRITIC<br/>reflection rubric]
     OUT_GUARD[OUT_GUARD<br/>halluc + PII gate]
   end
 
-  subgraph HITL_PAUSES[HITL — Durable Pauses]
+  subgraph HITL_PAUSES[HITL - Durable Pauses]
     HITL_PAYMENT[[HITL_PAYMENT<br/>checkpoint + wait]]
     HITL_LOAN[[HITL_LOAN<br/>checkpoint + wait]]
     HITL_GST_FILING[[HITL_GST_FILING<br/>checkpoint + wait]]
     ACTION_EXEC[ACTION_EXECUTOR<br/>Temporal saga]
   end
 
-  subgraph MEMORY[Tier 7 — Async Memory]
+  subgraph MEMORY[Tier 7 - Async Memory]
     MEMORY_SCRIBE[MEMORY_SCRIBE<br/>async writer]
     MEM_ST[(Short-term)]
     MEM_EP[(Episodic)]
@@ -232,7 +232,7 @@ graph TD
 
 Notes on the graph:
 
-- `INTENT_ROUTER` and `BUDGET_ROUTER` are drawn as separate router nodes for clarity; in the runtime they are conditional edges evaluated from `SUP`'s structured output (`{intent, plan, confidence, est_cost_tokens}`). They are first-class for telemetry — every routing decision is a span with classifier scores attached (resume.txt L58-59).
+- `INTENT_ROUTER` and `BUDGET_ROUTER` are drawn as separate router nodes for clarity; in the runtime they are conditional edges evaluated from `SUP`'s structured output (`{intent, plan, confidence, est_cost_tokens}`). They are first-class for telemetry - every routing decision is a span with classifier scores attached (resume.txt L58-59).
 - Every `*_TOOL_PROXY → GW` arrow is the **only** path from an agent to the outside world. There is no agent-to-external direct edge anywhere in the graph; this is the trust boundary.
 - `JOIN_FORECAST` is a *typed* join: AR contributes expected receivables with per-invoice confidence, AP contributes scheduled outflows, PAYROLL contributes the payroll-window obligation. `FCST_AGENT` is the only consumer.
 - The `CRITIC → SUP` back-edge has a hop guard (`hop < 4`) AND a state-change guard (`state_changed == true`). Both are required to prevent runaway ReAct loops, which is the failure mode called out in blackbox-experience.md #18.
@@ -319,7 +319,7 @@ USER
   ⇢ MEMORY_SCRIBE (async)                     (episodic: anomaly-explain pattern; semantic: counterparty_Z early-pay tendency)
 ```
 
-If the back-edge had been taken without the `state_changed` guard, the same prompt would have replayed indefinitely on identical observations — the classic loop-of-doom (blackbox-experience.md #18). The guard requires that round 2 produced *new* observations vs. round 1; otherwise the run aborts to `OUT_GUARD` with a degraded "I could not confidently explain the variance" reply.
+If the back-edge had been taken without the `state_changed` guard, the same prompt would have replayed indefinitely on identical observations - the classic loop-of-doom (blackbox-experience.md #18). The guard requires that round 2 produced *new* observations vs. round 1; otherwise the run aborts to `OUT_GUARD` with a degraded "I could not confidently explain the variance" reply.
 
 ---
 
@@ -344,17 +344,17 @@ Rollout discipline: a new `graph_vN+1` is shadowed first (replay last 24h of run
 
 ## 7. Why This Topology (Decisions)
 
-- **Supervisor + specialists over single mega-agent.** Limits tool authority at the **graph layer**, not at the LLM prompt. A specialist with a JWT scoped to `payroll.read_*` physically cannot call `bank.transfer` no matter what the model "decides" — the gateway rejects the call. This is the trust-boundary pattern proven at BlackBox (resume.txt L51, L55-56; blackbox-experience.md #6, #9, #19). It also makes per-domain prompt versioning, per-domain eval, and per-domain rollback tractable.
+- **Supervisor + specialists over single mega-agent.** Limits tool authority at the **graph layer**, not at the LLM prompt. A specialist with a JWT scoped to `payroll.read_*` physically cannot call `bank.transfer` no matter what the model "decides" - the gateway rejects the call. This is the trust-boundary pattern proven at BlackBox (resume.txt L51, L55-56; blackbox-experience.md #6, #9, #19). It also makes per-domain prompt versioning, per-domain eval, and per-domain rollback tractable.
 - **Critic in the loop, with hop + state guards.** Accepts ~600ms p95 of added latency in exchange for bounded hallucination and bounded loop length. The two-condition back-edge guard (`hop < 4` AND `state_changed`) is non-negotiable; without `state_changed`, ReAct loops can replay identical observations forever (blackbox-experience.md #18).
 - **HITL nodes are first-class graph nodes.** Not callbacks, not "pause and call back later" patterns. They write a durable checkpoint, suspend the run, and a different worker can resume after the approval webhook arrives. This is what makes "approve payment in 3 hours" survive a fleet rolling deploy. Durable execution semantics anchor on resume.txt L52-54.
 - **Memory scribe is asynchronous.** It does not sit on the critical path of `USER → USER_RESPONSE`. Memory writes can lag by seconds and are bounded by a worker pool; they retry independently. This protects p95 reply latency at the cost of slightly stale memory for the *next immediate* turn (mitigated by a thin in-request short-term cache).
-- **Tool proxy nodes are deterministic wrappers, not LLMs.** This keeps the LLM agents free of credential and routing concerns and centralizes mTLS, retry, rate-limit, and idempotency policy in one place — the gateway path is the only place where a tenant's bank token is materialized.
+- **Tool proxy nodes are deterministic wrappers, not LLMs.** This keeps the LLM agents free of credential and routing concerns and centralizes mTLS, retry, rate-limit, and idempotency policy in one place - the gateway path is the only place where a tenant's bank token is materialized.
 - **Joins are typed, named, and policy-tagged.** A `JOIN_FORECAST` with `degrade_on_partial=true` makes the contract explicit: if AR is slow but AP and PAYROLL returned, we degrade gracefully and mark the answer with `confidence=degraded`. Without that, fan-out becomes a hidden source of tail-latency amplification at 1M SMBs.
-- **Two routers between SUP and specialists.** `INTENT_ROUTER` is about *what* (rule table over structured intent); `BUDGET_ROUTER` is about *whether* (hop counter, token cost forecast, model-router budget). Separating them lets us tune cost without touching intent semantics — a meaningful decoupling at 1B+ tokens/month spend (resume.txt L55-56).
+- **Two routers between SUP and specialists.** `INTENT_ROUTER` is about *what* (rule table over structured intent); `BUDGET_ROUTER` is about *whether* (hop counter, token cost forecast, model-router budget). Separating them lets us tune cost without touching intent semantics - a meaningful decoupling at 1B+ tokens/month spend (resume.txt L55-56).
 
 ---
 
-## Layer 2 — Per-Node State and Edge Conditions
+## Layer 2 - Per-Node State and Edge Conditions
 
 Layer 1 fixed the topology, the tier hierarchy, and the version contract. Layer 2 is the per-node implementation reference: every checkpointed key with its type and durability class, every conditional/back-edge with its exact trigger expression, every join with its policy and timeout, and every HITL pause with its complete interrupt/resume contract. The checkpointing model below is the same Postgres-backed durable-execution pattern that powers `LangGraph` durable runs at BlackBox at ~10K agent runs/day (resume.txt L51-54), with the per-tenant memory persistence model from blackbox-experience.md #14 reused for `MEMORY_SCRIBE`.
 
@@ -368,7 +368,7 @@ Three durability classes are used throughout the tables below. They are graph-en
 | `run_scoped_ephemeral` | In-process map, replicated to a Redis side-cache keyed by `run_id` with 30-min TTL; **not** in checkpoint table | Single worker restart (Redis side-cache restores); replay-from-checkpoint will recompute | Loss of both worker and Redis shard; >30 min idle | Tool observations (cheap to re-fetch), partial LLM scratchpads, intermediate scores |
 | `turn_scoped` | Heap-only within one node invocation; never leaves the worker | Anything; lives microseconds–seconds | Node exit | Prompt-assembly buffers, tokenizer outputs, retry counters within one tool call |
 
-A key invariant: **`durable` is the only class that is safe to read on resume after a HITL pause or a coordinator crash.** Any consumer that reads from `run_scoped_ephemeral` after resume MUST tolerate a miss and recompute. This matches the BlackBox durable-execution contract — if it isn't checkpointed, it didn't happen (resume.txt L52-54).
+A key invariant: **`durable` is the only class that is safe to read on resume after a HITL pause or a coordinator crash.** Any consumer that reads from `run_scoped_ephemeral` after resume MUST tolerate a miss and recompute. This matches the BlackBox durable-execution contract - if it isn't checkpointed, it didn't happen (resume.txt L52-54).
 
 The checkpoint write barrier fires on node-exit by default (`write_through=true`). For HITL nodes and joins, the barrier also fires on node-entry so that the pause/aggregation point is recoverable even if the node crashes between accepting input and serializing it.
 
@@ -376,7 +376,7 @@ The checkpoint write barrier fires on node-exit by default (`write_through=true`
 
 ## 1. Per-Node State Shape
 
-Below: every node from Layer 1 with the keys it owns, types, durability class, and notes on why a key is or isn't durable. Keys are namespaced as `state.<scope>.<key>`. A few state keys are owned by the engine itself and shared across nodes (run metadata, hop counter, version pins) — these are listed once in the run-scoped global table and referenced by node tables below.
+Below: every node from Layer 1 with the keys it owns, types, durability class, and notes on why a key is or isn't durable. Keys are namespaced as `state.<scope>.<key>`. A few state keys are owned by the engine itself and shared across nodes (run metadata, hop counter, version pins) - these are listed once in the run-scoped global table and referenced by node tables below.
 
 ### 1.0 Run-Scoped Global State (owned by graph engine, readable by all nodes)
 
@@ -414,7 +414,7 @@ Below: every node from Layer 1 with the keys it owns, types, durability class, a
 
 `pii_findings` is durable because the post-response detokenizer (in OUT_GUARD) needs the same map to detokenize any user-mentioned spans that survived redaction in the answer. Losing it on a worker crash would corrupt the reply.
 
-### 1.2 `SUP` (Tier 1 — Supervisor)
+### 1.2 `SUP` (Tier 1 - Supervisor)
 
 | Key | Type | Durability | Notes |
 |---|---|---|---|
@@ -443,7 +443,7 @@ Both are stateless conditional edges in the runtime; they own no durable state o
 | `state.router.fanout_resolved` | `List<agent_id>` | durable | Effective fan-out after budget trim |
 | `state.router.degrade_reason` | string \| null | durable | E.g. `"token_budget_below_threshold"` |
 
-### 1.4 Specialist Agents (Tier 2) — common shape
+### 1.4 Specialist Agents (Tier 2) - common shape
 
 Every specialist (`AR_AGENT`, `AP_AGENT`, `PAYROLL_AGENT`, `TAX_AGENT`, `LENDER_AGENT`, `ANOMALY_AGENT`, `FCST_AGENT`) shares a common state shape under `state.agents.<agent_id>.*`:
 
@@ -526,7 +526,7 @@ Every specialist (`AR_AGENT`, `AP_AGENT`, `PAYROLL_AGENT`, `TAX_AGENT`, `LENDER_
 | `assumptions` | `List<string>` | durable | Audited; surfaced to user |
 | `forecast_engine_version` | semver | durable | Pinned for replay |
 
-### 1.5 Tool Proxies (Tier 3 — `*_TOOL_PROXY`)
+### 1.5 Tool Proxies (Tier 3 - `*_TOOL_PROXY`)
 
 Tool proxies are deterministic wrappers; they hold almost no state of their own. State is per-call and lives under `state.agents.<id>.tool_calls[i]`.
 
@@ -544,7 +544,7 @@ Tool proxies are deterministic wrappers; they hold almost no state of their own.
 | `retry_count` | int | run_scoped_ephemeral | Retries within one call; not part of audit chain |
 | `circuit_breaker_state` | enum | turn_scoped | Read from `GW` per call |
 
-The JWT itself is never written to a checkpoint — only the `kid`. This is the same secret-handling rule as the BlackBox tool gateway (blackbox-experience.md #6, #19): credentials are materialized in one place and never serialized into agent state.
+The JWT itself is never written to a checkpoint - only the `kid`. This is the same secret-handling rule as the BlackBox tool gateway (blackbox-experience.md #6, #19): credentials are materialized in one place and never serialized into agent state.
 
 #### 1.5.1 Per-Tool-Class Retry, Backoff, and Circuit-Breaker Policy
 
@@ -554,16 +554,16 @@ Tool failure handling is **classified by tool semantics**, not a single global p
 |---|---|---|---|---|---|---|---|
 | `read_idempotent_fast` | `bank.list_tx`, `gst.get_filing_status` | R | 3 | 200ms → 600ms → 1.8s (jitter ±20%) | 2s | error rate > 5% over 60s OR p99 > 4s for 2 min / probe 1 req every 30s / 5 consecutive successes | Return `tool_call.status=cached_fallback` from short-term cache if age ≤ 5 min; else `tool_call.status=tool_error`, agent degrades confidence |
 | `read_idempotent_slow` | `ledger.aggregate_pl`, `forecast.run_ml_model` | R | 2 | 1s → 5s | 30s | error rate > 10% over 5 min OR p99 > 45s / probe 1 req every 2 min / 3 successes | `tool_error`, force JOIN to `degrade_on_partial` |
-| `write_with_idempotency_key` | `payment.initiate`, `invoice.send_reminder` | W | 1 retry **only if** prior attempt returned a *retryable* class (`network_timeout`, `5xx`); never retry on `4xx` | 2s fixed | 10s | error rate > 2% over 5 min / probe DISABLED — manual close only / N/A | Saga compensation invoked (`refund_initiated_payment`, etc.); HITL alert raised; run halts with `terminal_status=compensated` |
-| `write_no_idempotency` (legacy/rare) | `email.send_marketing` (non-financial) | W | 0 | — | 5s | error rate > 5% / probe 1 req every 5 min / 3 successes | `tool_error`, agent surfaces "could not send" to user; no retry, no compensation needed (no money moved) |
-| `mutating_external_irreversible` | `lender.submit_loan_application_final` | W | 0 | — | 15s | error rate > 1% over 10 min / probe DISABLED — manual close only / N/A | Escalate to HITL immediately; never auto-retry; oncall pages |
+| `write_with_idempotency_key` | `payment.initiate`, `invoice.send_reminder` | W | 1 retry **only if** prior attempt returned a *retryable* class (`network_timeout`, `5xx`); never retry on `4xx` | 2s fixed | 10s | error rate > 2% over 5 min / probe DISABLED - manual close only / N/A | Saga compensation invoked (`refund_initiated_payment`, etc.); HITL alert raised; run halts with `terminal_status=compensated` |
+| `write_no_idempotency` (legacy/rare) | `email.send_marketing` (non-financial) | W | 0 | - | 5s | error rate > 5% / probe 1 req every 5 min / 3 successes | `tool_error`, agent surfaces "could not send" to user; no retry, no compensation needed (no money moved) |
+| `mutating_external_irreversible` | `lender.submit_loan_application_final` | W | 0 | - | 15s | error rate > 1% over 10 min / probe DISABLED - manual close only / N/A | Escalate to HITL immediately; never auto-retry; oncall pages |
 
 **Cross-cutting rules:**
 
 - All retries respect the run's remaining `dollar_budget_remaining` and `token_budget_remaining`; the proxy refuses to retry if either is < 5% of starting budget (prevents retry storms inflating cost on doomed runs).
-- The breaker is keyed `(tenant_id, tool_name)` — a single tenant DoSing a downstream cannot open the breaker for other tenants. Cross-tenant aggregate breaker exists at the gateway with a 10× higher threshold as a last-resort fuse.
+- The breaker is keyed `(tenant_id, tool_name)` - a single tenant DoSing a downstream cannot open the breaker for other tenants. Cross-tenant aggregate breaker exists at the gateway with a 10× higher threshold as a last-resort fuse.
 - Write-tool retries always reuse the same `idempotency_key`; the downstream is contractually required to return the original outcome (verified at vendor onboarding).
-- A `tool_call.status=cached_fallback` is allowed to satisfy a node's evidence requirement but is tagged `evidence_freshness=stale` on the joined output — the CRITIC downgrades confidence on any answer built from stale evidence.
+- A `tool_call.status=cached_fallback` is allowed to satisfy a node's evidence requirement but is tagged `evidence_freshness=stale` on the joined output - the CRITIC downgrades confidence on any answer built from stale evidence.
 
 ### 1.6 `JOIN_FORECAST` and `JOIN_ANSWER` (Aggregators)
 
@@ -578,9 +578,9 @@ Tool failure handling is **classified by tool semantics**, not a single global p
 | `state.joins.<join_id>.confidence_downgrade` | float [0,1] | durable | Multiplier applied to downstream confidence on degraded join |
 | `state.joins.<join_id>.partial_lock` | bytes (advisory lock token) | run_scoped_ephemeral | Prevents two workers from concurrently completing the same join |
 
-The `partial_lock` is the only ephemeral key — the join's authoritative state is fully durable so a crashed coordinator can resume aggregation by reading `received` and waiting for the remainder.
+The `partial_lock` is the only ephemeral key - the join's authoritative state is fully durable so a crashed coordinator can resume aggregation by reading `received` and waiting for the remainder.
 
-### 1.7 `EXP_LLM` (Tier 4 — Explainer)
+### 1.7 `EXP_LLM` (Tier 4 - Explainer)
 
 | Key | Type | Durability | Notes |
 |---|---|---|---|
@@ -661,7 +661,7 @@ All three HITL nodes share a shape; per-node specifics noted inline. See §4 for
 | `state.memory.status` | enum(`queued`,`running`,`completed`,`failed`) | durable | Retried independently |
 | `state.memory.retry_count` | int | durable | Backoff: 1m, 5m, 30m, dead-letter |
 
-Memory writes are durable because they are the long-lived artifact across runs — same pattern as BlackBox per-tenant agent memory (blackbox-experience.md #14). The job's *intermediate* state (e.g., embedding API client buffers) is not.
+Memory writes are durable because they are the long-lived artifact across runs - same pattern as BlackBox per-tenant agent memory (blackbox-experience.md #14). The job's *intermediate* state (e.g., embedding API client buffers) is not.
 
 ---
 
@@ -746,7 +746,7 @@ Sequential edge with one guard:
 agent.status ∈ {succeeded, degraded, failed}
 ```
 
-The edge does **not** wait for the join — it asynchronously records the contribution in `state.joins.<join_id>.received[agent_id]` and exits. The JOIN node is responsible for blocking on completion (see §3).
+The edge does **not** wait for the join - it asynchronously records the contribution in `state.joins.<join_id>.received[agent_id]` and exits. The JOIN node is responsible for blocking on completion (see §3).
 
 ### 2.6 `JOIN_ANSWER → EXP_LLM`
 
@@ -790,7 +790,7 @@ Each specialist that owns a write tool evaluates a policy predicate after produc
 | Edge | Trigger predicate (all clauses ANDed) |
 |---|---|
 | `AP_AGENT → HITL_PAYMENT` | `proposed_payment != null` AND (`proposed_payment.amount ≥ tenant.policy.payment_hitl_threshold` OR `payment_policy_decision == "require_hitl"` OR `risk_score ≥ tenant.policy.payment_risk_threshold`) |
-| `LENDER_AGENT → HITL_LOAN` | `proposed_drawdown != null` (drawdown is **always** HITL — no auto-approve path) |
+| `LENDER_AGENT → HITL_LOAN` | `proposed_drawdown != null` (drawdown is **always** HITL - no auto-approve path) |
 | `TAX_AGENT → HITL_GST_FILING` | `proposed_filing != null` (filings are **always** HITL) |
 
 Default policy thresholds (overridable per tenant):
@@ -872,7 +872,7 @@ Policies supported by the engine:
 | `timeout_at` | `fork_time + 8s` | Aligns with per-specialist 8s budget from L1 edge table |
 | `on_complete` | proceed to `FCST_AGENT` | |
 | `on_degraded` | proceed to `FCST_AGENT` with `confidence_downgrade=0.8` and `assumptions.append("AR data unavailable; used 7d trailing average")` | Forecast still useful but explicitly hedged |
-| `on_failed` (received < 2) | route to `OUT_GUARD` with canned `"I couldn't pull enough data to forecast — try again in a minute"` reply | Hard fail |
+| `on_failed` (received < 2) | route to `OUT_GUARD` with canned `"I couldn't pull enough data to forecast - try again in a minute"` reply | Hard fail |
 | `confidence propagation` | `FCST_AGENT.confidence = min(individual contributor confidences) * confidence_downgrade` | Conservative |
 | `partial fill strategy` | Missing AR → use 7d trailing average from `MEM_EP`; missing AP → use scheduled-bills-only (no flex outflows); missing PAYROLL → query `tenant.payroll_calendar` static config | Each missing input has a documented fallback so degradation is bounded, not silent |
 
@@ -894,8 +894,8 @@ Policies supported by the engine:
 When a join times out with `degrade_on_partial=true` and `|received| ≥ floor`:
 
 1. The join records `verdict=degraded` and `confidence_downgrade ∈ (0,1)`. Default downgrade is `0.5 + 0.5 * (|received|/|expected|)`, capped at `0.9`.
-2. Every still-pending child is marked `state.agents.<id>.status = abandoned` and any in-flight tool call is sent a best-effort cancellation. The tool call itself is *not* rolled back — write tools all use idempotency keys, so a late completion is safe to ignore.
-3. `state.joins.<id>.missing` is published into telemetry as a labeled counter (`join_missing_total{join_id, agent_id}`) — chronic absentees are an SLO violation, not noise.
+2. Every still-pending child is marked `state.agents.<id>.status = abandoned` and any in-flight tool call is sent a best-effort cancellation. The tool call itself is *not* rolled back - write tools all use idempotency keys, so a late completion is safe to ignore.
+3. `state.joins.<id>.missing` is published into telemetry as a labeled counter (`join_missing_total{join_id, agent_id}`) - chronic absentees are an SLO violation, not noise.
 4. Downstream consumers (`FCST_AGENT`, `EXP_LLM`) must read `confidence_downgrade` and reflect it in their output. `CRITIC`'s rubric includes a clause that penalizes answers that fail to disclose degradation.
 
 ### 3.5 Concurrency and replay safety
@@ -903,7 +903,7 @@ When a join times out with `degrade_on_partial=true` and `|received| ≥ floor`:
 Joins are checkpoint-driven, so they survive worker restarts:
 
 - A worker handling `<agent> → JOIN` writes to `state.joins.<id>.received[agent_id]` under a row-level lock on the checkpoint row. Conflict resolution is last-write-wins **only** if the digests match; otherwise the second writer aborts and emits `join_conflict_total`.
-- On worker resume from checkpoint, the join engine re-reads `received` and `expected` and re-evaluates the policy. If the policy is already satisfied (a duplicate worker), it short-circuits without re-firing the downstream edge — the `partial_lock` advisory ensures only one worker advances the join.
+- On worker resume from checkpoint, the join engine re-reads `received` and `expected` and re-evaluates the policy. If the policy is already satisfied (a duplicate worker), it short-circuits without re-firing the downstream edge - the `partial_lock` advisory ensures only one worker advances the join.
 - This is the same join semantics as the BlackBox DAG orchestration layer for parallel tool-fan-out at 10K runs/day (resume.txt L51-54).
 
 ### 3.6 Bounded fan-out
@@ -914,7 +914,7 @@ The engine enforces a hard fan-out width of `6` per fork (L1 edge table). Plans 
 
 ## 4. HITL Interrupt / Resume Contracts
 
-Every HITL pause is a **first-class graph node** with a durable checkpoint. The pause is not a callback or a "remember to come back later" pattern — the run state is serialized to Postgres, the worker is released, and a different worker can pick up the run when the approval webhook arrives. This is the durable-execution guarantee from BlackBox LangGraph runs (resume.txt L51-54): a run that pauses for 24h survives every rolling deploy, every coordinator restart, every database failover.
+Every HITL pause is a **first-class graph node** with a durable checkpoint. The pause is not a callback or a "remember to come back later" pattern - the run state is serialized to Postgres, the worker is released, and a different worker can pick up the run when the approval webhook arrives. This is the durable-execution guarantee from BlackBox LangGraph runs (resume.txt L51-54): a run that pauses for 24h survives every rolling deploy, every coordinator restart, every database failover.
 
 ### 4.1 Lifecycle (common to all HITL nodes)
 
@@ -950,7 +950,7 @@ Every HITL pause is a **first-class graph node** with a durable checkpoint. The 
 | RBAC | `approver_role ∈ {owner, co_owner}`; `accountant` can recommend but not approve payments ≥ ₹1L |
 | Timeout | 24h default; configurable per tenant |
 | On `approve` | Edge to `ACTION_EXECUTOR` with `idempotency_key` and `state.hitl.<id>.signature` carried forward |
-| On `reject` | Edge to `EXP_LLM` with `template_id="payment_rejected"`; user gets "Got it — won't pay Vendor X. Anything else?" |
+| On `reject` | Edge to `EXP_LLM` with `template_id="payment_rejected"`; user gets "Got it - won't pay Vendor X. Anything else?" |
 | On `modify` | Re-routes to `AP_AGENT` with `proposed_payment` overridden; AP re-runs policy check (a modified amount may still exceed threshold → re-enters HITL_PAYMENT with new `proposal_hash`) |
 | On `defer` | Sets `deferred_until`; engine reschedules a wake-up event; the same checkpoint resumes on wake; reminder card sent at wake |
 | On `timeout` | `decision = "timeout"`; default action = **do nothing**; route to `EXP_LLM` with `template_id="payment_timeout"` and log `hitl_timeout_total{kind=payment}` |
@@ -970,7 +970,7 @@ Every HITL pause is a **first-class graph node** with a durable checkpoint. The 
 | Timeout | 72h default; lender quote validity (`lender_quote_signature` carries its own expiry; if quote expires first, HITL auto-fails) |
 | On `approve` | Edge to `ACTION_EXECUTOR`; saga = `lender.lock_quote → lender.drawdown → bank.reconcile → notify` |
 | On `reject` | Edge to `EXP_LLM` with `template_id="loan_rejected"` |
-| On `modify` | Re-routes to `LENDER_AGENT`; new quote is fetched and a fresh HITL_LOAN is entered (NOT in-place edit — every loan term needs a fresh quote signature) |
+| On `modify` | Re-routes to `LENDER_AGENT`; new quote is fetched and a fresh HITL_LOAN is entered (NOT in-place edit - every loan term needs a fresh quote signature) |
 | On `defer` | Same as payment; reminders sent at 24h, 48h, 60h |
 | On `timeout` | `decision = "timeout"`; default = **do nothing**; quote signature reaped |
 | Audit emission | Same set + `LOAN_AGREEMENT_SIGNED` event with full term sheet on approve |
@@ -983,7 +983,7 @@ Every HITL pause is a **first-class graph node** with a durable checkpoint. The 
 | State checkpointed | `proposal = {tax_type=GST, period, form (GSTR-1/3B), total_tax, total_input_credit, net_payable, idempotency_key}`; `evidence_snapshot = {invoice_summary, expense_summary, reconciliation_status, prior_period_carries}` |
 | Human sees | App rich card with downloadable PDF preview of the filing |
 | Confidence shown | Reconciliation status (`clean / minor_discrepancy / major_discrepancy`); on `major_discrepancy`, HITL prompts owner to consult their CA before approving |
-| Valid actions | `approve`, `reject`, `defer` (no `modify` — filings are pre-computed; modifications happen by editing source data and re-running TAX_AGENT) |
+| Valid actions | `approve`, `reject`, `defer` (no `modify` - filings are pre-computed; modifications happen by editing source data and re-running TAX_AGENT) |
 | Signature | Ed25519 device key + second factor; CA proxy approval supported via delegated signature |
 | RBAC | `owner` or `accountant_with_filing_rights` |
 | Timeout | `due_date - 12h`; below that, escalation cadence accelerates (every 2h reminders) |
@@ -993,36 +993,36 @@ Every HITL pause is a **first-class graph node** with a durable checkpoint. The 
 | On `timeout` | `decision = "timeout"`; default = **do nothing**; ALSO emit `COMPLIANCE_RISK` event to tenant admin and CA; this is a higher-severity event than payment timeout |
 | Audit emission | Same set + `FILING_ACK_RECEIVED` with GSTN ARN; full filing payload archived 7 years (regulatory) |
 
-### 4.5 Resume contract — what the human can edit
+### 4.5 Resume contract - what the human can edit
 
-The human cannot edit arbitrary state — only the `state.hitl.<id>.modified_proposal` field, and only for proposal fields whitelisted per HITL kind:
+The human cannot edit arbitrary state - only the `state.hitl.<id>.modified_proposal` field, and only for proposal fields whitelisted per HITL kind:
 
 | HITL kind | Editable fields | Read-only fields |
 |---|---|---|
 | `HITL_PAYMENT` | `amount`, `value_date` | `vendor_id`, `bank_method`, `invoice_refs` |
 | `HITL_LOAN` | `principal`, `term_months` | `apr` (re-quote required), `lender_id`, `repayment_schedule` |
-| `HITL_GST_FILING` | (none — modify path disabled) | all |
+| `HITL_GST_FILING` | (none - modify path disabled) | all |
 
 A `modify` decision re-enters the originating specialist with the edited proposal. The specialist re-runs its policy check, which may:
 - Send back to HITL with the same kind and a new `proposal_hash` (e.g., modified amount still above threshold)
 - Auto-approve below threshold and route straight to `ACTION_EXECUTOR`
 - Block with a policy violation (e.g., modified principal exceeds eligibility) → route to `EXP_LLM` with `template_id="modify_rejected"`
 
-Crucially, the human's edit is treated as untrusted input — it goes back through `IN_GUARD` for injection screening before the specialist re-evaluates.
+Crucially, the human's edit is treated as untrusted input - it goes back through `IN_GUARD` for injection screening before the specialist re-evaluates.
 
 ### 4.6 Timeout, escalation, and reminder ladder
 
 | Time after HITL_REQUESTED | Action |
 |---|---|
 | `0h` | Initial card via WhatsApp + app push |
-| `+2h` | Reminder via app push only (no WhatsApp — avoid spam) |
+| `+2h` | Reminder via app push only (no WhatsApp - avoid spam) |
 | `+8h` | Reminder via WhatsApp + app push |
 | `+20h` (for 24h timeout) | Final reminder via WhatsApp + email |
 | `+24h` | Timeout fires; `decision="timeout"`; default action = no-op; user notified "we didn't hear back so we didn't act" |
 
 For `HITL_LOAN` (72h timeout): reminders at 12h, 36h, 60h, 70h. For `HITL_GST_FILING`: reminders cadence shifts based on `time_to_due_date`, every 2h in last 12h.
 
-`reminder_count` is capped at 3 even if intermediate timing windows would suggest more — chronic non-response is escalated to email + a "want us to ask your accountant?" prompt, but the user is never spammed beyond 3 push events.
+`reminder_count` is capped at 3 even if intermediate timing windows would suggest more - chronic non-response is escalated to email + a "want us to ask your accountant?" prompt, but the user is never spammed beyond 3 push events.
 
 ### 4.7 Idempotency and replay safety
 
@@ -1055,7 +1055,7 @@ Every HITL transition emits an `AuditEvent`:
 | `ts` | timestamptz | |
 | `graph_version`, `policy_version` | semver | Pinned references for replay |
 
-Audit events are written to an append-only log (`agent_audit` table, partitioned by month) with a 7-year retention for compliance. They are the source of truth for any post-hoc forensic review and for the answer to "why did the agent pay this vendor?" — a question that, at 1M SMBs, will be asked.
+Audit events are written to an append-only log (`agent_audit` table, partitioned by month) with a 7-year retention for compliance. They are the source of truth for any post-hoc forensic review and for the answer to "why did the agent pay this vendor?" - a question that, at 1M SMBs, will be asked.
 
 ---
 

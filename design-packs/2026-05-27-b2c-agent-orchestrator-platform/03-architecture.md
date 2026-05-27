@@ -1,10 +1,10 @@
-# 03 — Architecture: B2C AI Agent Orchestrator + Catalog
+# 03 - Architecture: B2C AI Agent Orchestrator + Catalog
 
 ## 1. System Overview
 
 This platform is a **B2C web application** where any consumer can author a Custom-GPT-style agent and publish it to a public catalog. An agent is the composition of five concerns: a **persona** (system prompt and behavior knobs), one or more **MCP / OAuth connectors** (Gmail, Slack, third-party MCP servers), one or more **RAG corpora** (user-uploaded documents indexed into a per-tenant vector partition), one or more **Claude-skills-syntax skill scripts** (sandboxed code in WASM), and a **memory layer** that survives across runs. Other users can browse the catalog, fork an agent (deep copy of persona, skills, connector schema; not credentials), install it under their own account, and run it with their own connector tokens and RAG corpora.
 
-The system splits cleanly along the **control plane vs data plane** boundary the user established at Microsoft Azure ML for AutoML and Fine-tuning (resume.txt:88-92, microsoft-experience.md point 8, point 11). The control plane (`OrchestratorAPI`, `CatalogAPI`) handles authoring, catalog publishing, fork, install, and credential vault writes. The data plane (`AgentRuntime`, `SkillExecutor`, `ConnectorBroker`, `RAGService`, `MemoryService`, `ModelGateway`) executes agent runs as durable, resumable DAGs — directly extending the LangGraph / ReAct runtime the user built at BlackBox for 10K+ agent runs/day (resume.txt:51-52, blackbox-experience.md points 7, 11, 12). Telemetry from every run streams into the `TelemetryMesh` → `Clickhouse` pipeline modeled on the 50M spans/day mesh the user built at BlackBox (resume.txt:58-59, blackbox-experience.md point 20).
+The system splits cleanly along the **control plane vs data plane** boundary the user established at Microsoft Azure ML for AutoML and Fine-tuning (resume.txt:88-92, microsoft-experience.md point 8, point 11). The control plane (`OrchestratorAPI`, `CatalogAPI`) handles authoring, catalog publishing, fork, install, and credential vault writes. The data plane (`AgentRuntime`, `SkillExecutor`, `ConnectorBroker`, `RAGService`, `MemoryService`, `ModelGateway`) executes agent runs as durable, resumable DAGs - directly extending the LangGraph / ReAct runtime the user built at BlackBox for 10K+ agent runs/day (resume.txt:51-52, blackbox-experience.md points 7, 11, 12). Telemetry from every run streams into the `TelemetryMesh` → `Clickhouse` pipeline modeled on the 50M spans/day mesh the user built at BlackBox (resume.txt:58-59, blackbox-experience.md point 20).
 
 ---
 
@@ -76,7 +76,7 @@ graph TD
         IngestionPipeline -->|raw doc| S3
     end
 
-    %% Telemetry — fans out from every box
+    %% Telemetry - fans out from every box
     AgentRuntime -.->|OTel spans| TelemetryMesh
     SkillExecutor -.->|exec spans| TelemetryMesh
     ConnectorBroker -.->|connector spans| TelemetryMesh
@@ -104,24 +104,24 @@ Anchored on the Azure ML separation the user co-architected (resume.txt:80, micr
 |---|---|---|---|
 | `Gateway` | Edge | TLS termination, WAF, rate limit, auth cookie → JWT exchange. Single ingress for both planes. | Connection storms during catalog launches; needs HPA on conn-count. |
 | `OrchestratorAPI` | Control | Agent CRUD, persona edits, connector OAuth callbacks, skill upload, corpus registration. Low QPS, transactional. | Burst on signup; bounded by Postgres write IOPS. |
-| `CatalogAPI` | Control | Browse, search, fork, install. Read-heavy; cache aggressively in Redis. | Hot agents (viral fork) — needs per-agent Redis caching with stampede protection. |
+| `CatalogAPI` | Control | Browse, search, fork, install. Read-heavy; cache aggressively in Redis. | Hot agents (viral fork) - needs per-agent Redis caching with stampede protection. |
 | `AgentRuntime` | Data | Executes the LangGraph DAG per run. Pulls from `RunQueue`, runs Planner → ... → Aggregator. | 10K+ runs/day target initially (blackbox-experience.md point 11); horizontal scale via pod count, durable checkpoints in Postgres. |
 | `SkillExecutor` | Data | WASM sandbox for user skill scripts. SOC-2-isolatable execution surface. | 1M+ executions/day envelope from BlackBox sandbox plane (resume.txt:49, blackbox-experience.md points 3-5). |
 | `ConnectorBroker` | Data | Proxies MCP and OAuth calls so tokens never enter `AgentRuntime` process. | Per-tenant token decryption hot path; needs token cache with KMS-bounded TTL. |
 | `MemoryService` | Data | Read/write working, episodic, semantic, procedural memory. Critical-path latency. | Read p99 must stay < 80ms; `WorkingMemory` Redis hot key risk per session. |
 | `RAGService` | Data | kNN retrieval against `Pgvector`. | HNSW index pressure on writes; resume mentions HNSW + bm25 hybrid (resume.txt:60-61). |
 | `IngestionPipeline` | Data (async) | Chunk → embed → index user-uploaded docs. Decoupled from query path. | Embedding throughput; `EmbedderTextV3` batch size + provider rate limits. |
-| `ModelGateway` | Data | Multi-provider LLM gateway, capability-aware routing — direct port of the BlackBox model router across Claude/GPT/Grok (resume.txt:55-56, blackbox-experience.md points 16-19). | 1B+ tokens/month envelope; provider rate-limit shaping. |
+| `ModelGateway` | Data | Multi-provider LLM gateway, capability-aware routing - direct port of the BlackBox model router across Claude/GPT/Grok (resume.txt:55-56, blackbox-experience.md points 16-19). | 1B+ tokens/month envelope; provider rate-limit shaping. |
 | `GuardrailService` | Data | Input/output/tool-call policy enforcement. | In-line latency budget; needs sub-30ms p99 for shadow checks. |
 | `TelemetryMesh` | Data (out-of-band) | OTel collector + span buffering before Clickhouse. | 50M spans/day target from BlackBox (resume.txt:58, blackbox-experience.md point 20); needs head + tail sampling. |
 
-The same separation the user used at Microsoft maps directly: control plane state in `Postgres`, data plane state in `Redis` + `Pgvector` + `S3`, with durable checkpoints in `Postgres` so a crashed `AgentRuntime` pod can be replaced and the run resumes — the durable-execution pattern from BlackBox (resume.txt:53-54, blackbox-experience.md points 10, 13, 15).
+The same separation the user used at Microsoft maps directly: control plane state in `Postgres`, data plane state in `Redis` + `Pgvector` + `S3`, with durable checkpoints in `Postgres` so a crashed `AgentRuntime` pod can be replaced and the run resumes - the durable-execution pattern from BlackBox (resume.txt:53-54, blackbox-experience.md points 10, 13, 15).
 
 ---
 
 ## 4. End-to-end Request Flows
 
-### Flow A — User creates an agent
+### Flow A - User creates an agent
 
 1. User opens `/builder` in browser → `Gateway` → `OrchestratorAPI POST /agents`.
 2. `OrchestratorAPI` writes a row in `Postgres.agents` with `tenant_id = user_id`, persona JSON, default model id.
@@ -171,7 +171,7 @@ sequenceDiagram
     O-->>U: saved
 ```
 
-### Flow B — User runs the agent
+### Flow B - User runs the agent
 
 1. User clicks "run" in the builder → `Gateway POST /runs` with `agent_id` + user prompt.
 2. `Gateway` enqueues a run envelope into the `Run Queue` (SQS). This is the same backpressure pattern from the AutoML 15M+ jobs/month system (resume.txt:91, microsoft-experience.md points 13, 27).
@@ -236,7 +236,7 @@ sequenceDiagram
     AR-->>TM: spans (planner, router, tool, critic, agg)
 ```
 
-### Flow C — Catalog browse and fork
+### Flow C - Catalog browse and fork
 
 1. Consumer hits `/catalog` → `Gateway` → `CatalogAPI` → Redis cache hit on hot agent list.
 2. Consumer clicks "Fork agent X" → `CatalogAPI POST /agents/{id}/fork` with consumer's auth.
@@ -328,7 +328,7 @@ Client → Route 53 (latency-based) → NLB (static IP, TLS passthrough) → ALB
 | Health check | TCP/443 every 10s, 2 failed → unhealthy | Catch ALB pod failure |
 | Idle timeout | 350s | Long SSE streams from `AgentRuntime` answers |
 | Sticky sessions | OFF | NLB is stateless; SSE pin handled at ALB layer |
-| TLS termination | Not at NLB — passthrough | Cert lives at ALB, simpler rotation |
+| TLS termination | Not at NLB - passthrough | Cert lives at ALB, simpler rotation |
 | Client IP preservation | **Proxy Protocol v2 enabled** | NLB IP-target mode behind NAT drops client IP otherwise |
 | Fail behavior | Cross-zone failover via Route 53 | Single-region launch (see §7), zonal failure handled |
 
@@ -359,7 +359,7 @@ Client → Route 53 (latency-based) → NLB (static IP, TLS passthrough) → ALB
 
 The platform launches on **EKS** (AWS-managed Kubernetes). **MetalLB is NOT used.** MetalLB is a bare-metal L2/BGP load balancer for clusters without a cloud provider's LB controller. Because EKS already integrates AWS NLB/ALB through the AWS Load Balancer Controller, layering MetalLB would add an extra hop with no benefit and would not produce a static IP that AWS connector targets accept.
 
-**What would change if we ran on-prem** (analogous to the BlackBox LangGraph deployment context, resume.txt:51-52): MetalLB in BGP mode would replace the NLB layer; an external hardware LB or HAProxy in front of MetalLB would still be required for static IP allocation and TLS termination; the ALB would be replaced by Nginx Ingress or Istio gateway. Webhook callbacks from Gmail/Slack would still require a public, allowlisted IP — typically NATted through a fixed-egress firewall.
+**What would change if we ran on-prem** (analogous to the BlackBox LangGraph deployment context, resume.txt:51-52): MetalLB in BGP mode would replace the NLB layer; an external hardware LB or HAProxy in front of MetalLB would still be required for static IP allocation and TLS termination; the ALB would be replaced by Nginx Ingress or Istio gateway. Webhook callbacks from Gmail/Slack would still require a public, allowlisted IP - typically NATted through a fixed-egress firewall.
 
 ### 6.6 Client-IP preservation
 
@@ -376,15 +376,15 @@ The platform launches on **EKS** (AWS-managed Kubernetes). **MetalLB is NOT used
 
 | Item | Launch decision | Future state |
 |---|---|---|
-| Primary region | `us-east-1` (EKS, Postgres primary, Pgvector primary, Redis primary, Clickhouse) | — |
+| Primary region | `us-east-1` (EKS, Postgres primary, Pgvector primary, Redis primary, Clickhouse) | - |
 | EU read replica | `eu-west-1` Postgres read replica for GDPR data-locality preview | Promote to active-active once write paths are conflict-free |
 | Memory replication | `MemoryService` Postgres → DMS async replication to eu-west-1; Redis is not replicated (working memory is ephemeral per run) | Active-active needs CRDT or single-writer routing |
 | RAG corpus locality | Corpus is **pinned to the user's home region** at corpus-create time; queries route to home region | Cross-region replicate explicitly only if user enables |
-| `S3` artifacts | Single bucket with Cross-Region Replication for skill scripts; user uploads stay in home region | — |
-| `Clickhouse` | Single region at launch; per-region cluster + ClickHouse Keeper later | — |
-| Catalog | Replicated read-only via Postgres logical replication to all read regions | — |
+| `S3` artifacts | Single bucket with Cross-Region Replication for skill scripts; user uploads stay in home region | - |
+| `Clickhouse` | Single region at launch; per-region cluster + ClickHouse Keeper later | - |
+| Catalog | Replicated read-only via Postgres logical replication to all read regions | - |
 
-Single-region launch keeps the durable-execution checkpoint guarantees from BlackBox (resume.txt:53-54, blackbox-experience.md point 15) — a multi-region active-active checkpoint store is a significantly harder consistency problem and is deferred.
+Single-region launch keeps the durable-execution checkpoint guarantees from BlackBox (resume.txt:53-54, blackbox-experience.md point 15) - a multi-region active-active checkpoint store is a significantly harder consistency problem and is deferred.
 
 ---
 
@@ -392,28 +392,28 @@ Single-region launch keeps the durable-execution checkpoint guarantees from Blac
 
 | Boundary | Mechanism | Anchor |
 |---|---|---|
-| `Postgres` | `tenant_id` column on every row, row-level security policy `USING (tenant_id = current_setting('app.tenant_id'))` | microsoft-experience.md point 10 — isolation strategies for LLM workloads |
+| `Postgres` | `tenant_id` column on every row, row-level security policy `USING (tenant_id = current_setting('app.tenant_id'))` | microsoft-experience.md point 10 - isolation strategies for LLM workloads |
 | `Pgvector` | Per-tenant partition: `documents_tenant_<id>` table inheriting from `documents`; HNSW index per partition | resume.txt:60 (HNSW) + microsoft-experience.md point 11 |
 | `Redis` | Key prefix `t:<tenant_id>:` on every key; Redis ACL user-per-shard with prefix scope | microsoft-experience.md point 10 |
-| `S3` | Object prefix `tenant=<id>/`; bucket policy + KMS key per high-value tenant | — |
+| `S3` | Object prefix `tenant=<id>/`; bucket policy + KMS key per high-value tenant | - |
 | `ConnectorBroker` token vault | Token encrypted with envelope encryption; DEK per `(tenant_id, agent_id)`; KMS-CMK per region | blackbox-experience.md points 5, 6 (SOC-2, multi-tenant isolation) |
 | `SkillExecutor` | One WASM instance per execution; no shared memory; resource limits per `tenant_id` quota | resume.txt:49, blackbox-experience.md points 3, 5, 6 |
 | `AgentRuntime` | Pod-shared but run-scoped context object; tenant_id flows through every node as part of the run envelope; OTel baggage carries `tenant.id` for end-to-end tracing | resume.txt:58, blackbox-experience.md point 20 |
-| `RAGService` | Query rewritten with `WHERE tenant_id = ?` before vector kNN; deny if tenant_id missing | — |
+| `RAGService` | Query rewritten with `WHERE tenant_id = ?` before vector kNN; deny if tenant_id missing | - |
 | `ModelGateway` | Per-tenant token bucket for provider quota; per-tenant prompt-hash cache to avoid cross-tenant cache pollution | resume.txt:55-56 |
 
-This is **B2C consumer-scale isolation** — not VNet-per-tenant like the Microsoft fine-tuning platform (microsoft-experience.md points 4, 11, 12). At consumer scale, namespace-level isolation in shared infrastructure is correct; VNet-per-tenant would dominate the cost structure. Enterprise upgrade path (future) reuses the same `tenant_id` flow but pins to dedicated Pgvector / Redis shards.
+This is **B2C consumer-scale isolation** - not VNet-per-tenant like the Microsoft fine-tuning platform (microsoft-experience.md points 4, 11, 12). At consumer scale, namespace-level isolation in shared infrastructure is correct; VNet-per-tenant would dominate the cost structure. Enterprise upgrade path (future) reuses the same `tenant_id` flow but pins to dedicated Pgvector / Redis shards.
 
 ---
 
 ## 9. Why This Architecture
 
-- **LangGraph + DAG + durable execution** — The `AgentRuntime` (Planner → Router → ToolCaller → Critic → Aggregator → HITL) with `Postgres` checkpoints is a direct port of the BlackBox graph workflow engine: "DAG execution, checkpointing, retry semantics enabling long-running, resumable agents" (resume.txt:53-54, blackbox-experience.md points 7-8, 12-15). The 10K+ agent runs/day envelope (resume.txt:52) tells us the per-pod active-run capacity (~50) and pod count math is realistic for a B2C-scale launch.
+- **LangGraph + DAG + durable execution** - The `AgentRuntime` (Planner → Router → ToolCaller → Critic → Aggregator → HITL) with `Postgres` checkpoints is a direct port of the BlackBox graph workflow engine: "DAG execution, checkpointing, retry semantics enabling long-running, resumable agents" (resume.txt:53-54, blackbox-experience.md points 7-8, 12-15). The 10K+ agent runs/day envelope (resume.txt:52) tells us the per-pod active-run capacity (~50) and pod count math is realistic for a B2C-scale launch.
 
-- **WASM sandbox plane for user skill scripts** — `SkillExecutor` is the BlackBox Golang-backed WASM sandbox pattern (resume.txt:49, blackbox-experience.md points 3-6). It is the right primitive for B2C: users will publish skills to the catalog, other users will fork and run them, and the WASM isolation boundary means a malicious or buggy skill cannot escape into the runtime, the connector tokens, or another tenant's memory. SOC-2 readiness from day one was the BlackBox driver and applies equally to a consumer platform handling Gmail / Slack tokens.
+- **WASM sandbox plane for user skill scripts** - `SkillExecutor` is the BlackBox Golang-backed WASM sandbox pattern (resume.txt:49, blackbox-experience.md points 3-6). It is the right primitive for B2C: users will publish skills to the catalog, other users will fork and run them, and the WASM isolation boundary means a malicious or buggy skill cannot escape into the runtime, the connector tokens, or another tenant's memory. SOC-2 readiness from day one was the BlackBox driver and applies equally to a consumer platform handling Gmail / Slack tokens.
 
-- **Control plane vs data plane separation** — From Microsoft Azure ML AutoML (resume.txt:80, 88, 91, microsoft-experience.md points 8, 11, 13). Authoring is low-QPS transactional (Postgres-backed); execution is high-QPS stateful (queue-backed, checkpointed, idempotent). Forcing them through the same backend at consumer scale would couple write latency to run latency and lock the platform out of independent scaling.
+- **Control plane vs data plane separation** - From Microsoft Azure ML AutoML (resume.txt:80, 88, 91, microsoft-experience.md points 8, 11, 13). Authoring is low-QPS transactional (Postgres-backed); execution is high-QPS stateful (queue-backed, checkpointed, idempotent). Forcing them through the same backend at consumer scale would couple write latency to run latency and lock the platform out of independent scaling.
 
-- **Multi-tenant isolation via `tenant_id` everywhere + per-tenant Pgvector partition + ConnectorBroker token vault** — Anchored on Microsoft multi-tenant secure ML infra (resume.txt:88-89, microsoft-experience.md points 7, 10, 11). The hard lesson from that platform — that isolation must flow through every layer including telemetry — is why `tenant.id` is carried in OTel baggage all the way into Clickhouse, and why `MemoryService` reads/writes never cross tenant boundaries even on the same `AgentRuntime` pod.
+- **Multi-tenant isolation via `tenant_id` everywhere + per-tenant Pgvector partition + ConnectorBroker token vault** - Anchored on Microsoft multi-tenant secure ML infra (resume.txt:88-89, microsoft-experience.md points 7, 10, 11). The hard lesson from that platform - that isolation must flow through every layer including telemetry - is why `tenant.id` is carried in OTel baggage all the way into Clickhouse, and why `MemoryService` reads/writes never cross tenant boundaries even on the same `AgentRuntime` pod.
 
-- **LLMOps telemetry mesh** — `TelemetryMesh` → `Clickhouse` is the BlackBox 50M spans/day, 2.5TB/month telemetry mesh (resume.txt:58-59, blackbox-experience.md point 20). For a B2C platform, this is also the data source for the catalog's "popularity" and "reliability" signals; running it from day one is cheaper than retrofitting.
+- **LLMOps telemetry mesh** - `TelemetryMesh` → `Clickhouse` is the BlackBox 50M spans/day, 2.5TB/month telemetry mesh (resume.txt:58-59, blackbox-experience.md point 20). For a B2C platform, this is also the data source for the catalog's "popularity" and "reliability" signals; running it from day one is cheaper than retrofitting.

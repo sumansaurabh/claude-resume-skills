@@ -1,4 +1,4 @@
-# 04 — API and Contracts: Multi-Persona AI Banker (Shared Platform)
+# 04 - API and Contracts: Multi-Persona AI Banker (Shared Platform)
 
 > Scope: External REST/SSE surface for clients (mobile, web, SME dashboard, CFO console, partner API) and internal gRPC + Kafka contracts between platform services. Persona-aware (Retail / SME / CFO), multi-tenant, auditable.
 >
@@ -26,7 +26,7 @@
 
 All paths are mounted under the tenant-scoped base `https://api.bank-ai.example.com/{tenant_slug}/v1/...`. The tenant is also asserted in the JWT claim `tnt`; if the URL slug and JWT tenant disagree the gateway returns `403 TENANT_MISMATCH`.
 
-The same shared platform serves all three personas — the orchestrator core, tool router, calculation service, policy engine, memory layer, audit, and model router are identical (the resume's LangGraph ReAct + DAG + durable execution platform handling 10K+ runs/day, resume.txt:51–54). Persona specialization is expressed at three contract points only: the auth scope set, the request/response shape extensions, and the policy/HITL behavior bound to the persona claim.
+The same shared platform serves all three personas - the orchestrator core, tool router, calculation service, policy engine, memory layer, audit, and model router are identical (the resume's LangGraph ReAct + DAG + durable execution platform handling 10K+ runs/day, resume.txt:51–54). Persona specialization is expressed at three contract points only: the auth scope set, the request/response shape extensions, and the policy/HITL behavior bound to the persona claim.
 
 ---
 
@@ -61,7 +61,7 @@ Edge auth uses **OAuth2 + OIDC** with PKCE for mobile/web SPAs and the **client_
 | `actions:approve:tier3` | Treasury / high-value | cfo treasurer |
 | `audit:read` | Query audit log | auditor role |
 
-Internal service-to-service traffic uses **mTLS over a service mesh** (Istio or Linkerd). Every gRPC call also carries the original end-user JWT in a `forwarded-auth` metadata header so downstream services can re-authorize without trusting the upstream. The Orchestrator never elevates its identity — it always executes tools, model calls, and memory writes under the calling user's effective principal so the audit log carries the right `actor_id` (resume.txt:49–50 — same WASM sandbox plane discipline applied to identity propagation).
+Internal service-to-service traffic uses **mTLS over a service mesh** (Istio or Linkerd). Every gRPC call also carries the original end-user JWT in a `forwarded-auth` metadata header so downstream services can re-authorize without trusting the upstream. The Orchestrator never elevates its identity - it always executes tools, model calls, and memory writes under the calling user's effective principal so the audit log carries the right `actor_id` (resume.txt:49–50 - same WASM sandbox plane discipline applied to identity propagation).
 
 Auth-level requirements per scope are enforced at the gateway: `actions:approve:tier3` requires `auth_level=mfa+webauthn` and a re-auth no older than 5 minutes.
 
@@ -69,7 +69,7 @@ Auth-level requirements per scope are enforced at the gateway: `actions:approve:
 
 ## 3. External REST API
 
-### 3.1 `POST /v1/sessions` — start a chat session
+### 3.1 `POST /v1/sessions` - start a chat session
 
 **Scopes:** `chat:send`. **Idempotent:** yes (`Idempotency-Key` header).
 
@@ -101,9 +101,9 @@ Response:
 
 The persona is derived server-side from the JWT `persona` claim plus the user's entitlement record; clients cannot ask for a different persona. The `policy_profile_id` is returned so the client can warn the user when policy gates change (for example, a new regulation tightens what the SME persona will execute automatically).
 
-### 3.2 `POST /v1/sessions/{id}/messages` — non-streaming send
+### 3.2 `POST /v1/sessions/{id}/messages` - non-streaming send
 
-**Scopes:** `chat:send`. **Idempotent:** yes — required.
+**Scopes:** `chat:send`. **Idempotent:** yes - required.
 
 ```http
 POST /tenant_acme_co/v1/sessions/ses_01HZK.../messages HTTP/1.1
@@ -140,7 +140,7 @@ Response (sync, simplified):
 }
 ```
 
-### 3.3 `POST /v1/sessions/{id}/messages:stream` — SSE streaming
+### 3.3 `POST /v1/sessions/{id}/messages:stream` - SSE streaming
 
 **Scopes:** `chat:send`. **Idempotent:** yes. Response is `text/event-stream`. Each event has a typed `event:` line and a JSON `data:` line.
 
@@ -159,7 +159,7 @@ Response (sync, simplified):
 
 The client must accept that an SSE stream can finish in `run.error` *after* partial `token` events; the UI is expected to show the partial reply but mark it incomplete. The server flushes a heartbeat comment every 15s to keep proxies from killing the connection.
 
-### 3.4 `GET /v1/sessions/{id}/messages` — paginated history
+### 3.4 `GET /v1/sessions/{id}/messages` - paginated history
 
 ```
 GET /tenant_acme_co/v1/sessions/ses_01HZK.../messages?cursor=eyJ...&limit=50&direction=backward
@@ -192,7 +192,7 @@ Returns a page of messages with `next_cursor` and `prev_cursor`. Each message is
 
 Body is optional; if present, may carry `reason` (`not_useful`, `already_handled`, `wrong_timing`). The dismiss reason becomes a feedback signal for the trigger evaluator's relevance score and feeds into the cooldown extension policy.
 
-### 3.7 `POST /v1/actions` — propose an action
+### 3.7 `POST /v1/actions` - propose an action
 
 **Scopes:** `actions:propose`. **Idempotent:** required.
 
@@ -243,7 +243,7 @@ Response:
 
 For multi-approver actions (CFO tier-3) the response includes `remaining_approvers` until the chain completes.
 
-### 3.9 `GET /v1/actions/{id}` — poll state
+### 3.9 `GET /v1/actions/{id}` - poll state
 
 Returns the full action record (status, approvals collected so far, execution result if executed, rollback chain, audit pointer).
 
@@ -259,7 +259,7 @@ Returns the full action record (status, approvals collected so far, execution re
 }
 ```
 
-### 3.11 `GET /v1/audit` — auditor query
+### 3.11 `GET /v1/audit` - auditor query
 
 **Scopes:** `audit:read`. Restricted by tenant. Supports filter by `actor_id`, `event_type`, `from`, `to`, `action_id`, `run_id`. Returns hash-chained entries (see `05-low-level-design.md §3` for the chain schema) so the auditor can verify tamper evidence externally.
 
@@ -437,7 +437,7 @@ message ComputeResult {
 }
 ```
 
-The Calc Service is **deterministic by construction** — it never calls an LLM. Given the same `formula_id` + input hash it produces the same output hash and stores the result in a content-addressed cache. This is the trust boundary the model is *not* allowed to cross.
+The Calc Service is **deterministic by construction** - it never calls an LLM. Given the same `formula_id` + input hash it produces the same output hash and stores the result in a content-addressed cache. This is the trust boundary the model is *not* allowed to cross.
 
 ### 7.5 Memory Service
 
@@ -533,12 +533,12 @@ Schemas are registered in a Confluent-compatible registry; producers and consume
 
 ## 9. Persona-specific contract differences
 
-The shared platform handles all three personas, but three contract surfaces differ. The differences are **declarative** — encoded in a `persona_profile` document the gateway loads at request time — so the orchestrator code path is the same.
+The shared platform handles all three personas, but three contract surfaces differ. The differences are **declarative** - encoded in a `persona_profile` document the gateway loads at request time - so the orchestrator code path is the same.
 
 | Concern | Retail | SME | CFO |
 |---------|--------|-----|-----|
 | Action shapes | Nudge-only (`type: "budget_reminder"`, `"savings_suggestion"`) | Vendor / AR / AP (`delay_vendor_payment`, `accelerate_collection`, `reclassify_expense`) | + Sub-entity, treasury (`fx_hedge`, `intercompany_transfer`, `revolver_drawdown`) |
-| Approval flow | None — all actions are user-confirmed in-chat | Single approver from `reviewer_pool` | Multi-approver chain (initiator + reviewer + treasurer) for tier-3 |
+| Approval flow | None - all actions are user-confirmed in-chat | Single approver from `reviewer_pool` | Multi-approver chain (initiator + reviewer + treasurer) for tier-3 |
 | HITL risk-tier cap | Tier-0 only (no monetary impact) | Tier-0 + tier-1 (≤ $50K) | All tiers |
 | Confidence threshold for auto | 0.70 (nudge) | 0.85 | 0.90 (auto), 0.95 for tier-2 auto |
 | Proactive event types | budget breach, salary credit | + AR/AP cycle, vendor schedule | + treasury imbalance, FX, covenant |
@@ -552,13 +552,13 @@ These differences are enforced at three points:
 2. **Policy Engine**: persona-bound rule set is loaded per request.
 3. **Context Manager**: builds the right shape (`org` block only for sme/cfo).
 
-The agent graph topology in `12-agentic-graph-structure.md` is the same — supervisor + tool-using sub-agents + critic + memory writer — with persona-specific nodes only conditionally activated.
+The agent graph topology in `12-agentic-graph-structure.md` is the same - supervisor + tool-using sub-agents + critic + memory writer - with persona-specific nodes only conditionally activated.
 
 ---
 
 ## 10. Sample request/response pairs
 
-### 10.1 Retail — chat (food spend question)
+### 10.1 Retail - chat (food spend question)
 
 Request: see §3.2 above.
 
@@ -569,7 +569,7 @@ Response (note: no action, no approval, retail keeps it simple):
   "message_id": "msg_01HZL...",
   "reply": {
     "type": "text",
-    "text": "You've spent $342.18 on food in May, which is 76% of your $450 budget. At your current pace you'll land around $440 — right under the cap.",
+    "text": "You've spent $342.18 on food in May, which is 76% of your $450 budget. At your current pace you'll land around $440 - right under the cap.",
     "rich_blocks": [
       {"type": "progress", "label": "Food MTD", "value": 342.18, "max": 450, "currency": "USD"},
       {"type": "forecast", "label": "Projected EOM", "value": 440.20, "currency": "USD"}
@@ -579,21 +579,21 @@ Response (note: no action, no approval, retail keeps it simple):
 }
 ```
 
-### 10.2 Retail — proactive insight (salary credit + savings nudge)
+### 10.2 Retail - proactive insight (salary credit + savings nudge)
 
 ```json
 {
   "insight_id": "ins_01HZSA...",
   "kind": "salary_credit_nudge",
   "severity": "info",
-  "title": "Salary credited — want to auto-move $200 to savings?",
+  "title": "Salary credited - want to auto-move $200 to savings?",
   "actions_offered": [
     {"action_id_template": "act_propose_auto_save", "params": {"amount": 200, "destination": "acct_savings_main"}}
   ]
 }
 ```
 
-### 10.3 SME — chat (cashflow question)
+### 10.3 SME - chat (cashflow question)
 
 ```json
 {
@@ -601,9 +601,9 @@ Response (note: no action, no approval, retail keeps it simple):
 }
 ```
 
-Response includes a computation citation: `tool_calls` carries `cash_runway_v3` and the response cites the deterministic calc service result (resume.txt:51–54 — durable execution lets the run be replayed without re-running the LLM).
+Response includes a computation citation: `tool_calls` carries `cash_runway_v3` and the response cites the deterministic calc service result (resume.txt:51–54 - durable execution lets the run be replayed without re-running the LLM).
 
-### 10.4 SME — action proposal + single-approver HITL
+### 10.4 SME - action proposal + single-approver HITL
 
 ```http
 POST /v1/actions
@@ -617,7 +617,7 @@ POST /v1/actions
 
 Response: 202 with `status: "pending_approval"`, `risk_tier: 2`, `reviewer_pool: ["user_cfo_assistant"]`. The reviewer's mobile app receives a push from the Notification Orchestrator and approves via `POST /v1/actions/{id}/approve` with a WebAuthn assertion. The orchestrator resumes the durable run from the `waiting_for_hitl` checkpoint, executes via the WASM sandbox (resume.txt:49–50), and writes an `action.executed` audit entry.
 
-### 10.5 CFO — chat (treasury balancing)
+### 10.5 CFO - chat (treasury balancing)
 
 ```json
 {
@@ -648,7 +648,7 @@ Reply preview:
 }
 ```
 
-### 10.6 CFO — multi-approver tier-3 action
+### 10.6 CFO - multi-approver tier-3 action
 
 ```http
 POST /v1/actions
@@ -669,8 +669,8 @@ Response: `status: "pending_approval"`, `risk_tier: 3`, `reviewer_pool: ["user_c
 | Messages / minute | per user | 30 retail, 60 sme, 120 cfo | `X-RateLimit-User-*` |
 | Actions / hour | per user | 20 sme, 60 cfo | `X-RateLimit-Actions-*` |
 | Model tokens / day | per tenant | tier-dependent | `X-Tenant-Token-Budget-*` |
-| Streaming connections | per user | 4 concurrent | — |
-| Approval polls / minute | per ticket | 12 | — |
+| Streaming connections | per user | 4 concurrent | - |
+| Approval polls / minute | per ticket | 12 | - |
 
 Quotas roll up to the tenant token budget so a single noisy user cannot starve the rest of the tenant. The Model Router enforces the token quota at chat time; exhaustion returns `TENANT_QUOTA_EXCEEDED` and the orchestrator emits a `quota.exceeded` audit entry.
 
@@ -688,4 +688,4 @@ Quotas roll up to the tenant token budget so a single noisy user cannot starve t
 
 ## 13. Summary
 
-This contract layer carries the persona-aware divergence (action shapes, approval flow, retention, channels) while keeping the **core platform identical** for all three personas — the same LangGraph durable orchestrator (resume.txt:51–54), the same model router across Claude/GPT/Grok (resume.txt:55–56), the same WASM sandbox plane for risky tool execution (resume.txt:49–50), and the same audit/HITL machinery. Internal contracts are gRPC + Kafka; external contracts are REST + SSE with mandatory idempotency, hash-chained audit, and a uniform error envelope. Implementation details follow in `05-low-level-design.md`.
+This contract layer carries the persona-aware divergence (action shapes, approval flow, retention, channels) while keeping the **core platform identical** for all three personas - the same LangGraph durable orchestrator (resume.txt:51–54), the same model router across Claude/GPT/Grok (resume.txt:55–56), the same WASM sandbox plane for risky tool execution (resume.txt:49–50), and the same audit/HITL machinery. Internal contracts are gRPC + Kafka; external contracts are REST + SSE with mandatory idempotency, hash-chained audit, and a uniform error envelope. Implementation details follow in `05-low-level-design.md`.

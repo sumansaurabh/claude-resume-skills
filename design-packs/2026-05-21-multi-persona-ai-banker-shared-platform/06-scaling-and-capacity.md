@@ -1,27 +1,27 @@
-# 06 — Scaling and Capacity
+# 06 - Scaling and Capacity
 
 > Capacity model for a Multi-Persona AI Banker (Retail / SME / CFO) on a shared, multi-tenant platform. All arithmetic is shown. Assumptions are explicitly tagged `[ASSUMPTION]`. Resume anchors are cited inline so that every scale claim has a credibility line behind it.
 >
 > **MAU baseline:** 7M Retail + 2.5M SME + 0.5M CFO = **10M MAU** `[ASSUMPTION]`.
-> **Peak factor:** 5× over rolling-24h average `[ASSUMPTION — typical for consumer fintech, with morning + lunch + EOD spikes]`.
+> **Peak factor:** 5× over rolling-24h average `[ASSUMPTION - typical for consumer fintech, with morning + lunch + EOD spikes]`.
 
 ---
 
-## 1. Capacity Model — TL;DR
+## 1. Capacity Model - TL;DR
 
 | Dimension | Average | Peak (5×) | Daily | Monthly | Resume anchor |
 |---|---:|---:|---:|---:|---|
 | Chat messages | 1,238 msg/s | **6,200 msg/s** | 107M | 3.2B | ShareChat 40M DAU real-time decisioning (`resume.txt:109-114`) |
-| Agent runs | 1,280 runs/s | **6,400 runs/s** | **550M** | 16.5B | 10K runs/day at BlackBox (`resume.txt:51-54`) — this platform is **55,000×** that baseline |
-| LLM tokens | — | — | 7.1B | **214B** | 1B tokens/month at BlackBox (`resume.txt:55-56`) — **200×** baseline |
-| Tool calls | 1,920 /s | **9,600 /s** | 830M | 25B | — |
-| Calc Service calls | 960 /s | **4,800 /s** | 415M | 12.4B | — |
-| Proactive events ingested | 100 /s | **500 /s** | 43M | 1.3B (incl. 300M txns) | — |
-| Proactive insights delivered | 30 /s | **150 /s** | 13M | 390M | — |
-| OTel spans | 12k /s | **51k /s** | **4.4B** | 132B | 50M spans/day at BlackBox (`resume.txt:58-59`) — **88×** baseline |
-| Trace storage growth | — | — | ~220 GB | ~6.6 TB | 2.5TB/month at BlackBox (`resume.txt:58-59`) |
-| Audit log entries | 250 /s | 1,250 /s | 22M | 660M | — |
-| Audit storage growth | — | — | 17 GB | 510 GB | — |
+| Agent runs | 1,280 runs/s | **6,400 runs/s** | **550M** | 16.5B | 10K runs/day at BlackBox (`resume.txt:51-54`) - this platform is **55,000×** that baseline |
+| LLM tokens | - | - | 7.1B | **214B** | 1B tokens/month at BlackBox (`resume.txt:55-56`) - **200×** baseline |
+| Tool calls | 1,920 /s | **9,600 /s** | 830M | 25B | - |
+| Calc Service calls | 960 /s | **4,800 /s** | 415M | 12.4B | - |
+| Proactive events ingested | 100 /s | **500 /s** | 43M | 1.3B (incl. 300M txns) | - |
+| Proactive insights delivered | 30 /s | **150 /s** | 13M | 390M | - |
+| OTel spans | 12k /s | **51k /s** | **4.4B** | 132B | 50M spans/day at BlackBox (`resume.txt:58-59`) - **88×** baseline |
+| Trace storage growth | - | - | ~220 GB | ~6.6 TB | 2.5TB/month at BlackBox (`resume.txt:58-59`) |
+| Audit log entries | 250 /s | 1,250 /s | 22M | 660M | - |
+| Audit storage growth | - | - | 17 GB | 510 GB | - |
 
 The headline numbers are the **214B tokens/month** and **550M agent runs/day**. Both are 50-100× the resume baselines (`resume.txt:51-56`). Section 5 explains why the agent-run number drives the entire architecture toward small-model-first routing and deterministic short-circuits.
 
@@ -36,12 +36,12 @@ Each tier corresponds to a service in `03-architecture.md`. Per-instance numbers
 | **API Gateway** (Envoy/Kong) | 6,200 msg/s + 1,200 ops/s = 7,400 req/s | 2,500 req/s | TLS + JWT + rate-limit lookup ≈ 3ms; 8 vCPU saturates around 2.5k | **6 pods** + 50% headroom = **9** | CPU (TLS) |
 | **Orchestrator (LangGraph runtime)** | 6,400 runs/s | 60 runs/s/pod | Each run holds an event loop for 1.2s avg; pod handles ~75 concurrent runs at 8 vCPU; memory bound by checkpoint serialization | **107 pods** + 30% = **140** | Memory (graph state) + checkpoint IOPS |
 | **Tool Router** | 9,600 calls/s | 4,000 calls/s | Stateless; mostly token-bucket + circuit-breaker arithmetic ≈ 1ms | **3 pods** + headroom = **5** | External API rate limits (downstream) |
-| **Calc Service** (deterministic) | 4,800 calls/s | 1,500 calls/s | Pure CPU math (NumPy/Decimal), 5ms p50 — see §7 | **4 pods** + headroom = **6** | CPU |
+| **Calc Service** (deterministic) | 4,800 calls/s | 1,500 calls/s | Pure CPU math (NumPy/Decimal), 5ms p50 - see §7 | **4 pods** + headroom = **6** | CPU |
 | **Memory Service** (session) | 30,000 ops/s (read/write) | 8,000 ops/s | Redis cluster client + serialization; one pod per shard proxy | **5 pods** | Network + Redis cluster ops |
 | **Memory Service** (long-term/vector) | 4,000 ops/s | 1,200 ops/s | Postgres + pgvector HNSW lookup ≈ 6ms | **4 pods** | Postgres IOPS |
 | **Notification Orchestrator** | 150 sends/s peak | 1,000 sends/s | Webhook + push + SMS fan-out is mostly I/O; one pod handles 1k/s easily | **2 pods** (HA pair) | Downstream APNS/FCM/SMTP |
 | **Model Router** | 6,400 LLM calls/s + retries | 800 calls/s/pod | Each pod holds ~1,000 concurrent provider HTTP connections @ 1.2s avg → 833/s | **8 pods** + 50% = **12** | Provider concurrency + egress bandwidth |
-| **Event Bus** (Kafka) | 500 events/s ingest + fan-out to 5 consumers ≈ 2,500 records/s; spans not on bus | 50k records/s/broker `[ASSUMPTION]` | Conservative — Kafka does 100k/broker easily; replication factor 3 | **3 brokers** (HA) | Disk write IOPS + replication |
+| **Event Bus** (Kafka) | 500 events/s ingest + fan-out to 5 consumers ≈ 2,500 records/s; spans not on bus | 50k records/s/broker `[ASSUMPTION]` | Conservative - Kafka does 100k/broker easily; replication factor 3 | **3 brokers** (HA) | Disk write IOPS + replication |
 | **Ingestion Pipeline** (txns, statements, market data) | 500 events/s peak | 2,000 events/s/worker | Mostly JSON parse + dedup + enrich + write to Kafka | **1 pod** + HA pair = **2** | External provider rate limits (Plaid/AA) |
 | **Observability Mesh** (OTel collector + ClickHouse) | 51k spans/s | 25k spans/s/collector | ClickHouse async insert + batching. Resume anchor: this is the **same OTel + sampling design** I ran for 50M spans/day at BlackBox (`resume.txt:58-59`) | **3 collectors** + HA = **4**; ClickHouse 6-node cluster | Disk write throughput |
 
@@ -70,18 +70,18 @@ Peak factor of 5× is consistent with the 40M DAU traffic shape I tuned at Share
 | Cost element | Quantity | Notes |
 |---|---:|---|
 | LLM call | 1 per msg | `[ASSUMPTION]` after small-model routing decisions land |
-| Prompt tokens | 1,500 | `[ASSUMPTION]` — includes system + persona + memory + RAG snippets |
+| Prompt tokens | 1,500 | `[ASSUMPTION]` - includes system + persona + memory + RAG snippets |
 | Output tokens | 500 | `[ASSUMPTION]` |
 | Tool calls | 0–3 (avg 1.5) | See §6 |
 | Context build | 1 (Memory Service read) | Session + long-term + vector recall |
 | Policy check | 1 (guardrail eval) | <2ms, in-process |
 
-### 3.3 Token spend — the elephant
+### 3.3 Token spend - the elephant
 
 - 107M msgs/day × 2,000 tokens = **214B tokens/month**.
 - Resume anchor: BlackBox routed **1B+ tokens/month** (`resume.txt:55-56`). This platform is **200× that baseline**.
 - That's not a knob you can negotiate with a model provider; it forces three design responses:
-  1. **Aggressive context optimization** — every token in the prompt earns its keep. Prompt compaction + memory-recall ranking trims ~40% prompt size (target: 1,500 → 900 tokens).
+  1. **Aggressive context optimization** - every token in the prompt earns its keep. Prompt compaction + memory-recall ranking trims ~40% prompt size (target: 1,500 → 900 tokens).
   2. **Small-model first pass.** ~70% of Retail chat is intent classification + balance lookup + simple Q&A. Route those to a 3B-class model (1/10th cost) and only escalate to the flagship model on uncertainty or sensitive action. This is the same router topology as BlackBox (`resume.txt:55-56`) but with a fatter cheap tier.
   3. **Context-block caching.** Persona system prompt + user financial snapshot is stable for ~5 minutes; cache the prefix at the provider boundary. Target ≥40% prefix cache-hit rate.
 
@@ -113,9 +113,9 @@ Peak factor of 5× is consistent with the 40M DAU traffic shape I tuned at Share
 - Trigger evaluator must handle **500 events/s peak**.
 - Fan-out per event = 1 user (events are user-scoped).
 - After cooldown filter (don't ping same user >1× per category per 24h) + priority filter + persona policy:
-  - **~30% pass through** `[ASSUMPTION based on push-notification industry funnels — anchored against ShareChat notification fan-out we ran on 40M DAU (`resume.txt:109-114`)]`.
+  - **~30% pass through** `[ASSUMPTION based on push-notification industry funnels - anchored against ShareChat notification fan-out we ran on 40M DAU (`resume.txt:109-114`)]`.
   - Peak notifications/s = 500 × 0.30 = **150 /s peak**, ~13M/day after filtering.
-  - Raw triggers per day ≈ 130M; delivered insights ≈ 13M; therefore the **10× filter ratio** is the headline KPI — it's what stops the platform from being a notification spammer.
+  - Raw triggers per day ≈ 130M; delivered insights ≈ 13M; therefore the **10× filter ratio** is the headline KPI - it's what stops the platform from being a notification spammer.
 
 ### 4.3 Notification delivery channels
 
@@ -129,7 +129,7 @@ All well within FCM/APNS per-app QPS budgets. No infra bottleneck here; the bott
 
 ---
 
-## 5. Agent Run Capacity — The Headline Number
+## 5. Agent Run Capacity - The Headline Number
 
 ### 5.1 Sources of agent runs
 
@@ -152,7 +152,7 @@ This is the single biggest scale delta in the design pack. Owning it explicitly:
 1. **Most "agent runs" are not flagship-LLM runs.** ~60% are small-model intent classifications + deterministic dispatches that never touch a tool. Counting them as "agent runs" is honest because they go through the orchestrator graph, but their cost profile is 1/30th of a real run.
 2. **Deterministic short-circuit.** For trivial questions ("what's my balance?", "what did I spend on coffee?"), the orchestrator's first node is a classifier that bypasses the rest of the graph and goes straight to Calc Service + canned template. Target ≥40% of Retail chat goes this path.
 3. **Aggressive caching.** Repeated queries on the same financial snapshot share a memo'd response within a session.
-4. **Small-model intent first.** Same routing principle as BlackBox (`resume.txt:55-56`) — cheap model gates the expensive one.
+4. **Small-model intent first.** Same routing principle as BlackBox (`resume.txt:55-56`) - cheap model gates the expensive one.
 
 ### 5.3 Run-cost stratification
 
@@ -163,7 +163,7 @@ This is the single biggest scale delta in the design pack. Owning it explicitly:
 | Full chat agent | 35% | 2,400 | 2 |
 | HITL / multi-step plan | 5% | 6,000 | 5 |
 
-Blended avg tokens/run = 0.25×0 + 0.35×600 + 0.35×2400 + 0.05×6000 = **1,350 tokens/run**. With 550M runs/day, that's 742B tokens/day **gross** before caching — caching brings it down to the §3.3 figure of ~7.1B/day.
+Blended avg tokens/run = 0.25×0 + 0.35×600 + 0.35×2400 + 0.05×6000 = **1,350 tokens/run**. With 550M runs/day, that's 742B tokens/day **gross** before caching - caching brings it down to the §3.3 figure of ~7.1B/day.
 
 ---
 
@@ -175,19 +175,19 @@ Blended avg tokens/run = 0.25×0 + 0.35×600 + 0.35×2400 + 0.05×6000 = **1,350
 
 | Tool category | Share | Peak QPS | Rate-limit risk |
 |---|---:|---:|---|
-| Calc (internal) | 50% | 4,800 /s | None — own service |
-| Account Aggregator / Plaid read | 25% | 2,400 /s | **HIGH** — provider quotas |
+| Calc (internal) | 50% | 4,800 /s | None - own service |
+| Account Aggregator / Plaid read | 25% | 2,400 /s | **HIGH** - provider quotas |
 | Memory lookup (vector + graph) | 12% | 1,150 /s | Internal (own infra) |
-| Payment rails (UPI, SEPA, ACH) | 8% | 770 /s | **HIGH** — bank API quotas |
+| Payment rails (UPI, SEPA, ACH) | 8% | 770 /s | **HIGH** - bank API quotas |
 | Market data / FX | 3% | 290 /s | Medium |
 | External knowledge / docs | 2% | 190 /s | Low |
 
-### 6.1 Bottleneck — external rate limits
+### 6.1 Bottleneck - external rate limits
 
 Plaid, Account Aggregator, and payment rails publish per-app QPS limits in the low hundreds. With 2,400/s peak demand on AA alone:
 
 - **Per-tool, per-tenant, per-user token-bucket rate limiters** in the Tool Router.
-- **Fairness queue** so a single tenant burning their share doesn't starve others (mirror of the AutoML fairness queue I ran for 15M+ jobs/month at Microsoft — `resume.txt:91-92`).
+- **Fairness queue** so a single tenant burning their share doesn't starve others (mirror of the AutoML fairness queue I ran for 15M+ jobs/month at Microsoft - `resume.txt:91-92`).
 - **Cache-aside** for read-heavy AA endpoints with 5-minute TTLs; should absorb 60% of read traffic.
 - **Pre-warmed connections** to payment rails; reject early if quota nearly exhausted (return clear 429 to orchestrator, which falls back to manual flow).
 
@@ -195,13 +195,13 @@ Plaid, Account Aggregator, and payment rails publish per-app QPS limits in the l
 
 ## 7. Calculation Service Capacity
 
-The Calc Service is the deterministic, audit-friendly half of the platform — pure CPU math, no LLM.
+The Calc Service is the deterministic, audit-friendly half of the platform - pure CPU math, no LLM.
 
 - Per-call cost ≈ **5 ms** `[ASSUMPTION]` for typical NPV/EMI/cashflow projection.
 - Peak input = 9,600 tool calls/s × 50% (Calc share from §6) = **4,800 /s**.
 - Per-pod throughput on `m8g.2xlarge` (8 vCPU): with 5ms per call and ~1.5ms framework overhead, single core handles ~150 req/s; 8 cores ≈ **1,200 req/s/pod** (allow buffer → **1,500 design ceiling**).
 - Pod count: 4,800 / 1,200 = **4 pods**; HPA up to **6** at peak with 50% headroom.
-- This is cheap — Calc is the cheapest tier per unit of work. The architectural value is correctness + auditability, not throughput.
+- This is cheap - Calc is the cheapest tier per unit of work. The architectural value is correctness + auditability, not throughput.
 - p99 SLA: **< 50 ms** even under backpressure (degrade by queueing; do not degrade by approximating math).
 
 ---
@@ -276,7 +276,7 @@ Audit chain integrity check runs nightly on the previous day's slice; full chain
 Resume anchor: I ran **50M spans/day, 2.5 TB monthly trace data on an OTel mesh** at BlackBox (`resume.txt:58-59`). The math here:
 
 - Agent runs: 6,400/s peak.
-- Spans per run: 8 avg `[ASSUMPTION]` — orchestrator + retrieval + tool calls + LLM + policy + memory + checkpoint + response.
+- Spans per run: 8 avg `[ASSUMPTION]` - orchestrator + retrieval + tool calls + LLM + policy + memory + checkpoint + response.
 - Peak spans/s = 6,400 × 8 = **51,200 /s ≈ 51k /s**.
 - Daily = **4.4 B spans/day**.
 - **88× the BlackBox baseline.** This is the second-biggest scale delta after agent runs themselves.
@@ -292,7 +292,7 @@ Resume anchor: I ran **50M spans/day, 2.5 TB monthly trace data on an OTel mesh*
 
 ---
 
-## 11. Bottleneck Table — Top 10 Ranked
+## 11. Bottleneck Table - Top 10 Ranked
 
 | # | Bottleneck | Severity | Why it bites first | Mitigation |
 |---|---|---|---|---|
@@ -317,11 +317,11 @@ The quota engine sits **inside the Tool Router** (single chokepoint = single sou
 |---|---|---|---|
 | LLM token budget | Per tenant / per day | tier-based | 2× rolling window |
 | LLM token budget | Per user / per hour | persona-based | 1.5× |
-| Tool calls — Plaid/AA | Per user / per minute | 20 | 30 |
-| Tool calls — payment rails | Per user / per day | persona-based | hard stop, no burst |
+| Tool calls - Plaid/AA | Per user / per minute | 20 | 30 |
+| Tool calls - payment rails | Per user / per day | persona-based | hard stop, no burst |
 | Agent runs | Per user / per minute | 60 (Retail), 120 (SME), 240 (CFO) | +50% |
-| Calc Service | Per tenant / per second | uncapped (cheap) | — |
-| Notifications | Per user / per category / per 24h | 1 | — |
+| Calc Service | Per tenant / per second | uncapped (cheap) | - |
+| Notifications | Per user / per category / per 24h | 1 | - |
 
 Fairness: weighted-fair-queueing on the tool router so one heavy tenant cannot drain a shared external quota. Spillover deferred to a slower queue rather than dropped.
 
@@ -329,14 +329,14 @@ Fairness: weighted-fair-queueing on the tool router so one heavy tenant cannot d
 
 ## 13. Backpressure
 
-What each tier does when overloaded (degrades gracefully — never silently breaks):
+What each tier does when overloaded (degrades gracefully - never silently breaks):
 
 | Tier | Backpressure response |
 |---|---|
 | **API Gateway** | Returns HTTP 429 with `Retry-After`; per-tenant and per-IP token buckets; circuit-breaker on downstream |
 | **Orchestrator** | Sheds optional subagents (e.g., skip "context-enrichment" node, ship a thinner answer); shortens memory window |
 | **Tool Router** | Queues with deadline; if deadline expires, surfaces `tool_unavailable` to orchestrator so it can use a fallback or ask the user |
-| **Calc Service** | Synchronous CPU degrades gracefully — queue depth grows but p99 stays <50ms; will not approximate math under load (refuses instead) |
+| **Calc Service** | Synchronous CPU degrades gracefully - queue depth grows but p99 stays <50ms; will not approximate math under load (refuses instead) |
 | **Memory Service** | Falls back from semantic recall to keyword recall when vector DB pressure rises; degrades to short-term-only memory if Postgres replicas lag |
 | **Event Bus** | Lag-aware consumers: low-priority topics (proactive event candidates) shed first; mission-critical topics (txn ingestion, audit) preserved |
 | **Notification Orchestrator** | Drops low-priority proactive sends first (cooldown extension); never drops critical alerts (fraud, breach) |
@@ -346,7 +346,7 @@ What each tier does when overloaded (degrades gracefully — never silently brea
 
 ---
 
-## 14. Growth Plan — 24-month projection
+## 14. Growth Plan - 24-month projection
 
 | Metric | Today (10M MAU) | T+12mo (20M MAU) | T+24mo (30M MAU) | Growth factor | Note |
 |---|---:|---:|---:|---:|---|
@@ -367,21 +367,21 @@ If we do nothing, the token spend grows ~5× while MAU grows 3×. With caching +
 
 ## 15. Cost Model (Rough, Monthly)
 
-All numbers are order-of-magnitude estimates `[ASSUMPTION]`. The single line that matters is **model spend** — it dwarfs everything else.
+All numbers are order-of-magnitude estimates `[ASSUMPTION]`. The single line that matters is **model spend** - it dwarfs everything else.
 
 | Line item | Monthly $ | Anchor |
 |---|---:|---|
 | **Model spend (LLM providers)** | **$2.5M – $4.0M** | 214B tokens/month × blended $12–18/M (post-routing, post-cache). 200× BlackBox at `resume.txt:55-56` |
 | Compute (m8g fleet, ~200 pods + ClickHouse + Kafka + Postgres) | $180k – $250k | Similar fleet footprint to BlackBox orchestrator (`resume.txt:51-54`) |
-| Storage — Postgres + EBS (hot audit + financial + memory) | $40k | ~10 TB hot at ~$4/GB/mo provisioned IOPS |
-| Storage — S3 (warehouse + warm audit) | $5k | ~10 TB × $0.023/GB |
-| Storage — Glacier Deep Archive (cold audit) | $1k | 40 TB × $0.00099/GB |
+| Storage - Postgres + EBS (hot audit + financial + memory) | $40k | ~10 TB hot at ~$4/GB/mo provisioned IOPS |
+| Storage - S3 (warehouse + warm audit) | $5k | ~10 TB × $0.023/GB |
+| Storage - Glacier Deep Archive (cold audit) | $1k | 40 TB × $0.00099/GB |
 | Observability (OTel + ClickHouse + dashboards) | $60k – $90k | 4 TB/month stored traces; same shape as BlackBox 2.5 TB/mo (`resume.txt:58-59`) |
 | Egress / notifications (APNS/FCM/SMS/SMTP) | $20k | 13M proactive insights/day + ~30M chat responses/day |
 | External tool calls (Plaid, AA, market data) | $50k – $100k | Per-call pricing on AA; volume-tiered |
 | **Total** | **~$2.9M – $4.5M / month** | Model spend is **~85% of the bill** |
 
-The cost story is simple: **the model bill is the company.** Every other lever — compute, storage, observability — is a rounding error against it. Architectural priorities (caching, small-model routing, deterministic short-circuit) are not engineering preferences; they're survival. This is the same lesson learned routing **1B+ tokens/month** at BlackBox (`resume.txt:55-56`), now at 200× scale.
+The cost story is simple: **the model bill is the company.** Every other lever - compute, storage, observability - is a rounding error against it. Architectural priorities (caching, small-model routing, deterministic short-circuit) are not engineering preferences; they're survival. This is the same lesson learned routing **1B+ tokens/month** at BlackBox (`resume.txt:55-56`), now at 200× scale.
 
 ---
 
@@ -397,4 +397,4 @@ The cost story is simple: **the model bill is the company.** Every other lever �
 | Multi-provider LLM routing + circuit breakers | Model router for 1B+ tokens/month (`resume.txt:55-56`) | Same pattern, fatter cheap tier |
 | OTel mesh + ClickHouse + tiered sampling | 50M spans/day OTel mesh (`resume.txt:58-59`) | Same architecture, larger cluster |
 
-Every load-bearing scale number in this design pack lands on a real number from real production systems on my resume. The 50-100× jumps are explicitly flagged with the architectural responses that make them tractable: small-model routing, deterministic short-circuit, prefix caching, sampling tiers, and per-tenant fairness. Nothing magical — just the same playbook that ran 10K agent runs and 1B tokens before, run at the next order of magnitude.
+Every load-bearing scale number in this design pack lands on a real number from real production systems on my resume. The 50-100× jumps are explicitly flagged with the architectural responses that make them tractable: small-model routing, deterministic short-circuit, prefix caching, sampling tiers, and per-tenant fairness. Nothing magical - just the same playbook that ran 10K agent runs and 1B tokens before, run at the next order of magnitude.

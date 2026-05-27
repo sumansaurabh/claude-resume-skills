@@ -2,19 +2,28 @@
 
 ## What We're Building
 
-A B2C web platform where any consumer can author an AI agent in minutes by composing four primitives — a **persona** (system prompt + voice), a set of **connectors** (MCP servers + OAuth-token integrations like Gmail and Slack), one or more **RAG corpora**, and **Claude-skills-syntax** scripts that run inside a sandboxed runtime — all backed by a **four-tier memory layer** (Working, Episodic, Semantic, Procedural). Other users browse a public **catalog**, fork agents, and run their own variants. Underneath, the platform is a durable LangGraph runtime that schedules a planner–router–tool-caller–critic loop across a model router (Claude/GPT/Gemini), serves retrievals from Pgvector + BM25, executes user scripts in a WASM sandbox, and ships every span through a Clickhouse-backed telemetry mesh. The deliberate analogy is OpenAI Custom GPTs, but with first-class memory, MCP, and skill-script execution as platform primitives rather than bolt-ons.
+A B2C web platform where any consumer can author an AI agent in minutes by composing four primitives:
+
+  - a **persona** (system prompt + voice)
+  - a set of **connectors** (MCP servers + OAuth-token integrations like Gmail, Slack, Browser and others), one or more **RAG corpora**, and 
+  - **Claude-skills-syntax** scripts that run inside a sandboxed runtime - all backed by 
+  - a **four-tier memory layer** (Working, Episodic, Semantic, Procedural). 
+
+Other users browse a public **catalog**, fork agents, and run their own variants. 
+
+Underneath, the platform is a durable LangGraph runtime that schedules a planner–router–tool-caller–critic loop across a model router (Claude/GPT/Gemini), serves retrievals from Qdrant + BM25 or Elastic Search, executes user scripts in a sandbox, and ships every span through a Clickhouse-backed telemetry mesh. The deliberate analogy is OpenAI Custom GPTs, but with first-class memory, MCP, and skill-script execution as platform primitives rather than bolt-ons.
 
 ---
 
-## Why This Design — Five Decisions That Define the Pack
+## Why This Design - Five Decisions That Define the Pack
 
-1. **LangGraph durable runtime as the substrate, not a custom orchestrator.** Every agent run is a checkpointed graph execution. State lives in Postgres (`AgentCheckpoint`), not in-memory. Crash recovery is free, time-travel debugging is free, and human-in-the-loop pause/resume is a first-class state, not a side channel. This is the direct B2C extension of the BlackBox LangGraph runtime that already handles 10K+ runs/day (`resume.txt:51-52`) and the graph workflow engine with checkpointing (`resume.txt:53-54`). The alternative — a hand-rolled state machine — was rejected in `09-tradeoffs-and-alternatives.md` because it would re-derive durability from scratch.
+1. **LangGraph durable runtime as the substrate, not a custom orchestrator.** Every agent run is a checkpointed graph execution. State lives in Postgres (`AgentCheckpoint`), not in-memory. Crash recovery is free, time-travel debugging is free, and human-in-the-loop pause/resume is a first-class state, not a side channel. This is the direct B2C extension of the BlackBox LangGraph runtime that already handles 10K+ runs/day (`resume.txt:51-52`) and the graph workflow engine with checkpointing (`resume.txt:53-54`). The alternative - a hand-rolled state machine - was rejected in `09-tradeoffs-and-alternatives.md` because it would re-derive durability from scratch.
 
-2. **WASM sandbox is the only place user code ever executes.** Skills authored in Claude-skills syntax can contain scripts. Those scripts run in a Wasmtime-based sandbox with no network egress, no filesystem, capability tokens for syscalls, and a 30-second wall clock. This is the direct lineage of the BlackBox sandbox plane (1M+ daily executions, SOC-2 ready — `resume.txt:49-50`). No container-per-script, no V8 isolate, no eval. The blast radius of a malicious or buggy skill is a single Wasmtime instance.
+2. **WASM sandbox is the only place user code ever executes.** Skills authored in Claude-skills syntax can contain scripts. Those scripts run in a Wasmtime-based sandbox with no network egress, no filesystem, capability tokens for syscalls, and a 30-second wall clock. This is the direct lineage of the BlackBox sandbox plane (1M+ daily executions, SOC-2 ready - `resume.txt:49-50`). No container-per-script, no V8 isolate, no eval. The blast radius of a malicious or buggy skill is a single Wasmtime instance.
 
 3. **MemoryService is a facade in front of four independent stores.** WorkingMemory (Redis, 8h TTL), EpisodicMemory (Postgres + S3 cold tier), SemanticMemory (Pgvector + BM25), ProceduralMemory (Postgres + version-controlled prompts). Every read goes through one service with a unified API; every write is dual-pathed through GuardrailService. This stops the "every agent reinvents its own memory" failure mode and lets us evolve the stores independently. Designed in detail in `13-memory-layer-design.md`.
 
-4. **ConnectorBroker is the sole egress path for the entire fleet.** No agent talks to Gmail, Slack, an MCP server, or any third-party API directly. Every outbound call goes through ConnectorBroker, which holds OAuth tokens in HashiCorp Vault, enforces per-user scopes, applies rate limits per (user, connector) pair, and emits an audit span to TelemetryMesh. This is the security keystone — it converts "1M users with OAuth tokens" from a distributed credential problem into a centralized credential problem. Detailed in `07-security-and-isolation.md`.
+4. **ConnectorBroker is the sole egress path for the entire fleet.** No agent talks to Gmail, Slack, an MCP server, or any third-party API directly. Every outbound call goes through ConnectorBroker, which holds OAuth tokens in HashiCorp Vault, enforces per-user scopes, applies rate limits per (user, connector) pair, and emits an audit span to TelemetryMesh. This is the security keystone - it converts "1M users with OAuth tokens" from a distributed credential problem into a centralized credential problem. Detailed in `07-security-and-isolation.md`.
 
 5. **GuardrailService sits at every input/output boundary, not just the model edge.** Prompt injection check at user input, PII redaction at RAG retrieval, output classifier before user delivery, skill manifest signing before execution, connector scope validation before egress. Five checkpoints, not one. This is informed by the BlackBox guardrails work (`resume.txt:60-61`) and detailed across the 15-point rubric in `15-guardrails.md`. Defense in depth is non-negotiable for a B2C platform where the input distribution is adversarial by default.
 
@@ -59,7 +68,7 @@ Two-anchor-minimum rule satisfied for every load-bearing claim. Assumptions (cos
 
 ---
 
-## Reading Order — Which File for Which Question
+## Reading Order - Which File for Which Question
 
 If the interviewer asks **"draw the architecture"** →
 `03-architecture.md` (full Mermaid + LB chain) then `12-agentic-graph-structure.md` (Layer 1 + Layer 2 graph).
@@ -194,7 +203,7 @@ graph TB
   class CLAUDE,GPT,GEM,GMAIL ext
 ```
 
-Five planes. Every box is a service we own (except External Models and Third-Party). Every arrow that leaves the platform passes through ConnectorBroker or ModelGateway — no exceptions. Every arrow that touches user data passes through GuardrailService at least once. This is the entire system in one picture; the rest of the pack is depth.
+Five planes. Every box is a service we own (except External Models and Third-Party). Every arrow that leaves the platform passes through ConnectorBroker or ModelGateway - no exceptions. Every arrow that touches user data passes through GuardrailService at least once. This is the entire system in one picture; the rest of the pack is depth.
 
 ---
 

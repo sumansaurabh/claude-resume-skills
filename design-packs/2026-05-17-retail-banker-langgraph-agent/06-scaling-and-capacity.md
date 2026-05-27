@@ -64,10 +64,10 @@ explain), within the 15 s NFR.
 | Compute (workers) | 60 × $5/day | $300 | $9k |
 | Checkpoint store | ~300 GB writes/day, retain 30d | $200 | $6k |
 | Trace store (ClickHouse + zstd ~10x) | ~30 GB/day net, 7y retention via tiering | $400 | $12k |
-| Core Banking reads | bank-internal, ~0 incremental | — | — |
+| Core Banking reads | bank-internal, ~0 incremental | - | - |
 | **Total** | | **~$235k/day** | **~$7M/month** |
 
-At 25M turns/day, blended cost per turn is ~$0.009 — roughly the cost of
+At 25M turns/day, blended cost per turn is ~$0.009 - roughly the cost of
 a 2-second voice IVR menu, but with a *real* answer. This is the
 load-bearing reason for tiered routing (Haiku for cheap paths) and
 prompt caching; without them, the explainer LLM alone would be
@@ -75,11 +75,11 @@ prompt caching; without them, the explainer LLM alone would be
 
 ### Cost levers (priority order)
 
-1. **Prompt caching on system prompt + tool schemas** — ~40% reduction on
+1. **Prompt caching on system prompt + tool schemas** - ~40% reduction on
    sub-agent + explainer calls. Both Anthropic and OpenAI support 5-min
    TTL caching; we keep the system+tools block stable per route.
 2. **Tiered routing.** Trivial intents (balance lookup, smalltalk) skip
-   sub-agent entirely — calculator → explainer with Haiku-class.
+   sub-agent entirely - calculator → explainer with Haiku-class.
 3. **Context compaction.** Trim transactions to top-K relevant; never
    ship raw 90-day lists to the LLM.
 4. **Result caching for idempotent queries.** "What is my balance" within
@@ -124,7 +124,7 @@ design), so noisy-neighbor effects do not cross bank boundaries.
 | 50M → 200M | LLM cost dominates 80% of P&L | Move sub-agents to in-house fine-tuned model; keep explainer on frontier model |
 | Multi-tenant (multi-bank) | first ISV bank lands | Per-bank cluster slice; per-bank policy bundle; cross-bank audit log isolation |
 
-The MAU ladder above intentionally mirrors the AutoML scale arc — 15M+
+The MAU ladder above intentionally mirrors the AutoML scale arc - 15M+
 jobs/month, 200K+ global users via AI Studio and SDK (`resume.txt`
-L91-92) — because the operational lessons (quota, isolation, growth)
+L91-92) - because the operational lessons (quota, isolation, growth)
 transferred from there.

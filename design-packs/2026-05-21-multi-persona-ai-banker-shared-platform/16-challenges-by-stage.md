@@ -1,24 +1,24 @@
-# 16 — Stage-Scoped Engineering Challenges
+# 16 - Stage-Scoped Engineering Challenges
 
-> **Methodology.** This file is a chain-of-thought enumeration of the pain this platform will inflict on the team that builds and runs it, organized by lifecycle stage. We walk **Build → Launch → Scale → Operate → Evolve**, four-to-five challenges per stage, each rated on **S/F/D** (Severity, Frequency, Difficulty A–F). We end with a Top-10 leaderboard scored as `S*3 + F*2 + D` (A=4, B=3, C=2, D=1, F=0). The exercise is deliberately pessimistic — we want a list of the places this platform will hurt *before* it hurts, so the team knows which corners deserve extra rigor on day one rather than discovering them at 3am on day 400. Every challenge is grounded in concrete components from `03-architecture.md`, `12-agentic-graph-structure.md`, `13-memory-layer-design.md`, `14-ingestion-pipeline.md`, and `15-guardrails.md` — generic "scale your cache" advice does not appear here.
+> **Methodology.** This file is a chain-of-thought enumeration of the pain this platform will inflict on the team that builds and runs it, organized by lifecycle stage. We walk **Build → Launch → Scale → Operate → Evolve**, four-to-five challenges per stage, each rated on **S/F/D** (Severity, Frequency, Difficulty A–F). We end with a Top-10 leaderboard scored as `S*3 + F*2 + D` (A=4, B=3, C=2, D=1, F=0). The exercise is deliberately pessimistic - we want a list of the places this platform will hurt *before* it hurts, so the team knows which corners deserve extra rigor on day one rather than discovering them at 3am on day 400. Every challenge is grounded in concrete components from `03-architecture.md`, `12-agentic-graph-structure.md`, `13-memory-layer-design.md`, `14-ingestion-pipeline.md`, and `15-guardrails.md` - generic "scale your cache" advice does not appear here.
 
 ---
 
-## Stage 1 — Build
+## Stage 1 - Build
 
-The platform has no users yet, but the architectural commitments made here are the ones that compound for the next three years. The challenges are not "shipping the code"; they are **defending the load-bearing invariants** — the deterministic boundary, persona-as-parameter, HITL-as-control-plane — against the daily pressure of "can't we just have the LLM do it" shortcuts.
+The platform has no users yet, but the architectural commitments made here are the ones that compound for the next three years. The challenges are not "shipping the code"; they are **defending the load-bearing invariants** - the deterministic boundary, persona-as-parameter, HITL-as-control-plane - against the daily pressure of "can't we just have the LLM do it" shortcuts.
 
 ### B1. Holding the Deterministic Boundary Under PM Pressure
 
-**What it is.** The `CalcInvoker` node and the Calculation Service are a hard wall: the LLM never produces a number that appears in a user response (`03-architecture.md` §7). The first time a PM asks "can the agent just say 'about 7 weeks of runway'?", the boundary is under attack — because letting the LLM say "about 7 weeks" is one prompt-injection away from "about 70 weeks" with no audit trail.
+**What it is.** The `CalcInvoker` node and the Calculation Service are a hard wall: the LLM never produces a number that appears in a user response (`03-architecture.md` §7). The first time a PM asks "can the agent just say 'about 7 weeks of runway'?", the boundary is under attack - because letting the LLM say "about 7 weeks" is one prompt-injection away from "about 70 weeks" with no audit trail.
 
-**Why it bites in this system specifically.** Every Specialist subagent (`CashflowForecaster`, `PayrollReadinessAgent`, `TreasuryAdvisor`) has a ToolCaller and a CalcInvoker side-by-side. The temptation to skip CalcInvoker and let the LLM "estimate" is constant — especially when the Calc Service hop adds 30–50ms. The post-validation rule (any numeric in the assistant draft that does not trace back to a `calc_results` entry triggers a regeneration) has to be wired in CI on day one, not later.
+**Why it bites in this system specifically.** Every Specialist subagent (`CashflowForecaster`, `PayrollReadinessAgent`, `TreasuryAdvisor`) has a ToolCaller and a CalcInvoker side-by-side. The temptation to skip CalcInvoker and let the LLM "estimate" is constant - especially when the Calc Service hop adds 30–50ms. The post-validation rule (any numeric in the assistant draft that does not trace back to a `calc_results` entry triggers a regeneration) has to be wired in CI on day one, not later.
 
 | S | F | D |
 |---|---|---|
 | A | B | C |
 
-**Mitigation sketch.** Land the numeric-grounding linter in CI before any Specialist ships — it parses the assistant draft for digit sequences, currency symbols, and percentage signs and asserts every match has a matching `calc_results[*].output` entry with the same value. Make the CalcInvoker contract pure-function, idempotent, schema-validated, sub-50ms p95 (same discipline as the AutoML state machine at 15M+ jobs/month, `resume.txt:91-92`). Document the rule as a Principal-level architectural law in `CLAUDE.md` and make rule violations a release-blocker, not a code-review nit.
+**Mitigation sketch.** Land the numeric-grounding linter in CI before any Specialist ships - it parses the assistant draft for digit sequences, currency symbols, and percentage signs and asserts every match has a matching `calc_results[*].output` entry with the same value. Make the CalcInvoker contract pure-function, idempotent, schema-validated, sub-50ms p95 (same discipline as the AutoML state machine at 15M+ jobs/month, `resume.txt:91-92`). Document the rule as a Principal-level architectural law in `CLAUDE.md` and make rule violations a release-blocker, not a code-review nit.
 
 ---
 
@@ -26,35 +26,35 @@ The platform has no users yet, but the architectural commitments made here are t
 
 **What it is.** The pack's strongest claim is that persona is metadata, not a code branch (`01-executive-summary.md`, `03-architecture.md` §6). In practice, the first SME-only feature will land with a sneaky `if persona == "SME"` somewhere in a Specialist, and within six months the orchestrator will have eight of them.
 
-**Why it bites in this system specifically.** The graph itself is *compiled per persona* (`12-agentic-graph-structure.md` §2) — a Retail compile literally does not contain an edge to `PayrollReadinessAgent`. But the Specialists themselves are shared code. The pressure point is the Specialist body, the Critic rule set, and the Tool Router allow-list. A creeping `if` ladder turns the graph-layer RBAC story into theatre.
+**Why it bites in this system specifically.** The graph itself is *compiled per persona* (`12-agentic-graph-structure.md` §2) - a Retail compile literally does not contain an edge to `PayrollReadinessAgent`. But the Specialists themselves are shared code. The pressure point is the Specialist body, the Critic rule set, and the Tool Router allow-list. A creeping `if` ladder turns the graph-layer RBAC story into theatre.
 
 | S | F | D |
 |---|---|---|
 | B | A | B |
 
-**Mitigation sketch.** Enforce a lint rule that bans `persona ==` / `persona in {...}` outside three explicit chokepoints: the graph compiler, the Tool Router allow-list, and the OPA policy bundle. All persona-conditional behavior must be expressed as **registered persona profiles** (tone, default time horizon, allowed_tools, risk thresholds) loaded by the `ContextManager`. Add a graph-compile diff test in CI that asserts only the registered injection points differ across persona compiles — any other source diff fails the build.
+**Mitigation sketch.** Enforce a lint rule that bans `persona ==` / `persona in {...}` outside three explicit chokepoints: the graph compiler, the Tool Router allow-list, and the OPA policy bundle. All persona-conditional behavior must be expressed as **registered persona profiles** (tone, default time horizon, allowed_tools, risk thresholds) loaded by the `ContextManager`. Add a graph-compile diff test in CI that asserts only the registered injection points differ across persona compiles - any other source diff fails the build.
 
 ---
 
 ### B3. Memory Schema and Tenant Isolation From the First Migration
 
-**What it is.** The four-tier memory layer (`13-memory-layer-design.md`) — Redis session, Postgres long-term with pgvector, ClickHouse warm + S3 cold, Neo4j org graph — has tenant isolation enforced at four different stores via four different mechanisms (Redis ACL + key prefix, Postgres RLS, ClickHouse projection filter, Neo4j per-tenant subgraph). Get the schema wrong at migration #1 and the cleanup cost is multiplied across all four stores.
+**What it is.** The four-tier memory layer (`13-memory-layer-design.md`) - Redis session, Postgres long-term with pgvector, ClickHouse warm + S3 cold, Neo4j org graph - has tenant isolation enforced at four different stores via four different mechanisms (Redis ACL + key prefix, Postgres RLS, ClickHouse projection filter, Neo4j per-tenant subgraph). Get the schema wrong at migration #1 and the cleanup cost is multiplied across all four stores.
 
-**Why it bites in this system specifically.** Cross-tenant memory leakage in a banking agent is not a P1 bug — it is a regulator-notifiable incident under DPDP and RBI. The schema has to bake `tenant_id` into every primary key, every Redis namespace, every Neo4j subgraph root, and the RLS policy has to be enforced as a default-deny `FORCE ROW LEVEL SECURITY` (not the easy-to-bypass non-FORCE variant). Most teams discover the FORCE distinction only after a near-miss.
+**Why it bites in this system specifically.** Cross-tenant memory leakage in a banking agent is not a P1 bug - it is a regulator-notifiable incident under DPDP and RBI. The schema has to bake `tenant_id` into every primary key, every Redis namespace, every Neo4j subgraph root, and the RLS policy has to be enforced as a default-deny `FORCE ROW LEVEL SECURITY` (not the easy-to-bypass non-FORCE variant). Most teams discover the FORCE distinction only after a near-miss.
 
 | S | F | D |
 |---|---|---|
 | A | C | A |
 
-**Mitigation sketch.** Write the tenant-isolation harness *first*: a pytest fixture that opens two tenant sessions and asserts every read from tenant A returns zero rows for tenant B across all four stores. Use `FORCE ROW LEVEL SECURITY` on every Postgres table (not just `ENABLE`). Lock the Redis namespace to `tenant:{tid}:persona:{persona}:*` and reject any key that does not match in a Redis Lua script wrapper. Bake the Neo4j tenant-root-node check into the driver — every Cypher query must traverse from `(:Tenant {id: $tid})` or be rejected. Borrow the Microsoft secure-multi-tenant ML discipline (`resume.txt:88-94`) that survived 200K+ users.
+**Mitigation sketch.** Write the tenant-isolation harness *first*: a pytest fixture that opens two tenant sessions and asserts every read from tenant A returns zero rows for tenant B across all four stores. Use `FORCE ROW LEVEL SECURITY` on every Postgres table (not just `ENABLE`). Lock the Redis namespace to `tenant:{tid}:persona:{persona}:*` and reject any key that does not match in a Redis Lua script wrapper. Bake the Neo4j tenant-root-node check into the driver - every Cypher query must traverse from `(:Tenant {id: $tid})` or be rejected. Borrow the Microsoft secure-multi-tenant ML discipline (`resume.txt:88-94`) that survived 200K+ users.
 
 ---
 
 ### B4. HITL State Machine That Survives Pod Loss and Days-Long Pauses
 
-**What it is.** The `HITLGate` node interrupts the run, persists state, emits `approval.requested.v1`, and resumes when an approval token arrives — which may be hours later for SME or *days* for a CFO's multi-approver chain (`12-agentic-graph-structure.md` §2.4; `03-architecture.md` §4.3). Building this correctly on day one is the difference between a recoverable run and a corrupted ledger.
+**What it is.** The `HITLGate` node interrupts the run, persists state, emits `approval.requested.v1`, and resumes when an approval token arrives - which may be hours later for SME or *days* for a CFO's multi-approver chain (`12-agentic-graph-structure.md` §2.4; `03-architecture.md` §4.3). Building this correctly on day one is the difference between a recoverable run and a corrupted ledger.
 
-**Why it bites in this system specifically.** The orchestrator is stateful per run (`03-architecture.md` §10). Checkpointing is to Postgres (5KB deltas) + S3 (50KB snapshots every N transitions). A HITL pause must survive: pod death, orchestrator deploy, Postgres failover, and idempotent resume even if the approval token is replayed. The Core Banking adapter validates the approval token against the Approval Service before any ledger mutation — but only if the orchestrator correctly resumes with the *exact* state at interrupt.
+**Why it bites in this system specifically.** The orchestrator is stateful per run (`03-architecture.md` §10). Checkpointing is to Postgres (5KB deltas) + S3 (50KB snapshots every N transitions). A HITL pause must survive: pod death, orchestrator deploy, Postgres failover, and idempotent resume even if the approval token is replayed. The Core Banking adapter validates the approval token against the Approval Service before any ledger mutation - but only if the orchestrator correctly resumes with the *exact* state at interrupt.
 
 | S | F | D |
 |---|---|---|
@@ -74,11 +74,11 @@ The platform has no users yet, but the architectural commitments made here are t
 |---|---|---|
 | B | B | B |
 
-**Mitigation sketch.** Provision seven Kafka DLQ topics (`ingestion.dlq.schema`, `.ocr`, `.embed`, `.chunk`, `.filter`, `.quota`, `.index`) before the first document ingests. Build the replay tool with per-class backoff (DLQ entries are not equally retryable — a quota fail retries cheaply, an embedding 5xx needs GPU capacity). Land the dedup gate (`sha256` + MinHash + cosine threshold) as the *last* check before pgvector write so replay can be idempotent. Mirror the durable-step pattern from BlackBox's graph engine (`resume.txt:52-54`).
+**Mitigation sketch.** Provision seven Kafka DLQ topics (`ingestion.dlq.schema`, `.ocr`, `.embed`, `.chunk`, `.filter`, `.quota`, `.index`) before the first document ingests. Build the replay tool with per-class backoff (DLQ entries are not equally retryable - a quota fail retries cheaply, an embedding 5xx needs GPU capacity). Land the dedup gate (`sha256` + MinHash + cosine threshold) as the *last* check before pgvector write so replay can be idempotent. Mirror the durable-step pattern from BlackBox's graph engine (`resume.txt:52-54`).
 
 ---
 
-## Stage 2 — Launch
+## Stage 2 - Launch
 
 Retail-first dark-launch into a small cohort, with HITL plumbing exercised even on low-risk actions for warm-up. The challenges shift from "is the architecture sound" to "do the operational seams hold under real traffic, with real ops humans on the other end of the alert."
 
@@ -100,7 +100,7 @@ Retail-first dark-launch into a small cohort, with HITL plumbing exercised even 
 
 **What it is.** Pre-launch eval suite must catch the case where the LLM bypasses CalcInvoker and asserts a balance, runway, or DTI number that does not appear in `calc_results`. Off-the-shelf eval harnesses do not test for this; you have to build it.
 
-**Why it bites in this system specifically.** Every Specialist subagent has a CalcInvoker contract and a post-validation rule, but the eval suite has to *adversarially probe* the LLM to bypass it — prompts that frame numbers as narrative ("the user has roughly 23K dirhams"), prompts that re-introduce numbers in the persona-adapter re-toning step, prompts that smuggle numbers through KB-retrieved chunks. The LLMOps mesh (`resume.txt:58-59`) gives us the replay surface, but the *eval set* has to be hand-curated and grown weekly.
+**Why it bites in this system specifically.** Every Specialist subagent has a CalcInvoker contract and a post-validation rule, but the eval suite has to *adversarially probe* the LLM to bypass it - prompts that frame numbers as narrative ("the user has roughly 23K dirhams"), prompts that re-introduce numbers in the persona-adapter re-toning step, prompts that smuggle numbers through KB-retrieved chunks. The LLMOps mesh (`resume.txt:58-59`) gives us the replay surface, but the *eval set* has to be hand-curated and grown weekly.
 
 | S | F | D |
 |---|---|---|
@@ -126,7 +126,7 @@ Retail-first dark-launch into a small cohort, with HITL plumbing exercised even 
 
 ### L4. Regulatory Pre-Launch Sign-Off with Replay as the Evidence Pack
 
-**What it is.** RBI / DPDP / SOC-2 pre-launch review will ask "show me ten arbitrary decisions and explain why the system did what it did." The answer is the LLMOps mesh's deterministic replay (`resume.txt:58-59`) — but only if it actually replays cleanly on day one.
+**What it is.** RBI / DPDP / SOC-2 pre-launch review will ask "show me ten arbitrary decisions and explain why the system did what it did." The answer is the LLMOps mesh's deterministic replay (`resume.txt:58-59`) - but only if it actually replays cleanly on day one.
 
 **Why it bites in this system specifically.** Replay requires every span (`run_id`, `tenant_id`, `persona`, `node_id`) plus every Calc Service input/output, every retrieved chunk, every model-router decision, every policy verdict. Missing one of those breaks the replay story and the regulator notices. The 50M-spans/day mesh built at BlackBox already proved this works at scale; here it has to work from span #1.
 
@@ -148,11 +148,11 @@ Retail-first dark-launch into a small cohort, with HITL plumbing exercised even 
 |---|---|---|
 | B | A | C |
 
-**Mitigation sketch.** Write one runbook per page source before launch (16 docs, each with: symptoms, dashboards, top three causes, mitigations, rollback). Use the supervisor backpressure ladder as the auto-mitigation for orchestrator overload — page only at the third rung. Tier alerts: P1 (money moved incorrectly), P2 (user-visible degradation), P3 (eventually-consistent backlog). No P3 pages during launch month — they go to a queue. Borrow the 60% MTTR cut discipline from the BlackBox LLMOps mesh (`resume.txt:58-59`).
+**Mitigation sketch.** Write one runbook per page source before launch (16 docs, each with: symptoms, dashboards, top three causes, mitigations, rollback). Use the supervisor backpressure ladder as the auto-mitigation for orchestrator overload - page only at the third rung. Tier alerts: P1 (money moved incorrectly), P2 (user-visible degradation), P3 (eventually-consistent backlog). No P3 pages during launch month - they go to a queue. Borrow the 60% MTTR cut discipline from the BlackBox LLMOps mesh (`resume.txt:58-59`).
 
 ---
 
-## Stage 3 — Scale
+## Stage 3 - Scale
 
 From launch cohort to 1M MAU, then 10M. Throughput bottlenecks emerge in predictable places (pgvector, model router, Redis session memory) and unpredictable ones (Kafka partition skew, HITL queue tail latency, observability ingest backpressure). Cost control is now a board-level conversation.
 
@@ -188,13 +188,13 @@ From launch cohort to 1M MAU, then 10M. Throughput bottlenecks emerge in predict
 
 **What it is.** When a user switches persona (SME → Retail, common at end-of-day), the platform ends the SME session and opens a new Retail session, which rehydrates from the Retail Redis shard. Mass persona switches (a payroll-day burst across SME tenants) hot-spot the Retail rehydration shard.
 
-**Why it bites in this system specifically.** Persona switches are session boundaries by design (`03-architecture.md` §11) — we *cannot* blend Retail and SME context. That choice is correct for regulators but bad for Redis: every switch forces a fresh session-key creation under the persona-namespaced prefix `tenant:{tid}:persona:{persona}:session:{sid}`. At end-of-month payroll day, 100K+ SME owners flip to Retail to check their personal accounts, all within 30 minutes.
+**Why it bites in this system specifically.** Persona switches are session boundaries by design (`03-architecture.md` §11) - we *cannot* blend Retail and SME context. That choice is correct for regulators but bad for Redis: every switch forces a fresh session-key creation under the persona-namespaced prefix `tenant:{tid}:persona:{persona}:session:{sid}`. At end-of-month payroll day, 100K+ SME owners flip to Retail to check their personal accounts, all within 30 minutes.
 
 | S | F | D |
 |---|---|---|
 | C | B | C |
 
-**Mitigation sketch.** Run Redis Cluster with `{tenant_id}` as the hash tag (curly-brace constraint) so a tenant's keys colocate, but spread tenants across slots via a consistent-hash that weights by historical session-open rate. Pre-warm the Retail Redis shard with a templated session payload on persona switch via a Lua script — single round-trip, atomic. Add per-shard rate limiters to fail-soft to "ephemeral session, no memory" rather than queuing.
+**Mitigation sketch.** Run Redis Cluster with `{tenant_id}` as the hash tag (curly-brace constraint) so a tenant's keys colocate, but spread tenants across slots via a consistent-hash that weights by historical session-open rate. Pre-warm the Retail Redis shard with a templated session payload on persona switch via a Lua script - single round-trip, atomic. Add per-shard rate limiters to fail-soft to "ephemeral session, no memory" rather than queuing.
 
 ---
 
@@ -202,7 +202,7 @@ From launch cohort to 1M MAU, then 10M. Throughput bottlenecks emerge in predict
 
 **What it is.** Kafka topics are partitioned by `tenant_id` for ordering guarantees (`03-architecture.md` §10). A whale tenant with 100× the average event rate fills its partition while neighbours sit idle; the consumer group is bottlenecked on that one partition.
 
-**Why it bites in this system specifically.** Domain events (`txn.posted`, `balance.changed`) flow through MSK to the Trigger Evaluator, ingestion pipeline, and audit. A whale CFO tenant with high-frequency treasury operations can push one partition to 80MB/s while peers are at 800KB/s. The Trigger Evaluator's consumer lag becomes per-tenant — fine for peers, catastrophic for the whale (proactive nudges fire 20min late).
+**Why it bites in this system specifically.** Domain events (`txn.posted`, `balance.changed`) flow through MSK to the Trigger Evaluator, ingestion pipeline, and audit. A whale CFO tenant with high-frequency treasury operations can push one partition to 80MB/s while peers are at 800KB/s. The Trigger Evaluator's consumer lag becomes per-tenant - fine for peers, catastrophic for the whale (proactive nudges fire 20min late).
 
 | S | F | D |
 |---|---|---|
@@ -214,7 +214,7 @@ From launch cohort to 1M MAU, then 10M. Throughput bottlenecks emerge in predict
 
 ### S5. Observability Ingest Backpressure at 50M+ Spans/Day
 
-**What it is.** At 10M MAU each producing ~5 spans per chat turn × ~3 turns/day × specialist fan-out = >150M spans/day. The mesh ingest can backpressure into the orchestrator, raising p95 latency or dropping spans silently — which kills the replay story (L4) for regulator audits.
+**What it is.** At 10M MAU each producing ~5 spans per chat turn × ~3 turns/day × specialist fan-out = >150M spans/day. The mesh ingest can backpressure into the orchestrator, raising p95 latency or dropping spans silently - which kills the replay story (L4) for regulator audits.
 
 **Why it bites in this system specifically.** The BlackBox mesh handled 50M/day (`resume.txt:58-59`); we are sized for 3× that. OTel exporters with buffered queues drop on overflow by default. A dropped Calc Service span is a regulator-grade defect because replay can no longer reconstruct the run.
 
@@ -222,7 +222,7 @@ From launch cohort to 1M MAU, then 10M. Throughput bottlenecks emerge in predict
 |---|---|---|
 | A | C | B |
 
-**Mitigation sketch.** Run OTel collector with a persistent-queue backend (Kafka, not in-memory) so backpressure flows to disk rather than drop. Tier spans by criticality: **must-keep** (`calc_provenance`, `policy_decision`, `tool_call`, `model_router_choice`) are never dropped; **best-effort** (planner deliberation, low-level retries) drop first under pressure. Audit the drop rate per tier weekly; any must-keep drop triggers P1 paging. Scale ClickHouse + OpenSearch hot tier with predicted-volume headroom of 2.5× rather than 1.5× — the cost is small relative to a missed audit.
+**Mitigation sketch.** Run OTel collector with a persistent-queue backend (Kafka, not in-memory) so backpressure flows to disk rather than drop. Tier spans by criticality: **must-keep** (`calc_provenance`, `policy_decision`, `tool_call`, `model_router_choice`) are never dropped; **best-effort** (planner deliberation, low-level retries) drop first under pressure. Audit the drop rate per tier weekly; any must-keep drop triggers P1 paging. Scale ClickHouse + OpenSearch hot tier with predicted-volume headroom of 2.5× rather than 1.5× - the cost is small relative to a missed audit.
 
 ---
 
@@ -230,7 +230,7 @@ From launch cohort to 1M MAU, then 10M. Throughput bottlenecks emerge in predict
 
 **What it is.** As volume grows, the HITL queue depth grows linearly while reviewer headcount grows step-wise. Tail latency (p99) for medium-risk approvals creeps from 4min to 40min before anyone notices, and SME owners start abandoning approval flows.
 
-**Why it bites in this system specifically.** The Approval Service is stateful Postgres (`03-architecture.md` §10) with vertical-first scaling. The `ApprovalCoordinator` Specialist's multi-step approval flows compound — a CFO action with three approvers means three queue waits in series. The proactive nudge fatigue limits make it hard to surface "you have a pending approval" reminders aggressively.
+**Why it bites in this system specifically.** The Approval Service is stateful Postgres (`03-architecture.md` §10) with vertical-first scaling. The `ApprovalCoordinator` Specialist's multi-step approval flows compound - a CFO action with three approvers means three queue waits in series. The proactive nudge fatigue limits make it hard to surface "you have a pending approval" reminders aggressively.
 
 | S | F | D |
 |---|---|---|
@@ -240,21 +240,21 @@ From launch cohort to 1M MAU, then 10M. Throughput bottlenecks emerge in predict
 
 ---
 
-## Stage 4 — Operate
+## Stage 4 - Operate
 
-Steady state at 10M MAU. The questions shift from "can we handle the load" to "can we handle the *anomalies* without burning out the team." This stage is where the platform's observability investment pays back — or doesn't.
+Steady state at 10M MAU. The questions shift from "can we handle the load" to "can we handle the *anomalies* without burning out the team." This stage is where the platform's observability investment pays back - or doesn't.
 
 ### O1. Hallucination Triage Without a Backlog
 
 **What it is.** Even with the CalcInvoker boundary and the numeric-grounding eval, ~0.05% of responses will have a hallucination-flavored complaint (wrong rationale, fabricated counterparty, misattributed memory). At 10M MAU × 3 chats/day = 30M chats/day, that is 15K flagged conversations weekly. Triage cannot be one-by-one.
 
-**Why it bites in this system specifically.** The replay infra (`resume.txt:58-59`) lets us reconstruct any single run, but triage at scale needs *clustering* — group complaints by retrieved-chunk fingerprint, by model+prompt-template signature, by Specialist+intent pair. Without clustering, the team plays whack-a-mole and the same root cause re-fires monthly.
+**Why it bites in this system specifically.** The replay infra (`resume.txt:58-59`) lets us reconstruct any single run, but triage at scale needs *clustering* - group complaints by retrieved-chunk fingerprint, by model+prompt-template signature, by Specialist+intent pair. Without clustering, the team plays whack-a-mole and the same root cause re-fires monthly.
 
 | S | F | D |
 |---|---|---|
 | B | A | B |
 
-**Mitigation sketch.** Build a hallucination-triage pipeline that consumes flagged conversations and emits clusters keyed by (Specialist, intent, model, top-3 retrieved-chunk IDs, policy-bundle version). Surface the top-10 clusters weekly with one-click drilldown to the replay. Mitigation routes: prompt-template edit, retrieval-filter tweak, OPA bundle update, model swap — each with its own rollback path. Borrow the 60% MTTR-cut pattern from BlackBox's LLMOps mesh (`resume.txt:58-59`).
+**Mitigation sketch.** Build a hallucination-triage pipeline that consumes flagged conversations and emits clusters keyed by (Specialist, intent, model, top-3 retrieved-chunk IDs, policy-bundle version). Surface the top-10 clusters weekly with one-click drilldown to the replay. Mitigation routes: prompt-template edit, retrieval-filter tweak, OPA bundle update, model swap - each with its own rollback path. Borrow the 60% MTTR-cut pattern from BlackBox's LLMOps mesh (`resume.txt:58-59`).
 
 ---
 
@@ -262,7 +262,7 @@ Steady state at 10M MAU. The questions shift from "can we handle the load" to "c
 
 **What it is.** The `ProactiveAuthor` Specialist drafts nudges from trigger events (balance dip, payroll T-3, FX move). A false positive (nudging a user about a "shortfall" that is actually expected) erodes trust faster than a missed nudge. At 10M MAU, even a 1% false-positive rate is 100K disgruntled users monthly.
 
-**Why it bites in this system specifically.** The trigger evaluator runs deterministic rules (`03-architecture.md` §4.2), but the *deterministic rule itself* may be wrong (e.g., not knowing the user always tops up on Friday). The cooldown gate prevents spam but not wrongness. Persona-aware fatigue limits exist; persona-aware *truthiness* checks do not — yet.
+**Why it bites in this system specifically.** The trigger evaluator runs deterministic rules (`03-architecture.md` §4.2), but the *deterministic rule itself* may be wrong (e.g., not knowing the user always tops up on Friday). The cooldown gate prevents spam but not wrongness. Persona-aware fatigue limits exist; persona-aware *truthiness* checks do not - yet.
 
 | S | F | D |
 |---|---|---|
@@ -274,15 +274,15 @@ Steady state at 10M MAU. The questions shift from "can we handle the load" to "c
 
 ### O3. Persona Misresolution and the Cross-Persona Blame Vortex
 
-**What it is.** The Persona Resolver uses a three-signal vote (user choice, URL prefix, token claim) and returns the *intersection* on conflict (`03-architecture.md` §11). Edge cases — an SME owner using a Retail mobile app while logged in via SSO from their work IdP — surface as the agent responding in the wrong tone with the wrong tools available, generating support tickets.
+**What it is.** The Persona Resolver uses a three-signal vote (user choice, URL prefix, token claim) and returns the *intersection* on conflict (`03-architecture.md` §11). Edge cases - an SME owner using a Retail mobile app while logged in via SSO from their work IdP - surface as the agent responding in the wrong tone with the wrong tools available, generating support tickets.
 
-**Why it bites in this system specifically.** Multi-persona users are common in MENA SMB and the platform is designed for them. The resolver's intersection-on-conflict is the safe default, but the user experience of "you asked an SME question and got a Retail answer" looks like a bug even when it is policy. The cross-persona memory boundary (intentionally narrow per the pack's tradeoff statement) makes it worse — the agent does not even know the user has an SME identity.
+**Why it bites in this system specifically.** Multi-persona users are common in MENA SMB and the platform is designed for them. The resolver's intersection-on-conflict is the safe default, but the user experience of "you asked an SME question and got a Retail answer" looks like a bug even when it is policy. The cross-persona memory boundary (intentionally narrow per the pack's tradeoff statement) makes it worse - the agent does not even know the user has an SME identity.
 
 | S | F | D |
 |---|---|---|
 | C | B | D |
 
-**Mitigation sketch.** When the resolver returns an intersection (i.e., conflict detected), inject a one-line clarifier into the assistant's first turn: "I see you have both Retail and SME access — I'm answering from your Retail context on this surface; switch personas in the menu if you meant SME." Audit-log every intersection event. Build a persona-mismatch detector that flags conversations where the user's question intent clearly belongs to a persona other than the one resolved, and surface to product weekly.
+**Mitigation sketch.** When the resolver returns an intersection (i.e., conflict detected), inject a one-line clarifier into the assistant's first turn: "I see you have both Retail and SME access - I'm answering from your Retail context on this surface; switch personas in the menu if you meant SME." Audit-log every intersection event. Build a persona-mismatch detector that flags conversations where the user's question intent clearly belongs to a persona other than the one resolved, and surface to product weekly.
 
 ---
 
@@ -302,7 +302,7 @@ Steady state at 10M MAU. The questions shift from "can we handle the load" to "c
 
 ### O5. Replay-Based Debugging When the Model Version Has Changed
 
-**What it is.** A user complains about a response from 5 days ago. The team replays — but the model router has since promoted Claude N+1, and the replay gives a different answer. Now the debug is two-headed: was the original wrong, or is the replay just different?
+**What it is.** A user complains about a response from 5 days ago. The team replays - but the model router has since promoted Claude N+1, and the replay gives a different answer. Now the debug is two-headed: was the original wrong, or is the replay just different?
 
 **Why it bites in this system specifically.** The model router (`resume.txt:55-56`) versions providers and the OPA bundle versions policies, but the *model weights* are opaque. Anthropic / OpenAI / xAI version bumps happen weekly. The replay needs to **pin the exact model snapshot** at the time of the original call, not the current default.
 
@@ -328,7 +328,7 @@ Steady state at 10M MAU. The questions shift from "can we handle the load" to "c
 
 ---
 
-## Stage 5 — Evolve
+## Stage 5 - Evolve
 
 CFO persona launches after SME has stabilized. New jurisdictions, new tools, new regulators. The graph compiles diverge further; backward-compatibility across in-flight HITL approvals becomes a real concern; deprecating a tool that 3% of users still call requires a careful migration.
 
@@ -342,15 +342,15 @@ CFO persona launches after SME has stabilized. New jurisdictions, new tools, new
 |---|---|---|
 | A | C | A |
 
-**Mitigation sketch.** Treat the graph as a **versioned artifact**: every compiled graph carries an immutable `graph_version`; every checkpoint records the version; resume always loads the version the checkpoint was written against, even if no longer the default. Keep the last 3 graph versions live in the orchestrator process. Forbid in-place node renumbering — node IDs are append-only. Run a chaos test that deploys `v1.8` while 1000 runs are paused at HITLGate under `v1.7` and asserts every one resumes correctly.
+**Mitigation sketch.** Treat the graph as a **versioned artifact**: every compiled graph carries an immutable `graph_version`; every checkpoint records the version; resume always loads the version the checkpoint was written against, even if no longer the default. Keep the last 3 graph versions live in the orchestrator process. Forbid in-place node renumbering - node IDs are append-only. Run a chaos test that deploys `v1.8` while 1000 runs are paused at HITLGate under `v1.7` and asserts every one resumes correctly.
 
 ---
 
 ### E2. A/B-ing a New Policy Bundle Without Disparate-Impact Risk
 
-**What it is.** A new OPA policy bundle (e.g., tightening cross-border thresholds for CFO) needs canary rollout. But policy decisions affect what actions humans can take — disparate impact across tenants is both a fairness and regulatory concern.
+**What it is.** A new OPA policy bundle (e.g., tightening cross-border thresholds for CFO) needs canary rollout. But policy decisions affect what actions humans can take - disparate impact across tenants is both a fairness and regulatory concern.
 
-**Why it bites in this system specifically.** Policy bundles are signed and loaded from S3 with a 5-min TTL (`15-guardrails.md`). The platform supports canary (some tenants on new bundle, others on old) but the *measurement* of canary impact is non-trivial — you cannot just compare conversion rates because tenant mix differs. Regulators will ask "why did tenant A get a different decision than tenant B for the same action."
+**Why it bites in this system specifically.** Policy bundles are signed and loaded from S3 with a 5-min TTL (`15-guardrails.md`). The platform supports canary (some tenants on new bundle, others on old) but the *measurement* of canary impact is non-trivial - you cannot just compare conversion rates because tenant mix differs. Regulators will ask "why did tenant A get a different decision than tenant B for the same action."
 
 | S | F | D |
 |---|---|---|
@@ -378,7 +378,7 @@ CFO persona launches after SME has stabilized. New jurisdictions, new tools, new
 
 **What it is.** A new RBI circular drops; ingest pipeline starts processing. If the chunker emits 100K low-quality chunks from a poorly formatted PDF, retrieval quality degrades for every tenant whose policy questions were previously answered well.
 
-**Why it bites in this system specifically.** The ingestion pipeline (`14-ingestion-pipeline.md`) uses structure-aware chunking and a dedup gate, but a new document class (a new circular template) may bypass dedup (no near-duplicate exists yet) and degrade recall (chunks are too long, or section headers leak into chunk bodies). The KB serves all tenants from shared pgvector indexes (S1) — one bad ingest hits everyone.
+**Why it bites in this system specifically.** The ingestion pipeline (`14-ingestion-pipeline.md`) uses structure-aware chunking and a dedup gate, but a new document class (a new circular template) may bypass dedup (no near-duplicate exists yet) and degrade recall (chunks are too long, or section headers leak into chunk bodies). The KB serves all tenants from shared pgvector indexes (S1) - one bad ingest hits everyone.
 
 | S | F | D |
 |---|---|---|
@@ -390,7 +390,7 @@ CFO persona launches after SME has stabilized. New jurisdictions, new tools, new
 
 ### E5. Cross-Region Replication When the Second Region Lights Up
 
-**What it is.** Going from single-region to multi-region (e.g., adding an EU footprint for GDPR-residency CFO clients) means replicating Postgres, Redis, pgvector, ClickHouse, Neo4j, and Kafka — each with different consistency semantics. Done wrong, a tenant's data ends up in the wrong region.
+**What it is.** Going from single-region to multi-region (e.g., adding an EU footprint for GDPR-residency CFO clients) means replicating Postgres, Redis, pgvector, ClickHouse, Neo4j, and Kafka - each with different consistency semantics. Done wrong, a tenant's data ends up in the wrong region.
 
 **Why it bites in this system specifically.** Memory layer isolation is per-tenant (`13-memory-layer-design.md`), but residency is per-region. A tenant flagged as `region=EU` must have *all* memory writes go to EU stores; the cross-region replication topology has to enforce this at the storage layer, not the application layer. One misrouted write is a GDPR violation.
 
@@ -406,7 +406,7 @@ CFO persona launches after SME has stabilized. New jurisdictions, new tools, new
 
 **What it is.** CFO launch adds N-of-M multi-approver workflows (e.g., 2-of-3 board approval for >5M AED treasury moves). The Approval Service schema grows new columns. SME flows that were single-approver must still work without migration.
 
-**Why it bites in this system specifically.** The `ApprovalCoordinator` Specialist drives both flows; the Approval Service stores both. A schema change without backward-compat strands SME approvals in-flight. The HITL audit log (immutable, append-only) means migrations are forward-only — you cannot rewrite history.
+**Why it bites in this system specifically.** The `ApprovalCoordinator` Specialist drives both flows; the Approval Service stores both. A schema change without backward-compat strands SME approvals in-flight. The HITL audit log (immutable, append-only) means migrations are forward-only - you cannot rewrite history.
 
 | S | F | D |
 |---|---|---|
@@ -433,7 +433,7 @@ Scoring: `S*3 + F*2 + D` with A=4, B=3, C=2, D=1, F=0. Max possible = 24.
 | 9 | **B2. Persona-as-Parameter Without Becoming Persona-as-Fork** | Build | B | A | B | 3*3 + 4*2 + 3 = **20** | Constant daily pressure; very high frequency; once it forks, refactor cost grows linearly with Specialists. |
 | 10 | **S6. HITL Queue Tail Latency as Product Bottleneck** | Scale | B | A | C | 3*3 + 4*2 + 2 = **19** | Hits every day at scale; non-linear with persona mix; reviewer-headcount lever is slow. |
 
-**Honorable mentions outside the top 10**: O1 (hallucination triage) and O2 (false-positive nudges) both score 17 — they hit constantly at steady state and are the daily texture of operating the platform; S1 (pgvector hot-shard) and S2 (model router cost drift) score 17–18 and dominate the scale-stage finance conversation. The pattern across the top 10: **the deterministic boundary, the HITL state machine, the tenant/region isolation, and the replay story are the four invariants that, if they go wrong, do not have a quick fix**. Everything else is mostly tuning. Build for those four like your job depends on it — because at a financial-services agent platform, it does.
+**Honorable mentions outside the top 10**: O1 (hallucination triage) and O2 (false-positive nudges) both score 17 - they hit constantly at steady state and are the daily texture of operating the platform; S1 (pgvector hot-shard) and S2 (model router cost drift) score 17–18 and dominate the scale-stage finance conversation. The pattern across the top 10: **the deterministic boundary, the HITL state machine, the tenant/region isolation, and the replay story are the four invariants that, if they go wrong, do not have a quick fix**. Everything else is mostly tuning. Build for those four like your job depends on it - because at a financial-services agent platform, it does.
 
 ---
 

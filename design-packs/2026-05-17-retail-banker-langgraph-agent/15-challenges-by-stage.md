@@ -33,17 +33,17 @@ turn:
 
 ## Stage 1: Inception (weeks 0-12)
 
-**Stage truth:** every Day-1 *contract* you skip — typed state, tool
-registry, PII tokenization, deterministic/LLM seam — compounds into
+**Stage truth:** every Day-1 *contract* you skip - typed state, tool
+registry, PII tokenization, deterministic/LLM seam - compounds into
 multi-quarter rework. Product intent surface is fuzzy and that's OK.
 *Contracts* are not allowed to be fuzzy.
 
 ### C1.1 Choosing the deterministic-vs-LLM seam wrong
 
-- **Severity: 10** — go-live compliance blocker; a wrong ₹ visible to
+- **Severity: 10** - go-live compliance blocker; a wrong ₹ visible to
   RBI is a different conversation than a wrong word.
-- **Frequency: 1** — architectural decision made once.
-- **Difficulty: 7** — the demo-week temptation is "let the LLM do
+- **Frequency: 1** - architectural decision made once.
+- **Difficulty: 7** - the demo-week temptation is "let the LLM do
   it"; the discipline to push back without slowing demos is the hard
   part.
 - **Pain: 7.0**
@@ -55,10 +55,10 @@ calculators; LLM only narrates calculator outputs.
 
 ### C1.2 Tool registry contract before the 4th tool exists
 
-- **Severity: 8** — every node breaks every time a tool is added;
+- **Severity: 8** - every node breaks every time a tool is added;
   LLM JSON schemas leak inconsistencies.
-- **Frequency: 7** — every PR that adds or touches a tool.
-- **Difficulty: 4** — the technology is a decorator + Pydantic; the
+- **Frequency: 7** - every PR that adds or touches a tool.
+- **Difficulty: 4** - the technology is a decorator + Pydantic; the
   *discipline* is the hard part.
 - **Pain: 22.4**
 
@@ -71,9 +71,9 @@ are the *first* line of code.
 
 ### C1.3 PII tokenization at egress, Day 1 not Day 60
 
-- **Severity: 10** — DPDP / RBI compliance gate.
-- **Frequency: 1** — architectural decision made once.
-- **Difficulty: 6** — token-vault lifetime, re-detokenization
+- **Severity: 10** - DPDP / RBI compliance gate.
+- **Frequency: 1** - architectural decision made once.
+- **Difficulty: 6** - token-vault lifetime, re-detokenization
   ordering, and ensuring tool outputs *also* flow through the
   tokenizer are subtle.
 - **Pain: 6.0**
@@ -87,9 +87,9 @@ tool serializer, and the evals.
 
 ### C1.4 `BankerState` shape before you have all intents
 
-- **Severity: 8** — every node refactors when state shape changes.
-- **Frequency: 1** — once.
-- **Difficulty: 6** — over-shape it and writes thrash; under-shape it
+- **Severity: 8** - every node refactors when state shape changes.
+- **Frequency: 1** - once.
+- **Difficulty: 6** - over-shape it and writes thrash; under-shape it
   and you can't replay.
 - **Pain: 4.8**
 
@@ -101,9 +101,9 @@ durable workflows live or die by their state object.
 
 ### C1.5 Building the reflection node existence (not "later")
 
-- **Severity: 9** — discovery via prod = a wrong-₹ incident in week 12.
-- **Frequency: 1** — once.
-- **Difficulty: 5** — the comparator itself is simple; the prompt
+- **Severity: 9** - discovery via prod = a wrong-₹ incident in week 12.
+- **Frequency: 1** - once.
+- **Difficulty: 5** - the comparator itself is simple; the prompt
   templating that marks `exact` vs `approx` slots is what makes it
   reliable.
 - **Pain: 4.5**
@@ -114,9 +114,9 @@ month later when the first hallucinated number ships.
 
 ### C1.6 Intent classifier model choice without a golden set
 
-- **Severity: 6** — wrong routing → wrong sub-agent → wrong answer.
-- **Frequency: 3** — every router change.
-- **Difficulty: 6** — frontier model is too expensive at 290 turns/s;
+- **Severity: 6** - wrong routing → wrong sub-agent → wrong answer.
+- **Frequency: 3** - every router change.
+- **Difficulty: 6** - frontier model is too expensive at 290 turns/s;
   small model accuracy lower; need eval set you don't have yet.
 - **Pain: 10.8**
 
@@ -136,27 +136,27 @@ are the new enemy.
 
 ### C2.1 Salary-day / EMI-day burst on Core Banking
 
-- **Severity: 9** — Core Banking throttles → `context_fetch` times
+- **Severity: 9** - Core Banking throttles → `context_fetch` times
   out → degraded answers across the bank, on the days customers most
   want answers.
-- **Frequency: 5** — twice a month, 6 months = ~12 times in the
+- **Frequency: 5** - twice a month, 6 months = ~12 times in the
   stage.
-- **Difficulty: 7** — pre-warming caches needs prediction; circuit
+- **Difficulty: 7** - pre-warming caches needs prediction; circuit
   breaker thresholds need careful tuning; balance-freshness rules
   conflict with cache hits.
 - **Pain: 31.5**
 
 Anchor: AutoML at Microsoft, 15M+ jobs/month with bursty submission
-patterns (`resume.txt` L91-92) taught the same lesson — peak design
+patterns (`resume.txt` L91-92) taught the same lesson - peak design
 is a different problem from average design. Mitigation: pre-warm
 top-decile balance cache 30 minutes before predicted salary windows;
 per-tool circuit breaker that returns `degraded` instead of cascading.
 
 ### C2.2 Long-tail intents the router misclassifies
 
-- **Severity: 6** — wrong intent → wrong sub-agent → confused user.
-- **Frequency: 7** — every novel phrasing.
-- **Difficulty: 6** — needs telemetry-driven re-prompting + new
+- **Severity: 6** - wrong intent → wrong sub-agent → confused user.
+- **Frequency: 7** - every novel phrasing.
+- **Difficulty: 6** - needs telemetry-driven re-prompting + new
   golden examples per misclass.
 - **Pain: 25.2**
 
@@ -164,14 +164,14 @@ per-tool circuit breaker that returns `degraded` instead of cascading.
 customer actually wants `savings_advice`. Rule-engine discipline
 from ShareChat ad-targeting on 22 user attributes for 40M DAU
 (`resume.txt` L109-114) applies here: the long tail is not solved
-by "smarter prompts" — it is solved by labeled telemetry and
+by "smarter prompts" - it is solved by labeled telemetry and
 deliberate rule additions.
 
 ### C2.3 Cross-customer cache leak via missing key prefix
 
-- **Severity: 10** — SEV-1; regulator-facing.
-- **Frequency: 1** — caught in a test or once in prod.
-- **Difficulty: 7** — the fix is trivial; *catching it before prod*
+- **Severity: 10** - SEV-1; regulator-facing.
+- **Frequency: 1** - caught in a test or once in prod.
+- **Difficulty: 7** - the fix is trivial; *catching it before prod*
   is where the engineering goes (chaos test that issues
   cross-customer reads and asserts denial).
 - **Pain: 7.0**
@@ -183,11 +183,11 @@ adversarially* in CI, not assumed.
 
 ### C2.4 Action idempotency under client retry storms
 
-- **Severity: 7** — duplicate tickets, duplicate notifications;
+- **Severity: 7** - duplicate tickets, duplicate notifications;
   CSAT damage.
-- **Frequency: 6** — happens daily once you have flaky mobile
+- **Frequency: 6** - happens daily once you have flaky mobile
   networks.
-- **Difficulty: 5** — idempotency keys + 24h dedup window solve
+- **Difficulty: 5** - idempotency keys + 24h dedup window solve
   it; the difficulty is ensuring *every* write tool uses the
   pattern.
 - **Pain: 21.0**
@@ -198,10 +198,10 @@ how durable workflows stay safe under retry. The same key shape
 
 ### C2.5 Memory write coalescing under per-turn fact writes
 
-- **Severity: 7** — Postgres connection saturation = whole DAG
+- **Severity: 7** - Postgres connection saturation = whole DAG
   blocks.
-- **Frequency: 8** — every active session.
-- **Difficulty: 4** — buffer + debounce per session, flush on
+- **Frequency: 8** - every active session.
+- **Difficulty: 4** - buffer + debounce per session, flush on
   session close.
 - **Pain: 22.4**
 
@@ -211,10 +211,10 @@ down the memory store. Coalesce or you die at the second cohort.
 
 ### C2.6 Eval set drift as intents are added
 
-- **Severity: 6** — new intent passes eval but fails on
+- **Severity: 6** - new intent passes eval but fails on
   uncovered phrasing in prod.
-- **Frequency: 5** — every intent addition.
-- **Difficulty: 6** — backfilling golden examples is human-cost;
+- **Frequency: 5** - every intent addition.
+- **Difficulty: 6** - backfilling golden examples is human-cost;
   LLM-generated examples drift from real users.
 - **Pain: 18.0**
 
@@ -233,11 +233,11 @@ slow down; debugging speeds up.
 
 ### C3.1 Numerical drift in streamed narration before reflection runs
 
-- **Severity: 8** — user sees wrong number in stream, even if final
+- **Severity: 8** - user sees wrong number in stream, even if final
   response is correct.
-- **Frequency: 4** — happens on a few percent of streamed turns at
+- **Frequency: 4** - happens on a few percent of streamed turns at
   rare moments.
-- **Difficulty: 7** — reflection runs at end of explainer; streaming
+- **Difficulty: 7** - reflection runs at end of explainer; streaming
   doesn't wait.
 - **Pain: 22.4**
 
@@ -248,10 +248,10 @@ streamed turns for numerical safety.
 
 ### C3.2 Provider outage failover causes voice drift
 
-- **Severity: 7** — users perceive "the agent feels different
+- **Severity: 7** - users perceive "the agent feels different
   today"; CSAT dips.
-- **Frequency: 2** — provider outages are rare but real.
-- **Difficulty: 8** — failover model needs to be voice-matched to
+- **Frequency: 2** - provider outages are rare but real.
+- **Difficulty: 8** - failover model needs to be voice-matched to
   primary, which requires shared style guide + eval per model.
 - **Pain: 11.2**
 
@@ -263,10 +263,10 @@ within-provider model swap (Sonnet→Opus) before cross-provider.
 
 ### C3.3 Tool-data prompt injection becomes a real attack
 
-- **Severity: 10** — successful injection that causes a fake action
+- **Severity: 10** - successful injection that causes a fake action
   is a front-page story.
-- **Frequency: 2** — red-team finds; in-wild attempts rare but rising.
-- **Difficulty: 8** — defense-in-depth requires every layer to hold.
+- **Frequency: 2** - red-team finds; in-wild attempts rare but rising.
+- **Difficulty: 8** - defense-in-depth requires every layer to hold.
 - **Pain: 16.0**
 
 Anchor: SOC-2 work on the WASM sandbox plane for 1M+ daily zero-shot
@@ -277,10 +277,10 @@ three must.
 
 ### C3.4 HITL queue aging when ops team is understaffed
 
-- **Severity: 7** — customer asked 4 hours ago, no answer = agent
+- **Severity: 7** - customer asked 4 hours ago, no answer = agent
   failure narrative.
-- **Frequency: 6** — recurs every weekend / holiday.
-- **Difficulty: 5** — solved by tiered escalation + proactive
+- **Frequency: 6** - recurs every weekend / holiday.
+- **Difficulty: 5** - solved by tiered escalation + proactive
   customer notification.
 - **Pain: 21.0**
 
@@ -291,11 +291,11 @@ customer status updates so the product doesn't appear broken.
 
 ### C3.5 Replay fixtures diverge from live schema after months
 
-- **Severity: 8** — 6-month-old replay can't be reconstructed
+- **Severity: 8** - 6-month-old replay can't be reconstructed
   cleanly; dispute investigation stalls.
-- **Frequency: 2** — handful of customer disputes a quarter that go
+- **Frequency: 2** - handful of customer disputes a quarter that go
   back this far.
-- **Difficulty: 7** — every schema migration must be backward-
+- **Difficulty: 7** - every schema migration must be backward-
   compatible for replay, which constrains evolution.
 - **Pain: 11.2**
 
@@ -306,10 +306,10 @@ or pay for it later.
 
 ### C3.6 Telemetry storage cost outruns growth
 
-- **Severity: 6** — finance pushes back on retention; you can't
+- **Severity: 6** - finance pushes back on retention; you can't
   cut without breaking the 7-year audit promise.
-- **Frequency: 7** — every quarterly cost review.
-- **Difficulty: 6** — tiered storage (hot 30d ClickHouse, warm 1y
+- **Frequency: 7** - every quarterly cost review.
+- **Difficulty: 6** - tiered storage (hot 30d ClickHouse, warm 1y
   Parquet on S3, cold 7y Glacier) works; the *predicate-pushdown*
   to make warm tier queryable is the engineering.
 - **Pain: 25.2**
@@ -328,11 +328,11 @@ organizational and regulatory.
 
 ### C4.1 Per-bank policy bundle drift
 
-- **Severity: 7** — each bank tunes its own OPA policies → eval set
+- **Severity: 7** - each bank tunes its own OPA policies → eval set
   per-bank → release engineering complexity explodes.
-- **Frequency: 7** — every bank's compliance team requests its own
+- **Frequency: 7** - every bank's compliance team requests its own
   rule.
-- **Difficulty: 7** — needs a policy-bundle versioning + per-bank
+- **Difficulty: 7** - needs a policy-bundle versioning + per-bank
   CI + golden-policy diff in the review.
 - **Pain: 34.3**
 
@@ -344,10 +344,10 @@ L91-92).
 
 ### C4.2 Regional regulatory divergence
 
-- **Severity: 9** — one country's regulator changes a rule → all
+- **Severity: 9** - one country's regulator changes a rule → all
   banks in that country must comply by a deadline.
-- **Frequency: 4** — major changes a few times a year per region.
-- **Difficulty: 8** — DPDP vs GDPR vs RBI vs MAS — one agent code,
+- **Frequency: 4** - major changes a few times a year per region.
+- **Difficulty: 8** - DPDP vs GDPR vs RBI vs MAS - one agent code,
   four policy regimes, four data-residency stories.
 - **Pain: 28.8**
 
@@ -359,10 +359,10 @@ owns the policy bundle.
 
 ### C4.3 Cross-bank LLM provider quota contention
 
-- **Severity: 8** — one bank's noisy day starves another bank's
+- **Severity: 8** - one bank's noisy day starves another bank's
   customers; cross-tenant SLA violation.
-- **Frequency: 4** — happens during one tenant's seasonal spike.
-- **Difficulty: 7** — per-tenant LLM quota reservation + burst
+- **Frequency: 4** - happens during one tenant's seasonal spike.
+- **Difficulty: 7** - per-tenant LLM quota reservation + burst
   budget + fair-share routing.
 - **Pain: 22.4**
 
@@ -373,10 +373,10 @@ failover". Both are needed.
 
 ### C4.4 Per-tenant fine-tuning vs shared base model
 
-- **Severity: 6** — banks want "model trained on our voice"; we
+- **Severity: 6** - banks want "model trained on our voice"; we
   don't want N fine-tunes to maintain.
-- **Frequency: 3** — comes up in every enterprise sales cycle.
-- **Difficulty: 8** — fine-tuning per tenant means N eval sets,
+- **Frequency: 3** - comes up in every enterprise sales cycle.
+- **Difficulty: 8** - fine-tuning per tenant means N eval sets,
   N drift stories, N rollback plans.
 - **Pain: 14.4**
 
@@ -389,14 +389,14 @@ the value is provable.
 
 ### C4.5 Cross-region trace correlation when sessions roam
 
-- **Severity: 5** — customer uses in-app (region A) then WhatsApp
+- **Severity: 5** - customer uses in-app (region A) then WhatsApp
   (region B) in same session; trace stitches poorly.
-- **Frequency: 4** — common for travelers and multi-device users.
-- **Difficulty: 7** — distributed trace IDs across region clusters
+- **Frequency: 4** - common for travelers and multi-device users.
+- **Difficulty: 7** - distributed trace IDs across region clusters
   with residency rules.
 - **Pain: 14.0**
 
-Anchor: BlackBox telemetry mesh (`resume.txt` L58-59) — single-
+Anchor: BlackBox telemetry mesh (`resume.txt` L58-59) - single-
 region. Multi-region trace stitching is the upgrade.
 
 ---
@@ -410,11 +410,11 @@ is the bottleneck.
 
 ### C5.1 Proactive-agent notification you didn't ask for
 
-- **Severity: 9** — wrong proactive ping = customer trust event;
+- **Severity: 9** - wrong proactive ping = customer trust event;
   could be regulatory if "advice".
-- **Frequency: 3** — happens during early proactive feature rollout
+- **Frequency: 3** - happens during early proactive feature rollout
   on a non-trivial subset of triggers.
-- **Difficulty: 8** — needs an entire consent + opt-out + frequency-
+- **Difficulty: 8** - needs an entire consent + opt-out + frequency-
   governance system the reactive agent didn't need.
 - **Pain: 21.6**
 
@@ -425,10 +425,10 @@ for 6 months.
 
 ### C5.2 Voice channel forcing a new latency budget
 
-- **Severity: 7** — voice needs sub-700ms first-token; current p95
+- **Severity: 7** - voice needs sub-700ms first-token; current p95
   is 3s. Mismatch = unusable.
-- **Frequency: 5** — recurs on every voice-feature design review.
-- **Difficulty: 8** — streaming pipeline + smaller routing model +
+- **Frequency: 5** - recurs on every voice-feature design review.
+- **Difficulty: 8** - streaming pipeline + smaller routing model +
   pre-computed common responses; rebuilds the explainer for
   partial-output mode.
 - **Pain: 28.0**
@@ -440,10 +440,10 @@ retrofit it.
 
 ### C5.3 In-house fine-tuned sub-agents drift from frontier explainer
 
-- **Severity: 6** — sub-agent fine-tune Q1, explainer is frontier-
+- **Severity: 6** - sub-agent fine-tune Q1, explainer is frontier-
   current Q3 → tone/fact mismatch users feel.
-- **Frequency: 5** — every frontier model release.
-- **Difficulty: 7** — re-train cadence + paired eval + tone
+- **Frequency: 5** - every frontier model release.
+- **Difficulty: 7** - re-train cadence + paired eval + tone
   calibration.
 - **Pain: 21.0**
 
@@ -454,24 +454,24 @@ discipline.
 
 ### C5.4 Account Aggregator (AA) integration
 
-- **Severity: 7** — cross-bank view is the value prop, but consent
+- **Severity: 7** - cross-bank view is the value prop, but consent
   flow is regulator-defined and brittle.
-- **Frequency: 3** — every AA partner integration.
-- **Difficulty: 8** — consent lifetimes, residency, multi-bank
+- **Frequency: 3** - every AA partner integration.
+- **Difficulty: 8** - consent lifetimes, residency, multi-bank
   trust boundary, sandboxed agent reasoning on data from another
   FI's account.
 - **Pain: 16.8**
 
-No direct resume anchor — this is the kind of frontier-scale
+No direct resume anchor - this is the kind of frontier-scale
 problem the architecture must *accommodate* without being designed
 for it from Day 1.
 
 ### C5.5 LLMOps team can't keep up with intent growth
 
-- **Severity: 7** — product wants 5 new intents/month; eval set +
+- **Severity: 7** - product wants 5 new intents/month; eval set +
   replay + policy bundle can't keep pace.
-- **Frequency: 8** — every product planning cycle.
-- **Difficulty: 6** — solved by tooling (LLM-generated eval scaffold
+- **Frequency: 8** - every product planning cycle.
+- **Difficulty: 6** - solved by tooling (LLM-generated eval scaffold
   reviewed by humans) + ratio-discipline (1 LLMOps engineer per
   ~10 customer-facing intents).
 - **Pain: 33.6**
@@ -480,7 +480,7 @@ This is the *organizational* analogue of the technical scaling
 story. Most frontier-scale agent platform pain is organizational by
 month 24, not technical. Same lesson surfaced in the BlackBox
 agentic platform with 6+ engineers (`resume.txt` L51-52,
-`blackbox-experience.md` #6) — staffing the eval and observability
+`blackbox-experience.md` #6) - staffing the eval and observability
 function is the hard part.
 
 ---
@@ -503,18 +503,18 @@ function is the hard part.
 ## What this ranking tells you
 
 - **The top 5 live in Stage 4-5.** The hardest problems on this
-  platform are *organizational and governance* problems — policy
+  platform are *organizational and governance* problems - policy
   drift across tenants, regulator pace, eval team scaling, voice-
   channel latency budget. These rank above any single technical
   bug because they recur across hundreds of decisions instead of
   being a one-shot fix.
 - **The most painful technical problem is operational, not
-  architectural.** C2.1 (salary-day burst) is #3 — the architecture
+  architectural.** C2.1 (salary-day burst) is #3 - the architecture
   is correct, the operational margin is too thin. This is the
   kind of pain you only see at production scale; designing for it
   from Day 1 looks like over-engineering until it isn't.
 - **Stage 1 contracts (C1.2 tool registry) bleed into the top-10
-  not because the inception cost is high — it isn't — but because
+  not because the inception cost is high - it isn't - but because
   the *compounding* cost of skipping them in week 4 is felt every
   month for two years.** This is the strongest argument for
   contract discipline in inception even when it slows the demo.

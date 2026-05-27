@@ -1,16 +1,16 @@
-# 04 — API and Contracts
+# 04 - API and Contracts
 
 > Surface area for the AI Banker for SMB owners. External SMB-facing HTTP+SSE/WebSocket
 > API, third-party webhooks, outbound tool contracts that the LangGraph agents call,
 > the agent↔orchestrator gRPC, the error model, and the idempotency/streaming rules.
 >
 > Anchors:
-> - DAG checkpointing + retry semantics for resumable agent runs — `resume.txt` L52–54;
+> - DAG checkpointing + retry semantics for resumable agent runs - `resume.txt` L52–54;
 >   `blackbox-experience.md` #12–15.
-> - Tool-calling infrastructure for ReAct agents — `resume.txt` L51; `blackbox-experience.md` #9.
-> - Model router pattern across Claude/GPT/Grok at 1B+ tokens/month — `resume.txt` L55–56;
+> - Tool-calling infrastructure for ReAct agents - `resume.txt` L51; `blackbox-experience.md` #9.
+> - Model router pattern across Claude/GPT/Grok at 1B+ tokens/month - `resume.txt` L55–56;
 >   `blackbox-experience.md` #16–19.
-> - Deterministic replay over telemetry mesh (50M spans/day) — `resume.txt` L58–59;
+> - Deterministic replay over telemetry mesh (50M spans/day) - `resume.txt` L58–59;
 >   `blackbox-experience.md` #20.
 
 ---
@@ -26,7 +26,7 @@
 | Tenant | `X-Tenant-Id: tnt_<ulid>` required on every call. `X-Business-Id: biz_<ulid>` required for any business-scoped read or write. |
 | Idempotency | All `POST`/`PATCH`/`DELETE` accept `Idempotency-Key: <ULID>` (24h Redis window, then archived to Postgres `actions` table). |
 | Rate limit | Default 60 req/min/tenant, burst 120; `banker.act` writes 10 req/min/business; conversation creation 12/min/user. Headers `X-RateLimit-Remaining`, `X-RateLimit-Reset`. |
-| Tracing | Server injects `traceparent` (W3C) into the LLMOps mesh — every span lands in ClickHouse for replay (`resume.txt` L58–59). |
+| Tracing | Server injects `traceparent` (W3C) into the LLMOps mesh - every span lands in ClickHouse for replay (`resume.txt` L58–59). |
 | Versioning | URL-pinned (`/v1`). Schema deprecation announced via `Sunset` header 90 days before removal. |
 | Content | `application/json; charset=utf-8`. Streaming surfaces use `text/event-stream` (SSE). |
 
@@ -47,7 +47,7 @@
 
 ### 1.3 Detailed endpoint specs
 
-#### 1.3.1 `POST /v1/conversations` — create a run
+#### 1.3.1 `POST /v1/conversations` - create a run
 
 Headers
 ```
@@ -69,7 +69,7 @@ Request
 }
 ```
 
-Response — `201 Created`
+Response - `201 Created`
 ```json
 {
   "run_id": "run_01HXYZ8N3Q8KQH7B5Z1F2KX7VC",
@@ -87,7 +87,7 @@ Rate limit: 12/min/user, 60/min/business. Idempotency: replays within 24h return
 
 ---
 
-#### 1.3.2 `POST /v1/conversations/{run_id}/messages` — append a message
+#### 1.3.2 `POST /v1/conversations/{run_id}/messages` - append a message
 
 Request
 ```json
@@ -99,7 +99,7 @@ Request
 }
 ```
 
-Response — `202 Accepted`
+Response - `202 Accepted`
 ```json
 {
   "message_id": "msg_01HX…",
@@ -113,7 +113,7 @@ Idempotency: `(run_id, Idempotency-Key)` dedupe; replays return original `messag
 
 ---
 
-#### 1.3.3 `POST /v1/actions/payments` — initiate a payment
+#### 1.3.3 `POST /v1/actions/payments` - initiate a payment
 
 Headers add `Idempotency-Key` (mandatory; rejected otherwise). Optional `X-Step-Up-Token` carrying an OTP-bound token if business policy demands.
 
@@ -132,14 +132,14 @@ Request
   },
   "amount": { "value": 245300, "currency": "INR" },
   "purpose_code": "P1306",
-  "reason": "Cloud infra — Apr invoice INV-2026-04-08812",
+  "reason": "Cloud infra - Apr invoice INV-2026-04-08812",
   "schedule": "immediate",
   "requires_otp": true,
   "policy_acknowledgements": ["spending_cap_acknowledged"]
 }
 ```
 
-Response — `202 Accepted` (payment is queued, never auto-completed)
+Response - `202 Accepted` (payment is queued, never auto-completed)
 ```json
 {
   "action_id": "act_01HX…",
@@ -165,7 +165,7 @@ Rate limit: 10/min/business, 2 concurrent in-flight payments per business.
 
 Query params: `horizon_days` (1..180), `scenario` (`base`|`stress`|`vendor_delay`), `as_of` (RFC3339, defaults to now). ETag-aware.
 
-Response — `200 OK`
+Response - `200 OK`
 ```json
 {
   "business_id": "biz_01HX…",
@@ -188,7 +188,7 @@ Response — `200 OK`
 }
 ```
 
-`explanation_run_id` is `null` for the bare endpoint — the explainer LLM is only invoked when the SMB asks a question via the conversation API. This keeps the forecast deterministic and cacheable; the LLM is an explainer over numbers, not a projector (`resume.txt` L52–54).
+`explanation_run_id` is `null` for the bare endpoint - the explainer LLM is only invoked when the SMB asks a question via the conversation API. This keeps the forecast deterministic and cacheable; the LLM is an explainer over numbers, not a projector (`resume.txt` L52–54).
 
 ---
 
@@ -275,7 +275,7 @@ Replay protection summary: HMAC + 5-min timestamp window + idempotent event-id d
 
 ## 3. Outbound tool contracts (us → third-party / internal)
 
-All tool calls go through the Tool Gateway. Schemas are JSON Schema draft-2020-12 (gRPC mirror for high-QPS internal tools). Tools are versioned (`bank.get_balance@v1`); the registry tags each one with capability, idempotency, retry, timeout, and the **allowed caller nodes** (only the listed LangGraph nodes may invoke the tool — enforced at the gateway, not the agent prompt). This is the same pattern that backed the ReAct tool-calling layer at BlackBox (`resume.txt` L51, `blackbox-experience.md` #9).
+All tool calls go through the Tool Gateway. Schemas are JSON Schema draft-2020-12 (gRPC mirror for high-QPS internal tools). Tools are versioned (`bank.get_balance@v1`); the registry tags each one with capability, idempotency, retry, timeout, and the **allowed caller nodes** (only the listed LangGraph nodes may invoke the tool - enforced at the gateway, not the agent prompt). This is the same pattern that backed the ReAct tool-calling layer at BlackBox (`resume.txt` L51, `blackbox-experience.md` #9).
 
 | # | Tool | Capability | Idempotency | Retry | Timeout | Allowed caller nodes |
 | - | --- | --- | --- | --- | --- | --- |
@@ -301,7 +301,7 @@ Notes:
 - **Retry policy**: never auto-retry irreversible writes on ambiguous failure (timeout, 5xx without idempotency confirmation). Instead schedule a reconciliation pull from a status endpoint inside the same saga step.
 - **Gateway-enforced caller scope**: the tool registry pins `allowed_caller_nodes`; an agent node attempting an out-of-scope call gets `TOOL_FORBIDDEN_CALLER` (and the run is flagged for review). The agent's prompt cannot widen its toolset at runtime.
 
-Example tool schema — `bank.initiate_payment@v1`:
+Example tool schema - `bank.initiate_payment@v1`:
 ```json
 {
   "$id": "tools/bank.initiate_payment@v1",
@@ -392,19 +392,19 @@ Common envelope on every 4xx/5xx:
 | `AUTH_STEPUP_REQUIRED` | 401 | OTP/biometric needed | retry after step-up | "We need to verify it's you." |
 | `RATE_LIMIT_TENANT` | 429 | Tenant budget exhausted | retry after `Retry-After` | "Too many requests. Try again shortly." |
 | `RATE_LIMIT_USER` | 429 | Per-user QPS | retry after `Retry-After` | "Too many requests. Try again shortly." |
-| `TENANT_SUSPENDED` | 403 | Billing/compliance hold | not retryable | "Account access paused — contact support." |
+| `TENANT_SUSPENDED` | 403 | Billing/compliance hold | not retryable | "Account access paused - contact support." |
 | `TENANT_NOT_FOUND` | 404 | Unknown tenant/business | not retryable | "Workspace not found." |
 | `TOOL_FORBIDDEN_CALLER` | 403 | Agent node not allowed to call tool | not retryable; run flagged | hidden |
 | `TOOL_TIMEOUT` | 504 | Upstream tool timeout | reconcile via status pull | "Bank is slow right now. We're checking." |
 | `TOOL_VALIDATION` | 400 | Bad payload to tool | not retryable | hidden |
-| `BUDGET_EXCEEDED_TOKENS` | 429 | Run token budget exhausted | not retryable for run | "Question got too complex — try narrower." |
+| `BUDGET_EXCEEDED_TOKENS` | 429 | Run token budget exhausted | not retryable for run | "Question got too complex - try narrower." |
 | `BUDGET_EXCEEDED_HOPS` | 429 | Max hop count hit | not retryable for run | as above |
 | `BUDGET_TENANT_EXHAUSTED` | 429 | Monthly $ cap hit | not retryable | "Plan limit reached." |
 | `GUARDRAIL_BLOCK_INPUT` | 422 | Prompt-injection or PII leak detected | not retryable | "We can't process that message safely." |
 | `GUARDRAIL_BLOCK_OUTPUT` | 422 | Generated answer failed grounding/PII check | regenerate once | "Let me rephrase that." |
 | `POLICY_DENY` | 403 | Action denied by policy engine | not retryable without override | rule-specific |
 | `INSUFFICIENT_FUNDS_FORECAST` | 409 | Forecast says payment will overdraw payroll | not retryable | "This would leave you short for payroll on the 28th." |
-| `DUP_IDEMPOTENT_DIFFERENT_BODY` | 409 | Same key, different body | not retryable | hidden — protects from double-debit |
+| `DUP_IDEMPOTENT_DIFFERENT_BODY` | 409 | Same key, different body | not retryable | hidden - protects from double-debit |
 | `SEQUENCE_CONFLICT` | 409 | Out-of-order message | retry with `expected_sequence` | hidden |
 | `UPSTREAM_BANK_DEGRADED` | 503 | Bank API circuit open | retry after `Retry-After` | "Bank connection is degraded." |
 | `UPSTREAM_LLM_DEGRADED` | 503 | All routed models unhealthy | fallback queued | "Thinking is slow right now." |

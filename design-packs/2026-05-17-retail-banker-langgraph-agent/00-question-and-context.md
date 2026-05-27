@@ -50,7 +50,7 @@ The user also lists the qualities they want this design to showcase:
 - Tool registry with JSON-schema-typed inputs/outputs.
 - Persona router that classifies the question and shapes the DAG path.
 - Deterministic calculator library (balance, spend, EMI, fraud, due dates).
-- Sub-agents for risk, budget, savings — each one ReAct-style with a *bounded*
+- Sub-agents for risk, budget, savings - each one ReAct-style with a *bounded*
   tool surface.
 - LLM explainer with structured output schema (`Explanation` Pydantic model).
 - Optional action node with policy gate, idempotency, and HITL for high-risk
@@ -62,7 +62,7 @@ The user also lists the qualities they want this design to showcase:
 
 ## Scope (out)
 
-- Wire transfers, account opening, KYC onboarding — explicitly handed off to
+- Wire transfers, account opening, KYC onboarding - explicitly handed off to
   human support or core banking flows.
 - Trading / brokerage advice beyond "basic investment education" with
   regulator-aligned disclaimers.
@@ -94,5 +94,5 @@ The user also lists the qualities they want this design to showcase:
 
 **High** for the agentic-runtime, model-routing, memory, and telemetry portions
 (direct BlackBox experience). **Medium** for the banking-domain rules (fraud,
-EMI, FD) — these are anchored in industry-standard practice, with explicit
+EMI, FD) - these are anchored in industry-standard practice, with explicit
 assumption labels where I extrapolate.

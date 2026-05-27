@@ -1,4 +1,4 @@
-# 13. Memory Layer Design — AI Banker for SMB Owners
+# 13. Memory Layer Design - AI Banker for SMB Owners
 
 Memory subsystem spec for the LangGraph multi-agent cashflow intelligence agent at 1M SMB scale. This file is the **data layer** view: what is stored, where, how it is read, how it is written, and how it survives at scale. Behavioral prompt-injection defenses live in `15-guardrails.md` and are referenced but not duplicated.
 
@@ -8,18 +8,18 @@ Resume anchors: BlackBox memory persistence and durable execution (resume L52-54
 
 ## Overview Diagram
 
-End-to-end memory topology. Solid edges are writes, dotted edges are reads. Agent node names match `12-agentic-graph-structure.md`. The embedding model is a shared node so the consistency contract with `14-ingestion-pipeline.md` point 3 is visible without scrolling. The tenant boundary wraps every per-tenant store and labels the enforcement point — Postgres RLS, pgvector tenant_id filter injected by `memory-service`, and Redis per-client ACL.
+End-to-end memory topology. Solid edges are writes, dotted edges are reads. Agent node names match `12-agentic-graph-structure.md`. The embedding model is a shared node so the consistency contract with `14-ingestion-pipeline.md` point 3 is visible without scrolling. The tenant boundary wraps every per-tenant store and labels the enforcement point - Postgres RLS, pgvector tenant_id filter injected by `memory-service`, and Redis per-client ACL.
 
 ```mermaid
 graph LR
-  subgraph AGENTS["Agent Nodes — names from 12-agentic-graph-structure.md"]
+  subgraph AGENTS["Agent Nodes - names from 12-agentic-graph-structure.md"]
     SUP[SUP]
     SPEC["Specialists<br/>AR_AGENT · AP_AGENT · PAYROLL_AGENT<br/>TAX_AGENT · LENDER_AGENT<br/>ANOMALY_AGENT · FCST_AGENT"]
     OUT_GUARD[OUT_GUARD]
     MEMORY_SCRIBE[MEMORY_SCRIBE]
   end
 
-  subgraph TYPES["Memory Types — point 1"]
+  subgraph TYPES["Memory Types - point 1"]
     WORKING([Working / per-run])
     SEMANTIC([Long-term semantic<br/>business profile])
     EPISODIC([Long-term episodic<br/>past decisions])
@@ -30,14 +30,14 @@ graph LR
 
   EMB{{"text-embedding-3-large · 3072d<br/>pinned via EmbeddingService<br/>MUST match 14-ingestion-pipeline.md point 3"}}
 
-  subgraph TENANT["Tenant N boundary — point 9<br/>Postgres RLS on tenant_id · pgvector tenant_id filter injected by memory-service · Redis per-client ACL"]
+  subgraph TENANT["Tenant N boundary - point 9<br/>Postgres RLS on tenant_id · pgvector tenant_id filter injected by memory-service · Redis per-client ACL"]
     REDIS[("Redis Cluster<br/>working hot + query cache")]
     PG[("Postgres<br/>run_state checkpointer · LangGraph durable state<br/>+ profile · procedural · audit hot 90d · episodic metadata<br/>build plan → 17-graph-store.md")]
     PGV[("pgvector HNSW<br/>M=32 efSearch=64<br/>episodic · domain")]
     S3[("S3 WORM 7y<br/>audit cold")]
   end
 
-  %% Writes — solid (point 3 triggers)
+  %% Writes - solid (point 3 triggers)
   SUP -- "write user-explicit" --> SEMANTIC
   SUP -- "write per hop" --> WORKING
   SPEC -- "write per hop" --> WORKING
@@ -48,7 +48,7 @@ graph LR
   MEMORY_SCRIBE -- "stable preference" --> SEMANTIC
   MEMORY_SCRIBE -- "weekly batch" --> PROCEDURAL
 
-  %% Reads — dotted
+  %% Reads - dotted
   SUP -. "top-k recall" .-> EPISODIC
   SUP -. "profile" .-> SEMANTIC
   SUP -. "prefs" .-> PROCEDURAL
@@ -96,12 +96,12 @@ Audit/replay memory is anchored on BlackBox deterministic replay infrastructure 
 
 | type | primary store | secondary | alternative considered | reason chosen | scale boundary where alternative wins |
 |---|---|---|---|---|---|
-| Working | Redis Cluster (per-run state, sub-ms reads) | Postgres `run_state` (durable checkpoint) | Postgres only | Hop-latency hit during high concurrency unacceptable; BlackBox LangGraph durable execution requires both speed + durability (resume L52-54) | Never — durability path stays Postgres |
-| Long-term semantic | Postgres `business_profile` (JSONB + indexed hot cols) | — | DynamoDB / document store | Need joins with `transactions`, `invoices`, `bank_accounts` | Only if we go schemaless on profile (no plan) |
-| Long-term episodic | pgvector (Postgres ext, HNSW index) + Postgres row metadata | Redis (query cache) | Standalone Qdrant (resume L101 — known stack) | Unified data plane for first 1M tenants; one txn, one backup story | Index > ~50GB/shard cohort → cut over to Qdrant |
-| Procedural | Postgres `business_preferences` (batch-written) | — | Feature store (Feast) | Low write rate, low feature complexity; feature store is overkill | When per-business features exceed ~100 with online serving |
+| Working | Redis Cluster (per-run state, sub-ms reads) | Postgres `run_state` (durable checkpoint) | Postgres only | Hop-latency hit during high concurrency unacceptable; BlackBox LangGraph durable execution requires both speed + durability (resume L52-54) | Never - durability path stays Postgres |
+| Long-term semantic | Postgres `business_profile` (JSONB + indexed hot cols) | - | DynamoDB / document store | Need joins with `transactions`, `invoices`, `bank_accounts` | Only if we go schemaless on profile (no plan) |
+| Long-term episodic | pgvector (Postgres ext, HNSW index) + Postgres row metadata | Redis (query cache) | Standalone Qdrant (resume L101 - known stack) | Unified data plane for first 1M tenants; one txn, one backup story | Index > ~50GB/shard cohort → cut over to Qdrant |
+| Procedural | Postgres `business_preferences` (batch-written) | - | Feature store (Feast) | Low write rate, low feature complexity; feature store is overkill | When per-business features exceed ~100 with online serving |
 | Domain knowledge | Postgres + pgvector (semantic search GST/lender) | Redis (hot lookups: "is today an RBI holiday") | Dedicated vector DB | Same unified-plane argument; corpus is < 100K docs | Corpus > 10M docs |
-| Audit / replay | Postgres `tool_calls` (hot, 90d) + S3 (WORM, 7y) | — | ClickHouse only | WORM and per-row retrieval beat aggregation speed; ClickHouse is for telemetry mesh (resume L60-61), not regulated audit | Never — regulatory requires WORM |
+| Audit / replay | Postgres `tool_calls` (hot, 90d) + S3 (WORM, 7y) | - | ClickHouse only | WORM and per-row retrieval beat aggregation speed; ClickHouse is for telemetry mesh (resume L60-61), not regulated audit | Never - regulatory requires WORM |
 
 ---
 
@@ -114,7 +114,7 @@ Audit/replay memory is anchored on BlackBox deterministic replay infrastructure 
 | Long-term episodic | `run.status == COMPLETED` AND `importance_score > 0.4`, written ~30s post-run by MEMORY_SCRIBE (async queue) | Rule + model-scored (see point 8 for formula) |
 | Procedural | Cron `Sun 02:00 IST` weekly batch job over telemetry mesh | System (scheduled) |
 | Domain knowledge | Upstream content-change webhook (CBIC publishes new GST rate; RBI calendar update); manual curator review pass | Ingestion pipeline (see `14-ingestion-pipeline.md`) |
-| Audit / replay | Synchronous on every tool call + every node transition — no decision | System (mandatory) |
+| Audit / replay | Synchronous on every tool call + every node transition - no decision | System (mandatory) |
 
 The split between **synchronous write** (working, audit) and **async write** (episodic, procedural) is deliberate: hot path stays under 800ms p99 per hop (cross-ref `02-design-estimates.md` point 12).
 
@@ -127,7 +127,7 @@ The split between **synchronous write** (working, audit) and **async write** (ep
 | Working | Direct keyed read by `run_id` from Redis; cache hit > 99%; fall through to Postgres for cold runs + during failover | `tenant_id` + `run_id` |
 | Long-term semantic | Keyed read by `business_id` for hot fields; JSONB `?` operator for sparse attrs; no vector search | `tenant_id` + `business_id` |
 | Long-term episodic | **Hybrid**: semantic (pgvector cosine, top-10) ∪ BM25 (Postgres `tsvector`, top-5) → cross-encoder rerank → top-3 returned. Anchor: BlackBox stack lists HNSW + bm25 + Cross-encoder (resume L60-61) | Cosine ≥ 0.72; if none clear bar, return empty and agent proceeds without episodic context |
-| Procedural | Keyed lookup by `(business_id, feature_name)` | — |
+| Procedural | Keyed lookup by `(business_id, feature_name)` | - |
 | Domain knowledge | Hybrid same as episodic for free-text ("what's the GST rate for HSN 9405"); keyed lookup when entity ID known | Cosine ≥ 0.7 for general; ≥ 0.8 for tax/legal answers |
 
 The hybrid retriever lives in a single `memory-service` abstraction so swap-out (e.g., to Qdrant) does not touch agent code.
@@ -214,7 +214,7 @@ Anchored on Microsoft secure multi-tenant ML infra isolation strategies (resume 
 3. **pgvector queries**: `WHERE tenant_id = $1` is always injected by the `memory-service` abstraction; static-analysis CI rule blocks any code path that issues a vector query without the filter (`SELECT ... FROM memory_episode WHERE` must match a regex requiring `tenant_id`).
 4. **Redis**: keys prefixed `t{tenant_id}:b{business_id}:run:{run_id}`; per-client ACL restricts key pattern (Redis 6 ACLs). One leaked credential cannot read another tenant's namespace.
 
-**Failure mode if bypassed**: cross-tenant data leak — catastrophic regulatory + reputational. **Detection**:
+**Failure mode if bypassed**: cross-tenant data leak - catastrophic regulatory + reputational. **Detection**:
 - Per-row tenant_id mismatch check on serialization out of the memory-service (defensive; throws and pages on mismatch)
 - Daily reconciliation job hashes row count by tenant against `tenant_id` index counter; any drift pages oncall
 - Sampled query audit: 0.1% of memory reads log the (requesting tenant_id, returned row tenant_ids); offline job alerts on any mismatch
@@ -230,13 +230,13 @@ This is the **data-layer** concern. The **prompt-side** behavioral defense (outp
   - NFKC unicode normalization
   - Reject content > 8K tokens (oversized writes are almost always exfiltrated tool dumps)
   - Strip embedded markup / code blocks unless explicitly tagged with `content_type=code`
-  - Detect and refuse high-density instruction patterns (e.g., "ignore all previous", "you are now") — log + drop
+  - Detect and refuse high-density instruction patterns (e.g., "ignore all previous", "you are now") - log + drop
 - **Origin tagging**: every memory row carries `origin` enum:
-  - `user_explicit` — owner typed it themselves (highest trust)
-  - `agent_summary` — MEMORY_SCRIBE wrote it (medium trust)
-  - `tool_output_summary` — derived from external tool result (low trust, quarantine)
-  - `ingestion_pipeline` — from the corpus loader (medium-high, but only readable by domain-knowledge readers)
-  - `system` — bootstrap or admin config (highest trust)
+  - `user_explicit` - owner typed it themselves (highest trust)
+  - `agent_summary` - MEMORY_SCRIBE wrote it (medium trust)
+  - `tool_output_summary` - derived from external tool result (low trust, quarantine)
+  - `ingestion_pipeline` - from the corpus loader (medium-high, but only readable by domain-knowledge readers)
+  - `system` - bootstrap or admin config (highest trust)
 - **Per-origin trust score** drives retrieval filtering:
   - `tool_output_summary` content is **quarantined for 24h with no read access**; if background scan (toxicity, jailbreak, PII leakage) flags nothing, promoted to readable. Stops the loop where a tool returns adversarial content that ends up steering the next hop.
   - Episodic recall can be filtered to `origin IN ('user_explicit', 'agent_summary')` for high-sensitivity operations like payout approval.
@@ -248,11 +248,11 @@ This is the **data-layer** concern. The **prompt-side** behavioral defense (outp
 
 | mechanism | applies to | action on stale |
 |---|---|---|
-| **Timestamp decay** — importance × 0.95/month | episodic | below 0.2 → `suppressed` from retrieval (still on disk) |
-| **Contradiction detection** — new episode flagged against top-3 nearest existing via LLM judge | episodic, semantic | older row → `superseded`; reads exclude by default; surface with `?include_superseded=true` override |
-| **Confidence decay** — SCRIBE-written facts get a confidence score; decays by data-source signal (e.g., user edited the underlying transaction) | semantic | below 0.5 → excluded from prompt context; re-derived on next opportunity |
-| **Source-anchored TTL** — domain knowledge tied to upstream change | domain | replaced on next ingestion cycle |
-| **Source deletion cascade** — if underlying transaction / invoice deleted, derived episodes flagged | episodic | flagged `source_deleted`; excluded |
+| **Timestamp decay** - importance × 0.95/month | episodic | below 0.2 → `suppressed` from retrieval (still on disk) |
+| **Contradiction detection** - new episode flagged against top-3 nearest existing via LLM judge | episodic, semantic | older row → `superseded`; reads exclude by default; surface with `?include_superseded=true` override |
+| **Confidence decay** - SCRIBE-written facts get a confidence score; decays by data-source signal (e.g., user edited the underlying transaction) | semantic | below 0.5 → excluded from prompt context; re-derived on next opportunity |
+| **Source-anchored TTL** - domain knowledge tied to upstream change | domain | replaced on next ingestion cycle |
+| **Source deletion cascade** - if underlying transaction / invoice deleted, derived episodes flagged | episodic | flagged `source_deleted`; excluded |
 
 Actions enumerated: `suppressed | flagged | superseded | source_deleted | deleted`. Different memory types resolve to different default actions; admin tooling can promote/demote.
 
@@ -271,7 +271,7 @@ Actions enumerated: `suppressed | flagged | superseded | source_deleted | delete
   - Network + driver: ~1 ms
   - **Total ~40 ms p99**
 - **Tradeoff vs exact**: HNSW is **30–50× faster** than brute force at this corpus size; accepting ~8% recall loss because the cross-encoder rerank corrects most misses (recall@3 after rerank ≥ 0.95 on golden set).
-- **Cache**: `Redis SET t{tenant_id}:b{business_id}:qhash:{query_hash} = top_3_episode_ids TTL=300s` — saves ~80% retrieval cost on repeated questions like "what's my runway" asked in the same conversation.
+- **Cache**: `Redis SET t{tenant_id}:b{business_id}:qhash:{query_hash} = top_3_episode_ids TTL=300s` - saves ~80% retrieval cost on repeated questions like "what's my runway" asked in the same conversation.
 
 ---
 
@@ -334,17 +334,17 @@ Anchored on the BlackBox LLMOps telemetry mesh (resume L58-59): 50M spans/day ca
 
 **Per-business memory dashboard** (one row in the admin UI per SMB):
 - Episode count, mean importance, last-write age, superseded count, quarantined count
-- "Top 10 most-retrieved episodes" — surfaces what's driving the agent's view of this business
-- "Episodes never retrieved in 60 days" — candidates for compaction or deletion
+- "Top 10 most-retrieved episodes" - surfaces what's driving the agent's view of this business
+- "Episodes never retrieved in 60 days" - candidates for compaction or deletion
 
-**Tracing**: every retrieval call creates a child span on the run trace. Span attributes include the query string, top-3 returned episode ids with similarity scores, and whether rerank changed the top-1 ranking (a `rerank_swapped` boolean — important debugging signal).
+**Tracing**: every retrieval call creates a child span on the run trace. Span attributes include the query string, top-3 returned episode ids with similarity scores, and whether rerank changed the top-1 ranking (a `rerank_swapped` boolean - important debugging signal).
 
 **Two canonical debugging paths**:
 
-1. **"Wrong memory" — agent said the wrong thing because it pulled a bad episode**:
+1. **"Wrong memory" - agent said the wrong thing because it pulled a bad episode**:
    open the run trace → identify the retrieval span → see top-K with scores → click through to each episode source → read `origin`, `write_time`, `importance_score`, `merged_from[]` → decide whether dedup misfired, importance was scored wrong, or content drifted. Replay the same retrieval offline with the snapshotted query and corpus state to confirm. Anchored on BlackBox deterministic replay (resume L58-59).
 
-2. **"Missing memory" — agent should have remembered X but didn't**:
+2. **"Missing memory" - agent should have remembered X but didn't**:
    query the episode store directly by `business_id` + topic filter; if present, run the retrieval offline with the user's actual query string and check: did HNSW miss it (recall problem → bump `efSearch` or re-train embeddings) or did the cross-encoder rerank drop it (rerank problem → inspect the pair score; possibly retrain reranker on this case)?
 
 ---
@@ -362,9 +362,9 @@ Anchored on the BlackBox LLMOps telemetry mesh (resume L58-59): 50M spans/day ca
 | Embedding model rolls over | See point 6 |
 
 **Migration policy invariants**:
-- Never block writes — migrations are always online
+- Never block writes - migrations are always online
 - Always dual-write during transitions (write old + new shape) until cutover validated
-- Deprecate old versions after 90 days; archived (cold S3 / read-only) memories stay on their original schema **indefinitely** — they don't need to support new reads, only forensic ones
-- All schema changes ship with a corresponding rollback script — verified on a staging snapshot before prod apply
+- Deprecate old versions after 90 days; archived (cold S3 / read-only) memories stay on their original schema **indefinitely** - they don't need to support new reads, only forensic ones
+- All schema changes ship with a corresponding rollback script - verified on a staging snapshot before prod apply
 
 ---

@@ -1,4 +1,4 @@
-# 04 — API and Contracts
+# 04 - API and Contracts
 
 External HTTP+JSON for users and SDKs, gRPC for service-to-service. Designed against the canonical service names in `03-architecture.md`. Anchored on AutoML's dual SDK+UI surface for 200K+ users (`resume.txt:90-92`) and BlackBox's ReAct agent runtime at 10K+ runs/day (`resume.txt:51-52`).
 
@@ -10,7 +10,7 @@ Base URL: `https://api.platform.example/v1`. All endpoints require `Authorizatio
 
 ### A.1 Agents
 
-#### `POST /v1/agents` — create agent
+#### `POST /v1/agents` - create agent
 
 Brief: Create a new agent definition under the caller's namespace. Persona, connectors, skills, RAG sources, and memory config are all optional; an empty agent is a valid (chat-only) persona.
 
@@ -81,13 +81,13 @@ Body: `{ "title": "...", "description": "...", "category": "research", "tags": [
 
 #### `POST /v1/agents/{id}/fork`
 
-Forks a published agent into the caller's namespace. Persona, skill references, and RAG-source schemas are copied. OAuth tokens are NOT copied — the forker must re-link their own Gmail/Slack. The new agent gets `forked_from_id = <source_id>`.
+Forks a published agent into the caller's namespace. Persona, skill references, and RAG-source schemas are copied. OAuth tokens are NOT copied - the forker must re-link their own Gmail/Slack. The new agent gets `forked_from_id = <source_id>`.
 
 Success (201): returns the new agent envelope identical to `POST /v1/agents`.
 
 ### A.2 Runs
 
-#### `POST /v1/agents/{id}/runs` — start a run
+#### `POST /v1/agents/{id}/runs` - start a run
 
 Brief: Start an agent run. Returns immediately with `run_id`. If client sends `Accept: text/event-stream`, the same call upgrades to SSE and streams events until terminal.
 
@@ -126,7 +126,7 @@ Success (202, JSON mode):
 
 Success (200, SSE mode): `Content-Type: text/event-stream`. See section C.
 
-Idempotency: Repeat with same `Idempotency-Key` returns same `run_id`. Anchored on `microsoft-experience.md` point 24-25 — idempotency for AutoML job submission.
+Idempotency: Repeat with same `Idempotency-Key` returns same `run_id`. Anchored on `microsoft-experience.md` point 24-25 - idempotency for AutoML job submission.
 
 Errors: `QUOTA_RUNS_PER_MIN_EXCEEDED`, `QUOTA_TOKENS_DAILY_EXCEEDED`, `CONNECTOR_OAUTH_EXPIRED`, `GUARDRAIL_INPUT_BLOCKED`.
 
@@ -203,7 +203,7 @@ Returns `{ "endpoint_id": "mcp_01HX...", "capabilities": [...] }`. Capabilities 
 
 ### A.4 Skills
 
-#### `POST /v1/skills` — upload a skill
+#### `POST /v1/skills` - upload a skill
 
 Body is `multipart/form-data` with two parts:
 
@@ -334,7 +334,7 @@ Query: `?q=research&category=productivity&sort=top|new|installs&page=1&page_size
 
 #### `GET /v1/memory/inspect?agent_id=&user_id=`
 
-Subject-scoped read. Returns a flat list of memory rows visible to the calling subject (the calling user's own memory for this agent only — never cross-tenant). Pagination via `?cursor=`.
+Subject-scoped read. Returns a flat list of memory rows visible to the calling subject (the calling user's own memory for this agent only - never cross-tenant). Pagination via `?cursor=`.
 
 ```json
 {
@@ -715,7 +715,7 @@ Codes by class:
 
 ## G. Rate limiting and quotas
 
-Anchored on the model router consuming 1B+ tokens/month at BlackBox (`resume.txt:55-56`) — token budgeting is a first-class concern, not an afterthought — and on AutoML's 15M+ jobs/month (`resume.txt:90-92`) where per-user/per-tenant quotas were the difference between a working platform and a fairness disaster.
+Anchored on the model router consuming 1B+ tokens/month at BlackBox (`resume.txt:55-56`) - token budgeting is a first-class concern, not an afterthought - and on AutoML's 15M+ jobs/month (`resume.txt:90-92`) where per-user/per-tenant quotas were the difference between a working platform and a fairness disaster.
 
 ### Per-user
 
@@ -744,10 +744,10 @@ Each connector's outbound RPS is throttled to respect the upstream provider's do
 
 Enforcement points (in order of cheapest first):
 
-1. **Gateway** — JWT-derived `user_id`, `tenant_id`, plan; checks per-minute and per-day buckets in Redis. Rejects with 429 before any downstream call.
-2. **OrchestratorAPI** — applies per-agent budget caps from the run-create payload, intersecting with the user's remaining daily token budget.
-3. **AgentRuntime** — checks `max_tool_calls`, `max_nesting_depth`, wall-clock at every node transition. Anchored on `microsoft-experience.md` point 27 — backpressure for AutoML.
-4. **ConnectorBroker** — per-connector outbound RPS as above.
-5. **ModelGateway** — provider-side rate limit handling (Claude/GPT/Grok) with circuit breakers + fallback routing (`resume.txt:55-56`).
+1. **Gateway** - JWT-derived `user_id`, `tenant_id`, plan; checks per-minute and per-day buckets in Redis. Rejects with 429 before any downstream call.
+2. **OrchestratorAPI** - applies per-agent budget caps from the run-create payload, intersecting with the user's remaining daily token budget.
+3. **AgentRuntime** - checks `max_tool_calls`, `max_nesting_depth`, wall-clock at every node transition. Anchored on `microsoft-experience.md` point 27 - backpressure for AutoML.
+4. **ConnectorBroker** - per-connector outbound RPS as above.
+5. **ModelGateway** - provider-side rate limit handling (Claude/GPT/Grok) with circuit breakers + fallback routing (`resume.txt:55-56`).
 
 When the global run queue depth exceeds the configured high-water mark (see `05-low-level-design.md` section J), the Gateway returns `INTERNAL_QUEUE_FULL` with `retry_after_ms` set from a backoff schedule, instead of dequeuing into a system that will OOM.

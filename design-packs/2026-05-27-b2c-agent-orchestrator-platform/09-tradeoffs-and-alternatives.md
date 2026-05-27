@@ -1,4 +1,4 @@
-# 09 — Tradeoffs and Alternatives
+# 09 - Tradeoffs and Alternatives
 
 This document captures the major architecture and product decisions we explicitly considered and rejected, the crossroads decisions we landed on, and the bets we're making. The goal is for a future reader (engineering, product, or a critic) to be able to reconstruct *why* we picked what we picked without re-deriving the entire decision tree.
 
@@ -13,7 +13,7 @@ Resume and experience anchors used throughout:
 
 ---
 
-## Section 1 — Rejected major options
+## Section 1 - Rejected major options
 
 | Option | What we'd do | Why we rejected | When we'd revisit |
 | --- | --- | --- | --- |
@@ -24,7 +24,7 @@ Resume and experience anchors used throughout:
 | **Docker container sandbox for skill scripts** | One container per skill execution; cgroups + seccomp + read-only rootfs. | At 1M+ daily executions `(resume.txt:49-50)`, Docker cold-start (~hundreds of ms) destroys our latency budget for interactive turns. SOC-2 isolation is achievable but harder to argue than the WASM kernel boundary `(blackbox-experience.md points 2, 3)`. Per-execution overhead in CPU and memory is 5–10x WASM. | If users demand running arbitrary native binaries (e.g. ffmpeg, headless Chromium) we add a "heavyweight skill" tier on Firecracker, not Docker. |
 | **Synchronous run API only** | Single HTTP call, block until the agent finishes, return final answer. | Agent runs are long-tailed: median 3 s, p99 over 60 s with tool calls. Holding HTTP connections at consumer scale is wasteful and breaks behind load balancers / CDNs. We need SSE/WebSocket for "thinking..." UX anyway. | Never. We do keep a sync convenience wrapper for short runs (<10 s budget) for SDK ergonomics. |
 | **Single vector DB for all memory types** | One collection holds episodic + semantic + procedural + RAG document chunks. | Different memory types have different recall semantics, retention policies, and access patterns. Mixing them collapses recall quality and makes deletion / GDPR right-to-forget a nightmare (you can't selectively forget "what the user told you about themselves" without nuking RAG context). | If a future embedding model + filter language genuinely beats per-type indexes on quality and ops cost. Not on the horizon. |
-| **Self-hosted Pinecone / Weaviate / Milvus** | Run a dedicated managed or self-hosted vector DB cluster. | At consumer-scale launch volumes, we already run Postgres for users / billing / catalog. Adding a second stateful system with its own ops surface, replication story, and IAM model is unnecessary tax. Pinecone managed is fine technically but ties us to one vendor's pricing curve and one region story. | We will revisit when any single tenant crosses ~50M vectors or when query latency on pgvector p99 crosses 200 ms — whichever comes first. |
+| **Self-hosted Pinecone / Weaviate / Milvus** | Run a dedicated managed or self-hosted vector DB cluster. | At consumer-scale launch volumes, we already run Postgres for users / billing / catalog. Adding a second stateful system with its own ops surface, replication story, and IAM model is unnecessary tax. Pinecone managed is fine technically but ties us to one vendor's pricing curve and one region story. | We will revisit when any single tenant crosses ~50M vectors or when query latency on pgvector p99 crosses 200 ms - whichever comes first. |
 | **Workflow engine: pure Temporal** | Use Temporal as the agent workflow engine; activities are LLM calls and tool calls. | Temporal is excellent for durable workflows, but it doesn't natively model the agent loop (reason → tool → observe → next-step) as a graph the way LangGraph does `(resume.txt:51-52)`. Forcing ReAct loops into Temporal activities means we re-build the graph semantics on top of it and lose LangGraph's checkpointing / branching primitives. | If LangGraph ever stops being maintained or its checkpointing model fails at our scale, Temporal is the most credible fallback. |
 | **Workflow engine: AWS Step Functions** | Express each agent as a state machine in Step Functions. | Vendor lock to AWS, expensive at our event volume (per-state-transition pricing on 10K+ runs/day `(blackbox-experience.md point 11)`), poor local-dev story, and the JSON DSL is not how agent authors think. | If we ever go all-in on AWS-only deployment for a specific enterprise SKU. |
 | **Workflow engine: in-house DAG from scratch** | Build our own engine, no LangGraph dependency. | We already did similar DAG-orchestration work at BlackBox `(blackbox-experience.md points 7, 8, 12)`, so the knowledge exists. But: building a workflow engine *and* an agent platform in the same 360 days dilutes both. LangGraph gets us 70% of what we need on day one. | Re-evaluate at 18 months once we know which LangGraph extensions we keep monkey-patching. |
@@ -33,7 +33,7 @@ Resume and experience anchors used throughout:
 
 ---
 
-## Section 2 — Big crossroads decisions
+## Section 2 - Big crossroads decisions
 
 ### Decision: Workflow engine
 
@@ -50,7 +50,7 @@ Resume and experience anchors used throughout:
 
 **Why:**
 - LangGraph's graph + ReAct primitives are the natural shape of agent code, and we already have institutional muscle there `(resume.txt:51-52)`.
-- The custom durable layer is small (checkpoint store on Postgres, retry policy, resume API) compared to building a full workflow engine, and it gives us deterministic replay for trace-based debugging — the same pattern that cut MTTR by 60% at BlackBox `(resume.txt:58-59)`.
+- The custom durable layer is small (checkpoint store on Postgres, retry policy, resume API) compared to building a full workflow engine, and it gives us deterministic replay for trace-based debugging - the same pattern that cut MTTR by 60% at BlackBox `(resume.txt:58-59)`.
 - We avoid vendor lock-in to AWS and we keep local-dev story tight (LangGraph runs in a single process for tests).
 
 **Downside accepted:**
@@ -78,7 +78,7 @@ Resume and experience anchors used throughout:
 - pgvector's HNSW has matured and is good enough for consumer-scale recall, and BM25 + HNSW hybrid retrieval (the same pattern from BlackBox `(resume.txt:61)`) sits naturally next to text search in Postgres.
 
 **Downside accepted:**
-- **Scale ceiling around 1B vectors.** Beyond that, sharding pgvector across multiple Postgres clusters starts to hurt — query fan-out, index maintenance, vacuum windows. We have a documented migration plan to Qdrant or Pinecone once any single tenant or the global catalog index crosses the threshold, but we accept that the migration is real work.
+- **Scale ceiling around 1B vectors.** Beyond that, sharding pgvector across multiple Postgres clusters starts to hurt - query fan-out, index maintenance, vacuum windows. We have a documented migration plan to Qdrant or Pinecone once any single tenant or the global catalog index crosses the threshold, but we accept that the migration is real work.
 
 ---
 
@@ -96,7 +96,7 @@ Resume and experience anchors used throughout:
 **What we picked.** WASM as the primary sandbox, Firecracker as a "heavyweight skill" tier for cases needing native binaries.
 
 **Why:**
-- Cold start under 10 ms versus hundreds of ms for Docker / Firecracker — critical because we expect dozens of skill calls per agent run on the median path, and a slow sandbox destroys interactive UX.
+- Cold start under 10 ms versus hundreds of ms for Docker / Firecracker - critical because we expect dozens of skill calls per agent run on the median path, and a slow sandbox destroys interactive UX.
 - The SOC-2 isolation story is the cleanest with WASM: no syscalls by default, capability-based WASI gating, no shared kernel attack surface. This is the exact story that unblocked enterprise SOC-2 at BlackBox `(blackbox-experience.md point 5)`.
 - Memory and CPU overhead per execution is 5–10x cheaper than container approaches, which matters at consumer scale and aggressive free-tier limits.
 
@@ -138,12 +138,12 @@ Resume and experience anchors used throughout:
 - **Both, with native for the top 20 and MCP for the long tail.** Native quality where it matters; MCP for breadth.
 - **Zapier / Pipedream as a backend.** Outsource connectors to an existing iPaaS.
 
-**What we picked.** Both — native integrations for the top 20 connectors (Gmail, Slack, Notion, GitHub, Drive, Calendar, Linear, Jira, HubSpot, Salesforce, Zendesk, Discord, Telegram, X/Twitter, LinkedIn, Asana, Trello, Figma, Stripe, Airtable), MCP as a first-class peer for everything else and for power-user / self-hosted servers.
+**What we picked.** Both - native integrations for the top 20 connectors (Gmail, Slack, Notion, GitHub, Drive, Calendar, Linear, Jira, HubSpot, Salesforce, Zendesk, Discord, Telegram, X/Twitter, LinkedIn, Asana, Trello, Figma, Stripe, Airtable), MCP as a first-class peer for everything else and for power-user / self-hosted servers.
 
 **Why:**
 - The top 20 connectors are where 80% of user value lives; native lets us tune retry, rate-limit, OAuth refresh, scope minimization, and structured output for each. Generic MCP cannot match a hand-tuned Gmail connector for the most common Gmail flows.
 - MCP as a peer means we don't bet the company on whether the standard wins. If MCP becomes the standard, we already speak it; if it doesn't, our top 20 carry the product.
-- This mirrors the multi-provider pattern that worked at BlackBox `(resume.txt:55-56)` — bet on heterogeneity, never bet on one ecosystem.
+- This mirrors the multi-provider pattern that worked at BlackBox `(resume.txt:55-56)` - bet on heterogeneity, never bet on one ecosystem.
 
 **Downside accepted:**
 - **Native integrations are maintenance forever.** Every API change at Google or Slack is a ticket. We budget a "connectors on-call" engineer permanently in the team plan, and we expose a public connector-status page so degradation is honest.
@@ -187,7 +187,7 @@ Resume and experience anchors used throughout:
 **Why:**
 - Pre-publish review at consumer scale either throttles the catalog or costs more than the product makes.
 - Automated scanning catches the vast majority of clear-cut abuse (malicious skill code via WASM static analysis, harmful prompts via classifier, copyright via hashed-content checks).
-- The compliance posture we want — SOC-2 Type II + GDPR — does not require pre-publish review; it requires *evidence* of moderation, which we can show via scan logs.
+- The compliance posture we want - SOC-2 Type II + GDPR - does not require pre-publish review; it requires *evidence* of moderation, which we can show via scan logs.
 
 **Downside accepted:**
 - **Reactive on bad-faith uploads.** A motivated bad actor can ship an agent that goes live for minutes to hours before takedown. We mitigate by aggressive quarantining (new accounts ship with lower trust and tighter scan thresholds for 7 days) but we accept that high-profile incidents will happen and we will need an incident response playbook.
@@ -209,41 +209,41 @@ Resume and experience anchors used throughout:
 **Why:**
 - Heuristic-first is cheap and lets us reject obvious noise (small-talk, repeated questions, tool failures).
 - The LLM-judged consolidation pass catches what the heuristic misses, and amortizes its cost across many turns.
-- This is the same pattern as memory compaction at BlackBox `(blackbox-experience.md point 18)` — cheap filter early, expensive judgment in batch.
+- This is the same pattern as memory compaction at BlackBox `(blackbox-experience.md point 18)` - cheap filter early, expensive judgment in batch.
 
 **Downside accepted:**
 - **Tunable hyperparameter.** Importance threshold, consolidation frequency, summarization aggressiveness all need ongoing calibration as user behavior changes. We commit to a quarterly memory-quality review with offline eval sets.
 
 ---
 
-## Section 3 — Leadership and business framing
+## Section 3 - Leadership and business framing
 
-**Product strategy and the why.** OpenAI's GPT Store and Anthropic's Projects already exist. Building yet another "create your agent" product only makes sense if there is a defensible gap, and there is one: **open MCP standard support + connector breadth + agent portability and forking + memory persistence depth**. Each of those, alone, is a feature. Together they're a moat. A proprietary store can ship one connector at a time and call memory "uploaded files"; a multi-LLM, MCP-first, fork-friendly platform with first-class persisted memory is something none of the incumbents will ship without breaking their own product structure. We're betting that the next generation of users wants agents they *own* — that they can edit, fork, move, and export — rather than agents that live as one row in someone else's database. The principal-engineer judgment from running heterogeneous LLM orchestration at BlackBox `(resume.txt:55-56)` is that the heterogeneity wins.
+**Product strategy and the why.** OpenAI's GPT Store and Anthropic's Projects already exist. Building yet another "create your agent" product only makes sense if there is a defensible gap, and there is one: **open MCP standard support + connector breadth + agent portability and forking + memory persistence depth**. Each of those, alone, is a feature. Together they're a moat. A proprietary store can ship one connector at a time and call memory "uploaded files"; a multi-LLM, MCP-first, fork-friendly platform with first-class persisted memory is something none of the incumbents will ship without breaking their own product structure. We're betting that the next generation of users wants agents they *own* - that they can edit, fork, move, and export - rather than agents that live as one row in someone else's database. The principal-engineer judgment from running heterogeneous LLM orchestration at BlackBox `(resume.txt:55-56)` is that the heterogeneity wins.
 
 **Roadmap shape.**
 
-- **v0 — 90 days, private alpha.** Persona model + 5 native connectors (Gmail, Slack, Notion, GitHub, Drive) + memory layer (pgvector) + Claude as the single LLM provider + WASM skill sandbox behind a feature flag. Goal: end-to-end works for 100 invited users. No catalog yet.
-- **v1 — 180 days, public launch.** MCP support as a first-class peer + 3 LLM providers (Claude, GPT, Grok — same set as BlackBox `(resume.txt:55-56)`) + public catalog with post-publish moderation + free tier with per-user token budgets + 15 more native connectors.
-- **v2 — 360 days, monetization and enterprise.** Creator monetization (rev share on agent installs/runs) + per-tenant dedicated runtime tier for power users / small teams + GDPR-EU region active + SOC-2 Type II audit completed. The Type II window is roughly 6 months of observation, so we start the SOC-2 evidence collection in v1.
+- **v0 - 90 days, private alpha.** Persona model + 5 native connectors (Gmail, Slack, Notion, GitHub, Drive) + memory layer (pgvector) + Claude as the single LLM provider + WASM skill sandbox behind a feature flag. Goal: end-to-end works for 100 invited users. No catalog yet.
+- **v1 - 180 days, public launch.** MCP support as a first-class peer + 3 LLM providers (Claude, GPT, Grok - same set as BlackBox `(resume.txt:55-56)`) + public catalog with post-publish moderation + free tier with per-user token budgets + 15 more native connectors.
+- **v2 - 360 days, monetization and enterprise.** Creator monetization (rev share on agent installs/runs) + per-tenant dedicated runtime tier for power users / small teams + GDPR-EU region active + SOC-2 Type II audit completed. The Type II window is roughly 6 months of observation, so we start the SOC-2 evidence collection in v1.
 
-**Team and execution.** Building this is approximately **8 engineers** split across: (1) Orchestrator runtime / workflow engine, (2) Memory and RAG, (3) Native connectors and MCP, (4) Skill sandbox (WASM + Firecracker tier), (5) Model router and capability eval, (6) LLMOps telemetry, (7) Frontend, (8) Platform / billing / catalog. This is the same shape and headcount as the agentic platform I led at BlackBox `(resume.txt:51, blackbox-experience.md point 6)` — six engineers carried the agentic platform; we add frontend and a dedicated catalog/billing engineer for the consumer surface. Hiring posture mirrors the Microsoft ML platform hiring model `(microsoft-experience.md point 16)`: senior IC bias, secure protocol design literacy as a baseline for the runtime, sandbox, and connector hires.
+**Team and execution.** Building this is approximately **8 engineers** split across: (1) Orchestrator runtime / workflow engine, (2) Memory and RAG, (3) Native connectors and MCP, (4) Skill sandbox (WASM + Firecracker tier), (5) Model router and capability eval, (6) LLMOps telemetry, (7) Frontend, (8) Platform / billing / catalog. This is the same shape and headcount as the agentic platform I led at BlackBox `(resume.txt:51, blackbox-experience.md point 6)` - six engineers carried the agentic platform; we add frontend and a dedicated catalog/billing engineer for the consumer surface. Hiring posture mirrors the Microsoft ML platform hiring model `(microsoft-experience.md point 16)`: senior IC bias, secure protocol design literacy as a baseline for the runtime, sandbox, and connector hires.
 
-**Cost discipline.** LLM provider spend is the dominant cost line, period — at 1B+ tokens/month scale `(resume.txt:55-56)` the second-largest line (compute, storage, network combined) is an order of magnitude smaller. Four strategies stack:
+**Cost discipline.** LLM provider spend is the dominant cost line, period - at 1B+ tokens/month scale `(resume.txt:55-56)` the second-largest line (compute, storage, network combined) is an order of magnitude smaller. Four strategies stack:
 
 - **Capability-aware routing** pushes cheap models for simple steps (classification, routing, function-name selection) and reserves expensive models for hard reasoning. This is the lever that worked at BlackBox.
-- **Memory compaction** reduces token spend on long-running agents — without it, every turn re-pays for the whole session history.
+- **Memory compaction** reduces token spend on long-running agents - without it, every turn re-pays for the whole session history.
 - **Cache hits on common retrievals** in RAG (and on common prompt prefixes via prompt caching where the provider supports it) cuts effective tokens-per-turn.
 - **Per-user token budgets with visible UX** prevents the worst case: a user accidentally writing an agent that calls itself in a loop and discovering it on a bill. The budget is a UX feature *and* a cost cap.
 
-**Compliance posture.** Targeting **SOC-2 Type II within 12 months** and **GDPR from day one**. The unusual call for a B2C startup is to pull compliance earlier than typical — most consumer products defer SOC-2 until enterprise sales force it. Our reasoning: this product exposes us to enterprise data through the back door, because an employee can connect their work Gmail or work Slack to a personal agent. The blast radius of an incident is enterprise-grade even when the customer is consumer-grade. This is the same threat-model discipline that drove secure-by-design at Microsoft `(microsoft-experience.md point 18)` and that built the WASM-isolation story at BlackBox `(blackbox-experience.md points 5, 7)` — both required treating "the next tier of customer" as already present, and engineering for them.
+**Compliance posture.** Targeting **SOC-2 Type II within 12 months** and **GDPR from day one**. The unusual call for a B2C startup is to pull compliance earlier than typical - most consumer products defer SOC-2 until enterprise sales force it. Our reasoning: this product exposes us to enterprise data through the back door, because an employee can connect their work Gmail or work Slack to a personal agent. The blast radius of an incident is enterprise-grade even when the customer is consumer-grade. This is the same threat-model discipline that drove secure-by-design at Microsoft `(microsoft-experience.md point 18)` and that built the WASM-isolation story at BlackBox `(blackbox-experience.md points 5, 7)` - both required treating "the next tier of customer" as already present, and engineering for them.
 
 **Stakeholder alignment.** The principal engineer for this platform is responsible for landing decisions across at least four organizations: **runtime** (where do we burn engineering time?), **security** (what compliance commitments can we make and keep?), **growth** (what does the catalog UX surface to the user?), and **finance** (what is COGS per agent run, per user, per month, and how does it bend?). This is the same cross-org architecture-review posture that I ran 30+ times at Microsoft Azure ML for AutoML and Fine-tuning `(microsoft-experience.md points 12, 19)`. The principal-engineer job is not to pick the right answer alone; it is to make the tradeoffs in this document legible to all four groups and to land decisions they can defend back to their own leadership.
 
 ---
 
-## Section 4 — Risks and bets
+## Section 4 - Risks and bets
 
-We are explicitly making the following bets. Each bet has a stated invalidator — the observation that would force us to change strategy.
+We are explicitly making the following bets. Each bet has a stated invalidator - the observation that would force us to change strategy.
 
 - **Bet:** MCP becomes a meaningful ecosystem standard within 18 months. We treat it as a first-class peer to native connectors from v1.
   **Invalidator:** MCP server counts stay below 100, no major SaaS vendor ships official MCP support, and our usage data shows <5% of agent tool calls go through MCP after 12 months of GA.

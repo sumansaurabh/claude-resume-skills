@@ -43,10 +43,10 @@ contaminating the other.
 
 ## Resume anchors
 
-- **LangGraph ReAct runtime with DAG orchestration, durable execution, 10K+ agent runs/day** — `resume.txt` L51-54.
-- **Model router across Claude/GPT/Grok, 1B+ tokens/month** — `resume.txt` L55-56.
-- **LLMOps telemetry mesh, 50M spans/day, deterministic replay, 60% MTTR cut** — `resume.txt` L58-59.
-- **Rule-engine / deterministic-system thinking from ShareChat ad-targeting and CTR over 40M DAU** — `resume.txt` L109-114.
+- **LangGraph ReAct runtime with DAG orchestration, durable execution, 10K+ agent runs/day** - `resume.txt` L51-54.
+- **Model router across Claude/GPT/Grok, 1B+ tokens/month** - `resume.txt` L55-56.
+- **LLMOps telemetry mesh, 50M spans/day, deterministic replay, 60% MTTR cut** - `resume.txt` L58-59.
+- **Rule-engine / deterministic-system thinking from ShareChat ad-targeting and CTR over 40M DAU** - `resume.txt` L109-114.
 
 ## How to read this pack in an interview
 

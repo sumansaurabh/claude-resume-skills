@@ -5,7 +5,7 @@
   "hasKnowledgeBase": true,
   "slug": "multi-persona-ai-banker-shared-platform",
   "createdAt": "2026-05-21",
-  "question": "Design a Multi-Persona AI Banker as a shared AI platform with persona-aware specialization across Retail, SME, and CFO personas — not three independent agents. The platform shares orchestration, memory, tooling, and governance; persona differences mainly affect permissions, context, tone, workflows, and proactive behavior. Cover: API gateway and auth, identity resolution, shared agent orchestrator, context manager with persona-aware injection, tool router, policy engine, layered memory (session, long-term user, financial-historical, organizational context), notification orchestrator, audit and monitoring, deterministic vs probabilistic boundary for financial math, proactive intelligence with cooldowns and fatigue prevention, human-in-the-loop for medium/high-risk actions, failure modes (false positives, hallucinations, persona misresolution, notification fatigue, tool misuse), event-driven scalability, and rollout strategy starting with Retail.",
+  "question": "Design a Multi-Persona AI Banker as a shared AI platform with persona-aware specialization across Retail, SME, and CFO personas - not three independent agents. The platform shares orchestration, memory, tooling, and governance; persona differences mainly affect permissions, context, tone, workflows, and proactive behavior. Cover: API gateway and auth, identity resolution, shared agent orchestrator, context manager with persona-aware injection, tool router, policy engine, layered memory (session, long-term user, financial-historical, organizational context), notification orchestrator, audit and monitoring, deterministic vs probabilistic boundary for financial math, proactive intelligence with cooldowns and fatigue prevention, human-in-the-loop for medium/high-risk actions, failure modes (false positives, hallucinations, persona misresolution, notification fatigue, tool misuse), event-driven scalability, and rollout strategy starting with Retail.",
   "questionHash": "sha256:c4271883e7e638f68d275915782447b0c9cdfc89ca0f291c3d54ecbb9d767e04",
   "company": "BlackBox",
   "primarySkill": "/analyze-my-resume",
@@ -28,7 +28,7 @@
   },
   "scope": [
     "Shared multi-persona AI Banker platform serving Retail, SME, and CFO personas from one runtime",
-    "Persona-aware context injection: permissions, tone, workflows, proactive cadence — not separate agents",
+    "Persona-aware context injection: permissions, tone, workflows, proactive cadence - not separate agents",
     "Supervisor + specialist subagents: cashflow forecaster, spending coach, treasury advisor, payroll-readiness, anomaly explainer, governance/approval agent, advisory/coaching agent",
     "Deterministic vs probabilistic boundary: financial math (balances, runway, FX, payroll) runs in a deterministic Calculation Service; LLMs do reasoning, prioritization, summarization, NL surface",
     "Tool layer (RBAC per persona): bank account API (Plaid/Account-Aggregator), accounting (Tally/Zoho/QuickBooks), payroll (RazorpayX/Gusto), treasury (FX, sweep, MMF), GST/IT portals, payment rails (UPI/ACH/SEPA), notification channels",
@@ -48,13 +48,13 @@
     "design-packs/2026-05-15-agent-memory-persistence"
   ],
   "interviewContext": {
-    "round": "R2 — System Design",
+    "round": "R2 - System Design",
     "role": "Staff Engineer, AI Banker Infrastructure",
     "evaluation": "ambiguity handling, AI systems thinking, scalability, safety, architecture trade-offs, staff-level ownership",
     "biggestPitfall": "designing three separate agents instead of a shared platform; using LLMs for deterministic financial math",
     "referenceProblems": [
-      "/Users/sumansaurabh/Documents/slcie/problems/cash_flow_risk_detector — open SME persona problem (not solved here)",
-      "/Users/sumansaurabh/Documents/slcie/problems/spending_coach_agent — implemented Retail persona reference"
+      "/Users/sumansaurabh/Documents/slcie/problems/cash_flow_risk_detector - open SME persona problem (not solved here)",
+      "/Users/sumansaurabh/Documents/slcie/problems/spending_coach_agent - implemented Retail persona reference"
     ]
   }
 }

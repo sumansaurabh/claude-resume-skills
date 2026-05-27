@@ -3,7 +3,7 @@
 ## Use case and problem statement
 
 A retail bank wants every customer to have a **personal banker in their
-pocket** — someone who can answer "where did my money go", "can I afford this
+pocket** - someone who can answer "where did my money go", "can I afford this
 EMI", "is this charge fraud" in seconds, at any hour, in the customer's
 language, without queuing for a human. Branch bankers cost ~₹150-300 per
 interaction and don't scale to 200M+ customers; IVR menus cap at trivial
@@ -14,7 +14,7 @@ distribution channel.
 
 The architectural shape is anchored in the user's BlackBox experience:
 **LangGraph DAG, durable execution, tool-calling, model routing, replayable
-traces** — the same primitives that supported 10K+ agent runs/day at BlackBox
+traces** - the same primitives that supported 10K+ agent runs/day at BlackBox
 (`resume.txt` L51-54), now applied to a regulated banking domain.
 
 ## Users and access patterns
@@ -24,10 +24,10 @@ traces** — the same primitives that supported 10K+ agent runs/day at BlackBox
 | **Retail customer (primary)** | Conversational Q&A in app or WhatsApp: balance, spend, EMI, fraud, savings | 3-8 turns/session, 2-4 sessions/week per active user | Hard p95 < 3s for "look-up" questions; < 15s for "analyze my spending" |
 | **Premium / wealth customer** | Same as above + investment what-ifs, FD sweeps, multi-account view | 5-15 turns/session, daily | Soft p95 < 4s; richer reasoning budget allowed |
 | **Joint-account dependent (spouse, child)** | Read-only view-of-self, alerts | low | Same |
-| **Branch banker (assisted)** | Uses agent as a co-pilot during in-branch interactions | bursty | < 2s — needs to be invisible in conversation |
+| **Branch banker (assisted)** | Uses agent as a co-pilot during in-branch interactions | bursty | < 2s - needs to be invisible in conversation |
 | **Fraud ops (internal)** | Reads agent's flagged-transaction stream, escalates true positives | streaming | n/a (queue) |
 | **Compliance / audit (internal)** | Replays agent runs, exports evidence for RBI / DPDP audits | weekly batch | n/a (offline) |
-| **Core Banking System (callee)** | Owns truth: accounts, ledger, cards, deposits — agent reads via API | every call | < 200ms per call (agent budget depends on it) |
+| **Core Banking System (callee)** | Owns truth: accounts, ledger, cards, deposits - agent reads via API | every call | < 200ms per call (agent budget depends on it) |
 
 Cadence assumption: 10M MAU on the bank app → ~3M DAU → average 1.5
 sessions/day → ~4.5M sessions/day → ~25M agent turns/day at steady state.
@@ -58,12 +58,12 @@ Peak (1st-of-month salary day, EMI day) is ~3x average.
   hosted LLM is a compliance blocker. We need a sanitization+tokenization
   layer in our own VPC.
 - **Latency budget.** Sub-3-second conversational answers require fan-out,
-  parallel tool calls, and tight prompt sizes — possible only when we
+  parallel tool calls, and tight prompt sizes - possible only when we
   control the orchestrator.
 
 ## Capacity and load estimates
 
-**User base (assumption — bank-dependent):** 10M MAU → 3M DAU.
+**User base (assumption - bank-dependent):** 10M MAU → 3M DAU.
 
 **Sessions:**
 - DAU × 1.5 sessions/day = **4.5M sessions/day**.
@@ -74,7 +74,7 @@ Peak (1st-of-month salary day, EMI day) is ~3x average.
 deep-analysis turns may issue 8-12.
 - Steady-state tool calls: **~75M/day** ≈ **870/sec** avg.
 - Core-Banking API hit rate: ~40% of tool calls → **~30M/day** to core, well
-  within typical bank read traffic — but spikes need budget headroom.
+  within typical bank read traffic - but spikes need budget headroom.
 
 **Token volume:**
 - Avg turn: 1.5k input tokens (system + user + 2 tool outputs trimmed) + 400
@@ -131,8 +131,8 @@ deep-analysis turns may issue 8-12.
 
 ## Out of scope
 
-- Money movement (NEFT, IMPS, UPI initiation) — agent surfaces the intent,
+- Money movement (NEFT, IMPS, UPI initiation) - agent surfaces the intent,
   customer initiates in the standard payment flow.
-- KYC / onboarding — separate compliance flow.
-- Investment advisory beyond "education" — needs SEBI-registered advisor.
-- Cross-bank account aggregation (Account Aggregator integration) — Phase 2.
+- KYC / onboarding - separate compliance flow.
+- Investment advisory beyond "education" - needs SEBI-registered advisor.
+- Cross-bank account aggregation (Account Aggregator integration) - Phase 2.

@@ -1,4 +1,4 @@
-# 05 — Low-Level Design
+# 05 - Low-Level Design
 
 > Module decomposition, class/interface sketches, run/action state machines, Postgres
 > schema, sequence diagrams for the two emblematic flows ("Enough cash for payroll?",
@@ -6,13 +6,13 @@
 > concurrency model.
 >
 > Anchors:
-> - DAG execution + checkpointing + retry semantics for resumable agents — `resume.txt` L52–54;
+> - DAG execution + checkpointing + retry semantics for resumable agents - `resume.txt` L52–54;
 >   `blackbox-experience.md` #12–15.
-> - Tool-calling infrastructure with idempotency and side-effect control — `resume.txt` L51;
+> - Tool-calling infrastructure with idempotency and side-effect control - `resume.txt` L51;
 >   `blackbox-experience.md` #9, #17.
-> - Model router across Claude/GPT/Grok with capability-aware routing — `resume.txt` L55–56;
+> - Model router across Claude/GPT/Grok with capability-aware routing - `resume.txt` L55–56;
 >   `blackbox-experience.md` #16–19.
-> - Deterministic replay via LLMOps telemetry mesh — `resume.txt` L58–59;
+> - Deterministic replay via LLMOps telemetry mesh - `resume.txt` L58–59;
 >   `blackbox-experience.md` #20.
 
 ---
@@ -549,7 +549,7 @@ sequenceDiagram
 **Why deterministic-first + LLM-explainer (NOT LLM-projection)**
 - Bounded error: numbers come from arithmetic and well-priored sampling, not from a generative model that can hallucinate ₹50L into existence.
 - Auditability: every cell in the series traces back to specific rows in `transactions`, `invoices`, `payroll_runs`, `tax.get_upcoming_obligations`. SOC-2 wants reproducibility; LLM projections do not give it (`blackbox-experience.md` #5, #8).
-- Reproducibility: forecast is content-hashed (`hash(opening, schedule, priors, scenario)`), cacheable for 5 minutes, and replays identically. The LLM is invoked only to *explain* the numbers in plain English — same telemetry/replay pattern from the BlackBox LLMOps mesh (`resume.txt` L58–59).
+- Reproducibility: forecast is content-hashed (`hash(opening, schedule, priors, scenario)`), cacheable for 5 minutes, and replays identically. The LLM is invoked only to *explain* the numbers in plain English - same telemetry/replay pattern from the BlackBox LLMOps mesh (`resume.txt` L58–59).
 
 ---
 
@@ -557,10 +557,10 @@ sequenceDiagram
 
 Full details live in `13-memory-layer-design.md`. The call sites that touch the runtime are:
 
-- **Read — Supervisor (early in plan)**: `kb.search_business_context(query=user_msg, top_k=6, filters={business_id})` runs against `memory_episodes` HNSW + lexical hybrid. Hit episodes seed the supervisor's plan ("last time we delayed AWS, customer approved") and are pinned into `state.scratchpad.memory_hits`.
-- **Read — Specialist nodes**: `AnomalyExplainerAgent` and `WorkingCapitalAdvisorAgent` re-query memory with their own query reformulations (richer than the user's wording) — only their own scoped filters.
-- **Write — Post-run summarizer (during `SUMMARIZING`)**: emits one `memory_episode` row with a 1–2 sentence summary + tags `{payroll_readiness, gap, recommendation_accepted?}` and an importance score (0..1) derived from heuristics (HITL involved, action executed, anomaly explained).
-- **Write — HITL approval**: every approval/rejection writes a `policy_preference` episode (`{tag: 'policy_preference', vendor: 'AWS', decision: 'allow', amount_band: '1–3L', actor: 'user:u_owner'}`). The PolicyEngine reads these on subsequent runs to suggest standing-instruction promotions.
+- **Read - Supervisor (early in plan)**: `kb.search_business_context(query=user_msg, top_k=6, filters={business_id})` runs against `memory_episodes` HNSW + lexical hybrid. Hit episodes seed the supervisor's plan ("last time we delayed AWS, customer approved") and are pinned into `state.scratchpad.memory_hits`.
+- **Read - Specialist nodes**: `AnomalyExplainerAgent` and `WorkingCapitalAdvisorAgent` re-query memory with their own query reformulations (richer than the user's wording) - only their own scoped filters.
+- **Write - Post-run summarizer (during `SUMMARIZING`)**: emits one `memory_episode` row with a 1–2 sentence summary + tags `{payroll_readiness, gap, recommendation_accepted?}` and an importance score (0..1) derived from heuristics (HITL involved, action executed, anomaly explained).
+- **Write - HITL approval**: every approval/rejection writes a `policy_preference` episode (`{tag: 'policy_preference', vendor: 'AWS', decision: 'allow', amount_band: '1–3L', actor: 'user:u_owner'}`). The PolicyEngine reads these on subsequent runs to suggest standing-instruction promotions.
 
 Cross-tenant isolation: every read/write is wrapped by RLS via `SET LOCAL app.tenant_id`; the Memory Service rejects calls whose `business_id` doesn't resolve under the active tenant.
 
@@ -591,10 +591,10 @@ Cross-tenant isolation: every read/write is wrapped by RLS via `SET LOCAL app.te
   RETURNING r.run_id;
   ```
 
-  Lease TTL 30s; the worker heartbeats by re-running the `UPDATE` every 10s. A crash leaves the row reclaimable in ≤30s, after which any worker picks it up and `Resume`s from the latest `run_state.version` — this is the same DAG resume semantics from BlackBox (`resume.txt` L52–54; `blackbox-experience.md` #15).
+  Lease TTL 30s; the worker heartbeats by re-running the `UPDATE` every 10s. A crash leaves the row reclaimable in ≤30s, after which any worker picks it up and `Resume`s from the latest `run_state.version` - this is the same DAG resume semantics from BlackBox (`resume.txt` L52–54; `blackbox-experience.md` #15).
 - **Specialist sub-graphs run as coroutines under the supervisor**; per-coroutine deadlines are derived from `state.budget.max_wall_ms - elapsed`. Cancellation is cooperative: when budget is exhausted, the supervisor cancels outstanding coroutines and emits a `BUDGET_EXCEEDED_*` error.
 - **Backpressure to upstream tools** lives in the Tool Gateway (circuit breaker + token-bucket per tool family) so a slow bank does not starve unrelated runs.
-- **Action Executor** runs on a separate pool with longer leases (2 min) because saga steps may wait for HITL or bank confirmation. The agent worker that submitted the action is free to release the run lease and return — the orchestrator wakes a (possibly different) worker on `RESUMING`.
+- **Action Executor** runs on a separate pool with longer leases (2 min) because saga steps may wait for HITL or bank confirmation. The agent worker that submitted the action is free to release the run lease and return - the orchestrator wakes a (possibly different) worker on `RESUMING`.
 
 ---
 
@@ -608,4 +608,4 @@ Cross-tenant isolation: every read/write is wrapped by RLS via `SET LOCAL app.te
 | Forecast engine deterministic-first; LLM only explains (auditability + replay) | `resume.txt` L58–59; `blackbox-experience.md` #8, #20 |
 | `SELECT FOR UPDATE SKIP LOCKED` claim + lease + Resume from latest checkpoint | `resume.txt` L52–54; `blackbox-experience.md` #15 |
 | Audit log append-only + S3 object-lock archive for SOC-2 | `blackbox-experience.md` #5 |
-| Memory read at Supervisor, write at Summarizer + HITL — tenant-scoped via RLS | `blackbox-experience.md` #14, #21–22 |
+| Memory read at Supervisor, write at Summarizer + HITL - tenant-scoped via RLS | `blackbox-experience.md` #14, #21–22 |
