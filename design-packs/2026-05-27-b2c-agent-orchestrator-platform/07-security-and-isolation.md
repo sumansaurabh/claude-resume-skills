@@ -1,22 +1,5 @@
 # 07 - Security and Isolation (Infrastructure)
 
-> **Scope.** This document covers **infrastructure security only**: trust boundaries, identity, network isolation, secrets, multi-tenancy, code execution sandboxing, connector boundary, data protection, supply chain, threat model, compliance, audit. Behavioral / content safety (prompt injection, jailbreak, output filtering, hallucination control, agent action approval) is **out of scope** and is owned by `15-guardrails.md`.
-
-## Resume anchors used here
-
-- `(resume.txt:49-50)` - Golang-backed WASM sandbox plane, 1M+ daily zero-shot code executions, unblocking Enterprise SOC-2 compliance.
-- `(resume.txt:58-59)` - LLMOps telemetry mesh, 50M spans/day, 2.5TB+ monthly trace data, deterministic replay.
-- `(resume.txt:87-89)` - secure multi-tenant ML infrastructure on Kubernetes and Azure: isolation strategies for LLM workloads, GPU scheduling.
-- `(resume.txt:93-94)` - CodeQL + GitHub Advanced Security integrated into CI/CD; standardized threat modeling.
-- `(resume.txt:97-98)` - TunDRA, secure QUIC-based protocol in Rust, 1M+ Compute Instances.
-- `(microsoft-experience.md point 10,11)` - isolation strategies: VNet, subnet, NSG, private endpoints, managed identity, namespaces, network policies, pod security, storage ACLs.
-- `(microsoft-experience.md point 17)` - CodeQL + GitHub Advanced Security in CI/CD.
-- `(microsoft-experience.md point 18)` - standardized threat modeling for Microsoft compliance.
-- `(microsoft-experience.md point 33)` - threat modeling assets, trust boundaries, attack vectors, mitigations.
-- `(microsoft-experience.md point 34)` - secrets leakage prevention from jobs, logs, images, env vars, user-provided code.
-- `(blackbox-experience.md points 3-5)` - WASM sandbox plane isolating 1M+ daily executions, supporting SOC-2.
-
----
 
 ## 1. Trust boundaries
 
@@ -44,7 +27,7 @@ flowchart LR
         RAG[RAG / pgvector service]
     end
 
-    subgraph SBX[WASM sandbox -- UNTRUSTED CODE]
+    subgraph SBX[sandbox -- UNTRUSTED CODE]
         WASMRT[wasmtime instance<br/>WASI preview2<br/>zero net, 256MB, 10s wall]
     end
 
@@ -82,7 +65,7 @@ flowchart LR
 | Edge to control plane | inbound | mTLS via service mesh, JWT verified at edge |
 | Control plane to data plane | east-west | SPIFFE/SPIRE workload identity, mTLS, network policy |
 | Tenant logical scope | east-west | RLS on Postgres, namespace prefix on pgvector, key prefix on Redis, S3 prefix IAM |
-| WASM sandbox | outbound | wasmtime + WASI preview2, no syscalls, capability host functions only |
+| sandbox | outbound | wasmtime + WASI preview2, no syscalls, capability host functions only |
 | Connector to third party | outbound | ConnectorBroker proxies all egress; raw token never exits broker |
 | Third party to platform (webhooks) | inbound | HMAC signature verification + replay window |
 
@@ -90,7 +73,6 @@ flowchart LR
 
 ## 2. Identity and access
 
-Anchored on `(microsoft-experience.md point 11)` (VNet, identity, managed identity), `(resume.txt:87-89)`.
 
 ### 2.1 End-user identity
 
@@ -106,7 +88,6 @@ Anchored on `(microsoft-experience.md point 11)` (VNet, identity, managed identi
 
 - **SPIFFE / SPIRE** issues short-lived (1 hour) X.509-SVID workload identities to every pod. Service mesh (Linkerd) enforces mTLS using these identities. Authorization policies are written against SPIFFE IDs (`spiffe://prod.platform/ns/orchestrator/sa/orchestrator`).
 - No long-lived service account tokens in env vars. No service-to-service shared secrets.
-- Pattern anchored on `(microsoft-experience.md point 11)` and `(resume.txt:97-98)` (TunDRA's secure-by-default compute communication is the design spirit).
 
 ### 2.3 Third-party provider tokens (Gmail / Slack / MCP / etc.)
 
