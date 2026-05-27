@@ -12,15 +12,13 @@ This document sizes the B2C web-based AI agent orchestrator and catalog platform
 | Weekly active users (WAU)       | 100,000           | Assumption: 10% weekly active                                                                               |
 | Published agents in catalog     | 10,000            | Assumption: ~1% of WAU publish at least one agent                                                           |
 | Peak concurrent agent runs      | 5,000             | Assumption: derived from 100K WAU × 30% daily peak × 5min/run / 86400s                                      |
-| Avg hops per run                | 8                 | Assumption: matches ReAct loop depth seen in `blackbox-experience.md:17,25`                                 |
+| Avg hops per run                | 8                 | Assumption: matches ReAct loop depth seen                                 |
 | Avg tokens per hop              | 2,000             | Assumption: prompt + retrieval + completion                                                                 |
 | % agents with RAG corpus        | 30% (3,000)       | Assumption                                                                                                  |
 | Avg RAG corpus per RAG agent    | 100 MB raw text   | Assumption                                                                                                  |
-| Daily agent runs                | 100K–500K         | Forward run-rate; resume anchor for credibility: 10K+ agent runs/day at BlackBox (resume.txt:51-52)         |
-| Aggregate token throughput      | ~10B tokens/month | Forward run-rate; resume anchor: 1B+ tokens/month model router at BlackBox (resume.txt:55-56)               |
-| Pattern-of-orchestration anchor | 15M+ jobs/month   | AutoML scale at Azure (resume.txt:90-92) - used to validate the OrchestratorAPI design at the right order  |
-
-Stated target: **start at the BlackBox 1B tokens/month anchor, plan for ~10× within 18 months** (~10B tokens/month), with the AutoML 15M jobs/month anchor (resume.txt:90-92) as the precedent for orchestrator scale.
+| Daily agent runs                | 100K–500K         | Forward run-rate; resume anchor for credibility: 10K+ agent runs/day         |
+| Aggregate token throughput      | ~10B tokens/month | Forward run-rate; resume anchor: 1B+ tokens/month model router|
+| Pattern-of-orchestration anchor | 15M+ jobs/month   | -  |
 
 ---
 
@@ -42,9 +40,6 @@ Headroom convention: stateless tiers sized at **1.5× peak**, stateful tiers at 
 | ModelGateway      | 8K LLM calls/sec aggregate    | ~1K calls/sec           | 8 × 1.5 = **12**          | **External LLM provider quota and tail latency** (the global cliff)                 |
 | GuardrailService  | 16K classifications/sec (in+out) | 2K/sec              | 8 × 1.5 = **12**          | CPU (small classifier inference) + redaction pass                                   |
 | TelemetryMesh     | 50M spans/day = ~580 spans/sec sustained; 5K spans/sec peak | 1.5K spans/sec ingest | 4 × 2 = **8** | Disk write throughput → Clickhouse. Anchor: 50M spans/day, 2.5TB/mo (resume.txt:58-59) |
-
-The 5K-concurrent-run row of OrchestratorAPI lines up with the BlackBox-era 10K+ runs/day claim (resume.txt:51-52) translated to a much higher concurrency surface; the 8K LLM calls/sec aggregate on ModelGateway derives directly from `5000 runs × 8 hops × (1 LLM call/hop) / avg_hop_latency_5s ≈ 8K calls/sec`.
-
 ---
 
 ## 3. Token Economics
@@ -82,7 +77,7 @@ Real B2C duty cycle (avg sec is ~3% of peak when integrated 24×7):
   Tokens/month = 16e6 × 0.03 × 86400 × 30 ≈ 1.24 × 10^12 ≈ 1.2 trillion/month
 ```
 
-So a defensible forward number is **~1–2 trillion tokens/month** at the 18-month target. Compared against the resume anchor of **1B+ tokens/month** on the BlackBox model router (resume.txt:55-56), this is a **~1,000× scale up at peak ambition, ~10× at 18-month-realistic ambition**.
+So a defensible forward number is **~1–2 trillion tokens/month** at the 18-month target. Compared against the resume anchor of **1B+ tokens/month**, this is a **~1,000× scale up at peak ambition, ~10× at 18-month-realistic ambition**.
 
 We commit to the **conservative 18-month planning number: ~10B tokens/month sustained**, with provisioning headroom built to scale to 100B tokens/month without re-architecture.
 
@@ -114,7 +109,6 @@ Fits comfortably in a single `m8g.4xlarge` Redis node (64 GB) with two orders of
   ≈ 416 GB / year (Postgres hot)
 ```
 
-Mistype guard: that's **~4 TB / year** if we keep full payloads vs the compact 10 KB summary. Plan for **~4 TB/year** on Clickhouse (full trace, anchored on the BlackBox 2.5 TB/month trace mesh - resume.txt:58-59), and **~400 GB/year** on Postgres (compact episodic index). After year 2 we move Postgres older-than-90-day rows to Clickhouse via partition exchange.
 
 ### 4.3 SemanticMemory (per-user embeddings)
 
@@ -164,13 +158,13 @@ So 1.23 TB of vectors. That's **practical** - one Milvus cluster of 8× `r8g.16x
 | Incremental insert  | Native, low cost                                | Requires re-train of centroids periodically           |
 | Cost / vector       | Higher RAM, lower CPU                           | Lower RAM, higher CPU per query                       |
 
-**Decision: HNSW (M=16, ef_construction=200, ef_search=64).** The B2C agent UX target is `< 200 ms p95` end-to-end including LLM, which gives the retriever a `~30 ms` budget. HNSW meets it; IVF-Flat doesn't at this index size with the default tuning. We accept the 1.5× RAM cost. This mirrors the BlackBox stack which uses HNSW + bm25 hybrid (resume.txt:60-61).
+**Decision: HNSW (M=16, ef_construction=200, ef_search=64).** The B2C agent UX target is `< 200 ms p95` end-to-end including LLM, which gives the retriever a `~30 ms` budget. HNSW meets it; IVF-Flat doesn't at this index size with the default tuning. We accept the 1.5× RAM cost.
 
 ---
 
 ## 6. Top 5 Bottlenecks
 
-1. **ModelGateway → external LLM provider rate limits and tail latency.** Provider TPM/RPM caps are the single hardest cliff. At 8K LLM calls/sec aggregate against any single provider, we exceed Anthropic and OpenAI default tier limits by 10×. Requires multi-provider sharding, dedicated capacity reservations, and provider-specific budget allocators. This is the lesson from BlackBox's 1B+ tokens/month router (resume.txt:55-56).
+1. **ModelGateway → external LLM provider rate limits and tail latency.** Provider TPM/RPM caps are the single hardest cliff. At 8K LLM calls/sec aggregate against any single provider, we exceed Anthropic and OpenAI default tier limits by 10×. Requires multi-provider sharding, dedicated capacity reservations, and provider-specific budget allocators. 
 
 2. **pgvector / RAG query latency at index size.** Past ~100M vectors per shard, HNSW recall drops and query latency climbs into the 50–100 ms range - eating the entire UX budget. Mitigation: shard by `tenant_id × agent_id`, target ≤50M vectors/shard, and migrate to Milvus or Weaviate at ~1B vectors total.
 
@@ -178,13 +172,11 @@ So 1.23 TB of vectors. That's **practical** - one Milvus cluster of 8× `r8g.16x
 
 4. **ConnectorBroker upstream rate limits.** Gmail Send API: 1B-1Q-100K-per-day class, Slack Web API ~1 req/sec/team, Notion ~3 req/sec/integration. At 5K concurrent runs touching connectors, a single popular connector becomes a hot lane. Mitigation: per-tenant per-connector token buckets, sticky-routing to the same broker shard, and cooperative scheduling that the agent loop respects.
 
-5. **SkillExecutor cold start.** WASM module first-load is 50–200 ms. At 8K invocations/sec, a 1% cold-start rate produces 80 cold starts/sec - a steady 8–16 seconds/sec of cold-start latency budget. Mitigation: WASM module cache per-host, pre-warm pool keyed by module hash, and pin top-100 modules to every executor. This mirrors the 1M+ daily WASM executions architecture at BlackBox (resume.txt:48-49 / `blackbox-experience.md:9-13`).
+5. **SkillExecutor cold start.** WASM module first-load is 50–200 ms. At 8K invocations/sec, a 1% cold-start rate produces 80 cold starts/sec - a steady 8–16 seconds/sec of cold-start latency budget. Mitigation: WASM module cache per-host, pre-warm pool keyed by module hash, and pin top-100 modules to every executor.
 
 ---
 
 ## 7. Backpressure Strategy
-
-Anchored on `microsoft-experience.md` point 27 (backpressure for AutoML at >15M jobs/month) and `blackbox-experience.md` point 19 (1B+ tokens/month with provider rate-limit awareness).
 
 **Token buckets, three layers stacked:**
 
@@ -240,8 +232,10 @@ Pro max tokens   = 10,000 runs × 8,000     = 80,000,000 tokens/user/month
 Pro token spend  = 50,000 × 80,000,000     = 4 × 10^12 = 4T tokens/month
 ```
 
-Free dominates **count** (95% of accounts) but Pro dominates **spend** (~42× Free in aggregate). This drives two product decisions: (a) Free tier must be aggressively rate-limited so abuse doesn't ruin unit economics, and (b) Pro tier should get dedicated per-provider capacity slots so a Free-tier surge doesn't impact paying customers - same isolation principle as the multi-tenant Microsoft AutoML platform (microsoft-experience.md point 6, resume.txt:88-89).
+Free dominates **count** (95% of accounts) but Pro dominates **spend** (~42× Free in aggregate). 
 
+- (a) Free tier must be aggressively rate-limited so abuse doesn't ruin unit economics, and 
+- (b) Pro tier should get dedicated per-provider capacity slots so a Free-tier surge doesn't impact paying customers.
 ---
 
 ## 9. Monthly Cost Projection
@@ -278,7 +272,7 @@ With realistic Pro/Free mix where Pro pays 80% of tokens: $66,000 × 1.0 ≈ $66
 Add reasoning models (premium) at 20% of mix at $15/$60: +$120K
 ```
 
-**Plan for $150K–$200K/month LLM spend at 10B tokens/month.** Aggressive prompt caching (target 50% cache hit; resume.txt:23 lists KV cache as a core skill area) and capability-aware routing (route cheap intents to Haiku/4o-mini; route only hard reasoning to Opus/o3) - anchor: BlackBox model router (resume.txt:55-56).
+**Plan for $150K–$200K/month LLM spend at 10B tokens/month.** Aggressive prompt caching (target 50% cache hit; resume.txt:23 lists KV cache as a core skill area) and capability-aware routing (route cheap intents to Haiku/4o-mini; route only hard reasoning to Opus/o3) .
 
 ### Storage
 
@@ -311,8 +305,6 @@ Assumption: 30 TB egress/month from API responses + LLM proxying
 
 **Cost per WAU: $385,000 / 100,000 = $3.85 / WAU / month.**
 
-LLM provider spend dwarfs everything else 2:1 over compute - this is the dominant lever for unit economics, validating the Microsoft-era discipline on cost-aware resource allocation (microsoft-experience.md point 9 / resume.txt:88-89) and the BlackBox-era context optimization (blackbox-experience.md point 18 / resume.txt:55-56).
-
 ---
 
 ## 10. Growth Plan - 3 Inflection Points
@@ -342,15 +334,13 @@ LLM provider spend dwarfs everything else 2:1 over compute - this is the dominan
 | Change                                                                          | Why                                                    |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | **Per-agent dedicated runtime tier** (1 AgentRuntime pod per popular agent)     | Predictable latency for monetized creators            |
-| Per-agent cost attribution → revenue share                                       | Catalog economics; mirrors AutoML SDK + Studio model  (microsoft-experience.md point 15 / resume.txt:90-92) |
+| Per-agent cost attribution → revenue share                                       | Catalog economics |
 | Reserved LLM provider capacity per top-1000 agents                              | SLA guarantee for creator-promoted runs               |
 | Custom GuardrailService policies per creator (catalog-listed safety profile)    | Marketplace differentiation                           |
 
 ---
 
 ## 11. Capacity Planning Rituals
-
-Anchored on `blackbox-experience.md` point 20 - the LLMOps telemetry mesh (resume.txt:58-59) cut MTTR by 60%. The same observability discipline drives capacity rituals.
 
 | Cadence    | Ritual                                                                                       | Owner                            | Action threshold                                  |
 | ---------- | -------------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------- |
@@ -363,20 +353,3 @@ Anchored on `blackbox-experience.md` point 20 - the LLMOps telemetry mesh (resum
 | Quarterly  | Capacity model recompute - re-derive the §2 table from current real traffic                  | Principal engineer + on-call lead | Any tier > 70% of headroom → order capacity now   |
 | Quarterly  | Bottleneck rotation review - top-5 from §6 reranked against last quarter's actual incidents  | Architecture review board        | New entrant in top 5 → design spike               |
 | Quarterly  | DR + region-failover game day                                                                | SRE                              | RTO > 30 min in test → fix before next quarter    |
-
-The structured cadence is the same one used to run the **30+ architecture reviews and sprint planning at Microsoft** (microsoft-experience.md point 19 / resume.txt:95-96), institutionalized as a recurring forum rather than ad-hoc escalation.
-
----
-
-## Sources / Resume Anchors Used
-
-- `resume.txt:51-52` - 10K+ agent runs/day BlackBox anchor (§1, §2, §6).
-- `resume.txt:55-56` - 1B+ tokens/month model router BlackBox anchor (§3, §6, §9).
-- `resume.txt:58-59` - 50M spans/day, 2.5TB/month, 60% MTTR reduction LLMOps telemetry mesh (§2, §11).
-- `resume.txt:88-89` - Microsoft secure multi-tenant ML infrastructure, cost-aware resource allocation (§8, §9).
-- `resume.txt:90-92` - 15M+ jobs/month AutoML scale anchor (§1, §10).
-- `resume.txt:95-96` - 30+ architecture reviews at Microsoft (§11).
-- `resume.txt:23` - KV cache as listed skill, feeding prompt-cache strategy (§9).
-- `blackbox-experience.md:9-13` - WASM sandbox plane 1M+ daily executions (§6).
-- `blackbox-experience.md:25,33` - durable execution, fault-tolerant distributed agent runtime (§2, §7).
-- `microsoft-experience.md:78-82` - backpressure for 15M+ jobs/month platform (§7).

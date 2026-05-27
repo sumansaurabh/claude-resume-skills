@@ -1,6 +1,6 @@
 # 04 - API and Contracts
 
-External HTTP+JSON for users and SDKs, gRPC for service-to-service. Designed against the canonical service names in `03-architecture.md`. Anchored on AutoML's dual SDK+UI surface for 200K+ users (`resume.txt:90-92`) and BlackBox's ReAct agent runtime at 10K+ runs/day (`resume.txt:51-52`).
+External HTTP+JSON for users and SDKs, gRPC for service-to-service.
 
 ---
 
@@ -126,7 +126,7 @@ Success (202, JSON mode):
 
 Success (200, SSE mode): `Content-Type: text/event-stream`. See section C.
 
-Idempotency: Repeat with same `Idempotency-Key` returns same `run_id`. Anchored on `microsoft-experience.md` point 24-25 - idempotency for AutoML job submission.
+Idempotency: Repeat with same `Idempotency-Key` returns same `run_id`.
 
 Errors: `QUOTA_RUNS_PER_MIN_EXCEEDED`, `QUOTA_TOKENS_DAILY_EXCEEDED`, `CONNECTOR_OAUTH_EXPIRED`, `GUARDRAIL_INPUT_BLOCKED`.
 
@@ -162,11 +162,11 @@ Sets status to `cancelling`. AgentRuntime checks the flag between nodes and at e
 
 #### `POST /v1/runs/{run_id}/resume`
 
-Used after `HITLPaused`. Body: `{ "approval": "approved" | "rejected", "comments": "...", "patched_args": { "...": "..." } }`. Re-enters the runtime from the checkpoint stored in `run_events`. Anchored on BlackBox durable resumable agents (`blackbox-experience.md` point 13).
+Used after `HITLPaused`. Body: `{ "approval": "approved" | "rejected", "comments": "...", "patched_args": { "...": "..." } }`. Re-enters the runtime from the checkpoint stored in `run_events`.
 
 #### `GET /v1/runs/{run_id}/events`
 
-Paginated event log. Query: `?after_seq=120&limit=200`. Returns the same event envelope as section C, but as a JSON array. This is the durable, replay-safe event store (anchored on `resume.txt:58-59` deterministic replay and `blackbox-experience.md` point 20).
+Paginated event log. Query: `?after_seq=120&limit=200`. Returns the same event envelope as section C, but as a JSON array. This is the durable, replay-safe event store.
 
 ### A.3 Connectors
 
@@ -353,7 +353,7 @@ Subject-scoped read. Returns a flat list of memory rows visible to the calling s
 
 #### `DELETE /v1/memory?agent_id=&type=`
 
-GDPR right-to-erase. `type` ∈ `{WorkingMemory, EpisodicMemory, SemanticMemory, ProceduralMemory, all}`. Synchronously deletes the row from Postgres + tombstones the corresponding pgvector entries; an async job purges S3 attachments.
+GDPR right-to-erase. `type` ∈ `{WorkingMemory, EpisodicMemory, SemanticMemory, ProceduralMemory, all}`. Synchronously deletes the row from Postgres + tombstones the corresponding qdrant entries; an async job purges S3 attachments.
 
 ---
 
@@ -367,8 +367,6 @@ Behavior:
 2. Repeat with same key + same body: cached response returned, header `X-Idempotent-Replay: true`.
 3. Same key + different body: 409 `IDEMPOTENCY_KEY_CONFLICT`.
 4. Concurrent duplicates: row insertion uses `INSERT ... ON CONFLICT DO NOTHING RETURNING`; the loser polls the row until populated (up to 5s), then returns the same payload.
-
-Resume anchor: AutoML's job-submission idempotency at 15M+ jobs/month (`microsoft-experience.md` points 24-25, `resume.txt:90-92`). Same shape applies here for `POST /v1/agents/{id}/runs` and `POST /v1/skills`.
 
 ---
 
@@ -400,7 +398,7 @@ Event types:
 | `run.completed`       | Terminal success                                                     |
 | `run.failed`          | Terminal failure with code + message                                 |
 
-Every event carries `run_id`, `node_id`, `seq` (monotonic per run), `ts` (ISO-8601), `payload`. The `seq` field makes the SSE stream resumable: clients reconnect with `Last-Event-ID: 47` and the server replays from `run_events` (section A.2 / `05-low-level-design.md` section D). Anchored on BlackBox telemetry mesh for deterministic replay (`resume.txt:58-59`).
+Every event carries `run_id`, `node_id`, `seq` (monotonic per run), `ts` (ISO-8601), `payload`. The `seq` field makes the SSE stream resumable: clients reconnect with `Last-Event-ID: 47` and the server replays from `run_events` (section A.2 / `05-low-level-design.md` section D).
 
 ---
 
@@ -459,7 +457,7 @@ message WriteRequest {
 }
 ```
 
-p99 target: 25ms for `Read`/`Write`, 60ms for `SemanticSearch` (HNSW + bm25 hybrid, anchored on `resume.txt:60-61`).
+p99 target: 25ms for `Read`/`Write`, 60ms for `SemanticSearch` (HNSW + bm25 hybrid`).
 
 ### D.2 `AgentRuntime ↔ ConnectorBroker`
 
@@ -498,7 +496,7 @@ message ToolError {
 }
 ```
 
-Idempotency key on `InvokeTool` is hashed from `(run_id, node_id, tool_name, canonical_args)` so a runtime retry never double-sends a Gmail or Slack message. Anchored on BlackBox tool-call idempotency requirement (`blackbox-experience.md` point 17).
+Idempotency key on `InvokeTool` is hashed from `(run_id, node_id, tool_name, canonical_args)` so a runtime retry never double-sends a Gmail or Slack message.
 
 ### D.3 `AgentRuntime ↔ SkillExecutor`
 
@@ -542,7 +540,7 @@ message ExitResult {
 }
 ```
 
-Backed by a wasmtime instance per call. Anchored on BlackBox WASM sandbox plane isolating 1M+ daily executions (`resume.txt:49-50`).
+Backed by a Sandbox instance per call.
 
 ### D.4 `AgentRuntime ↔ GuardrailService`
 
@@ -595,7 +593,7 @@ message CompleteResponse {
 }
 ```
 
-Routing logic uses `RoutingHints` to pick Claude/GPT/Grok per call. Anchored on BlackBox model router across heterogeneous backends (`resume.txt:55-56`).
+Routing logic uses `RoutingHints` to pick Claude/GPT/Grok per call.
 
 ### D.6 `AgentRuntime ↔ RAGService`
 
@@ -668,9 +666,7 @@ The agent does not have a privileged "RAG" path in its prompt. Retrieval is expo
 
 When the agent's persona has N attached RAG sources, the registry exposes one bound tool per source (`search_company_docs`, `search_support_tickets`, ...) with `corpus_id` pre-bound. The `ToolCaller` translates the invocation into a `RAGService.Query` gRPC call.
 
-This is the **read path**. The **write path** (ingestion, chunking, embedding with `EmbedderTextV3`, HNSW build) lives entirely in `IngestionPipeline` and is documented in `14-ingestion-pipeline.md`. The two paths share `rag_documents` metadata in Postgres and the pgvector index but never share request flow.
-
-Anchored on BlackBox RAG + VectorDB + HNSW + bm25 cross-encoder stack (`resume.txt:60-61`).
+This is the **read path**. The **write path** (ingestion, chunking, embedding with `EmbedderTextV3`, HNSW build) lives entirely in `IngestionPipeline` and is documented in `14-ingestion-pipeline.md`. The two paths share `rag_documents` metadata in Postgres and the qdrant index but never share request flow.
 
 ---
 
@@ -715,8 +711,6 @@ Codes by class:
 
 ## G. Rate limiting and quotas
 
-Anchored on the model router consuming 1B+ tokens/month at BlackBox (`resume.txt:55-56`) - token budgeting is a first-class concern, not an afterthought - and on AutoML's 15M+ jobs/month (`resume.txt:90-92`) where per-user/per-tenant quotas were the difference between a working platform and a fairness disaster.
-
 ### Per-user
 
 | Quota                    | Default (free)    | Default (pro)     | Burst              |
@@ -746,7 +740,7 @@ Enforcement points (in order of cheapest first):
 
 1. **Gateway** - JWT-derived `user_id`, `tenant_id`, plan; checks per-minute and per-day buckets in Redis. Rejects with 429 before any downstream call.
 2. **OrchestratorAPI** - applies per-agent budget caps from the run-create payload, intersecting with the user's remaining daily token budget.
-3. **AgentRuntime** - checks `max_tool_calls`, `max_nesting_depth`, wall-clock at every node transition. Anchored on `microsoft-experience.md` point 27 - backpressure for AutoML.
+3. **AgentRuntime** - checks `max_tool_calls`, `max_nesting_depth`, wall-clock at every node transition.
 4. **ConnectorBroker** - per-connector outbound RPS as above.
 5. **ModelGateway** - provider-side rate limit handling (Claude/GPT/Grok) with circuit breakers + fallback routing (`resume.txt:55-56`).
 
