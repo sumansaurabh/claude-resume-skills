@@ -26,7 +26,8 @@
 
   // ─── Theme toggle ───
   const themeToggle = document.getElementById('theme-toggle');
-  let currentTheme = localStorage.getItem('md-renderer-theme') || 'dark';
+  const savedTheme = localStorage.getItem('md-renderer-theme');
+  let currentTheme = savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'light';
 
   function getMermaidConfig() {
     return {
