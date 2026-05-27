@@ -3,196 +3,102 @@
 ## 1. Top-level Mermaid Diagram
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'fontFamily': 'Inter, Arial',
-    'primaryTextColor': '#111827',
-    'textColor': '#111827',
-    'lineColor': '#374151',
-    'primaryBorderColor': '#374151',
-    'clusterBkg': '#ffffff',
-    'clusterBorder': '#d1d5db',
-    'edgeLabelBackground': 'transparent'
-  }
-}}%%
+graph TB
+  subgraph Edge["Edge Layer"]
+    CDN[CloudFront CDN]
+    GW[Gateway<br/>Envoy + AuthN/Z + rate limit]
+  end
 
-graph TD
+  subgraph Control["Control Plane"]
+    ORCH[OrchestratorAPI<br/>run lifecycle]
+    CAT[CatalogAPI<br/>publish/browse/fork]
+    AUTH[AuthService<br/>OAuth + sessions]
+  end
 
-    %% =========================
-    %% Edge / Entry
-    %% =========================
-    User["User Browser"]
-    Gateway["Gateway<br/>HTTPS / AuthN / Rate Limit"]
+  subgraph Runtime["Agent Runtime Plane"]
+    RT[AgentRuntime<br/>LangGraph durable]
+    SKILL[SkillExecutor<br/>WASM sandbox]
+    CONN[ConnectorBroker<br/>sole egress]
+  end
 
-    User -->|HTTPS| Gateway
+  subgraph Intelligence["Intelligence Plane"]
+    MEM[MemoryService<br/>facade: 4 stores]
+    RAG[RAGService<br/>vector + BM25 + rerank]
+    ING[IngestionPipeline<br/>chunk/embed/dedup]
+    MG[ModelGateway<br/>router + cache]
+    GUARD[GuardrailService<br/>5 boundaries]
+  end
 
-    %% =========================
-    %% Control Plane
-    %% =========================
-    OrchestratorAPI["Orchestrator API<br/>Run Lifecycle"]
-    CatalogAPI["Catalog API<br/>Browse / Fork / Publish"]
-    RunQueue[("Run Queue<br/>SQS")]
+  subgraph Stores["Data Plane"]
+    PG[(Postgres<br/>metadata + checkpoints)]
+    REDIS[(Redis<br/>WorkingMemory + queues)]
+    PGV[(Pgvector<br/>SemanticMemory + RAG)]
+    S3[(S3<br/>corpora + Episodic cold)]
+    CH[(Clickhouse<br/>TelemetryMesh)]
+    KAFKA[(Kafka<br/>events + ingest)]
+  end
 
-    Gateway -->|control plane| OrchestratorAPI
-    Gateway -->|catalog browse / fork| CatalogAPI
-    Gateway -->|POST /runs enqueue| RunQueue
-    RunQueue --> AgentRuntime
+  subgraph Models["External Models"]
+    CLAUDE[Claude]
+    GPT[GPT-4o]
+    GEM[Gemini]
+  end
 
-    %% =========================
-    %% External Systems
-    %% =========================
-    ExtLLM["Claude / GPT / Gemini APIs"]
-    ExtConn["Gmail / Slack / 3P MCP"]
+  subgraph Third["Third-Party"]
+    GMAIL[Gmail / Slack / MCP servers]
+  end
 
-    ModelGateway -->|HTTPS| ExtLLM
-    ConnectorBroker -->|OAuth + MCP| ExtConn
+  User((User)) --> CDN --> GW
+  GW --> AUTH
+  GW --> ORCH
+  GW --> CAT
 
-    %% =========================
-    %% Per-Tenant Boundary
-    %% =========================
-    subgraph Tenant["Per-User Tenant Boundary"]
-        direction TB
+  ORCH --> RT
+  CAT --> PG
 
-        %% Runtime DAG
-        subgraph AgentRuntime["Agent Runtime DAG Worker"]
-            direction LR
+  RT --> SKILL
+  RT --> CONN
+  RT --> MEM
+  RT --> RAG
+  RT --> MG
+  RT --> GUARD
 
-            Planner["Planner"]
-            Router["Router"]
-            ToolCaller["Tool Caller"]
-            Critic["Critic"]
-            Aggregator["Aggregator"]
-            HITL["Human-in-the-Loop"]
+  ING --> RAG
+  ING --> S3
 
-            Planner --> Router
-            Router --> ToolCaller
-            ToolCaller --> Critic
-            Critic --> Aggregator
-            Aggregator --> HITL
-            HITL --> Planner
-        end
+  MEM --> PG
+  MEM --> REDIS
+  MEM --> PGV
+  MEM --> S3
 
-        %% Safety / Execution / Connectors / Models
-        GuardrailService["Guardrail Service<br/>Input / Output / Tool Policy"]
-        SkillExecutor["Skill Executor<br/>Sandboxed Skill Runtime"]
-        ConnectorBroker["Connector Broker<br/>Sole Egress Path"]
-        ModelGateway["Model Gateway<br/>Router / Cache / Fallback"]
+  RAG --> PGV
 
-        AgentRuntime -->|input check| GuardrailService
-        GuardrailService -->|output + tool-call check| AgentRuntime
+  CONN --> GMAIL
+  MG --> CLAUDE
+  MG --> GPT
+  MG --> GEM
 
-        AgentRuntime -->|invoke skill| SkillExecutor
-        SkillExecutor -->|fetch script| S3
+  RT --> CH
+  GUARD --> CH
+  CONN --> CH
 
-        AgentRuntime -->|proxied call| ConnectorBroker
-        AgentRuntime -->|LLM completion| ModelGateway
+  RT --> KAFKA
+  ING --> KAFKA
+  AUTH --> PG
 
-        %% Memory Plane
-        subgraph MemoryService["Memory Service Facade"]
-            direction TB
+  classDef edge fill:#e3f2fd,stroke:#1976d2
+  classDef ctrl fill:#f3e5f5,stroke:#7b1fa2
+  classDef rt fill:#fff3e0,stroke:#f57c00
+  classDef intel fill:#e8f5e9,stroke:#388e3c
+  classDef store fill:#fce4ec,stroke:#c2185b
+  classDef ext fill:#eceff1,stroke:#455a64
 
-            WorkingMemory["Working Memory<br/>Short-lived State"]
-            EpisodicMemory["Episodic Memory<br/>Conversation History"]
-            SemanticMemory["Semantic Memory<br/>Facts / Embeddings"]
-            ProceduralMemory["Procedural Memory<br/>User Workflows / Skills"]
-        end
-
-        AgentRuntime -->|read context| MemoryService
-        AgentRuntime -->|write turn / fact| MemoryService
-
-        WorkingMemory --> Redis
-        EpisodicMemory --> Postgres
-        SemanticMemory --> Qdrant
-        ProceduralMemory --> Postgres
-        ProceduralMemory --> Redis
-
-        %% RAG Plane
-        RAGService["RAG Service<br/>Hybrid Retrieve / Rerank"]
-        IngestionPipeline["Ingestion Pipeline<br/>Parse / Chunk / Dedup"]
-        EmbedderTextV3["Embedding Model<br/>text-embedding-v3"]
-
-        AgentRuntime -->|retrieve| RAGService
-        RAGService -->|kNN read| Qdrant
-
-        IngestionPipeline -->|chunk + embed + index| EmbedderTextV3
-        EmbedderTextV3 -->|vectors| Qdrant
-        IngestionPipeline -->|raw doc| S3
-    end
-
-    %% =========================
-    %% Data Stores
-    %% =========================
-    Redis[("Redis<br/>Working Memory / Queues")]
-    Postgres[("Postgres<br/>Metadata / Runs / Memory")]
-    Qdrant[("Qdrant<br/>Semantic Memory / RAG")]
-    S3[("S3<br/>Scripts / Raw Docs / Artifacts")]
-    Clickhouse[("ClickHouse<br/>Telemetry Analytics")]
-
-    %% =========================
-    %% Telemetry
-    %% =========================
-    TelemetryMesh["Telemetry Mesh<br/>OpenTelemetry Collector"]
-
-    AgentRuntime -.->|OTel spans| TelemetryMesh
-    SkillExecutor -.->|exec spans| TelemetryMesh
-    ConnectorBroker -.->|connector spans| TelemetryMesh
-    ModelGateway -.->|LLM spans| TelemetryMesh
-    RAGService -.->|retrieval spans| TelemetryMesh
-    MemoryService -.->|memory spans| TelemetryMesh
-    GuardrailService -.->|policy spans| TelemetryMesh
-
-    TelemetryMesh --> Clickhouse
-
-    %% =========================
-    %% Control Plane Stores
-    %% =========================
-    OrchestratorAPI --> Postgres
-    OrchestratorAPI -->|script upload| S3
-    CatalogAPI --> Postgres
-
-    %% =========================
-    %% Styling
-    %% =========================
-
-    classDef user fill:#f8fafc,stroke:#0f172a,stroke-width:2px,color:#111827
-
-    classDef edge fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#111827
-    classDef control fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#111827
-    classDef queue fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#111827
-
-    classDef runtime fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#111827
-    classDef safety fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#111827
-    classDef memory fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#111827
-    classDef rag fill:#ccfbf1,stroke:#0f766e,stroke-width:2px,color:#111827
-    classDef model fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#111827
-    classDef connector fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#111827
-
-    classDef store fill:#f1f5f9,stroke:#475569,stroke-width:2px,color:#111827
-    classDef telemetry fill:#e5e7eb,stroke:#374151,stroke-width:2px,stroke-dasharray: 5 5,color:#111827
-    classDef external fill:#fafafa,stroke:#525252,stroke-width:2px,color:#111827
-
-    %% =========================
-    %% Class Assignments
-    %% =========================
-
-    class User user
-    class Gateway edge
-
-    class OrchestratorAPI,CatalogAPI control
-    class RunQueue queue
-
-    class AgentRuntime,Planner,Router,ToolCaller,Critic,Aggregator,HITL runtime
-    class GuardrailService safety
-    class SkillExecutor runtime
-    class MemoryService,WorkingMemory,EpisodicMemory,SemanticMemory,ProceduralMemory memory
-    class RAGService,IngestionPipeline,EmbedderTextV3 rag
-    class ModelGateway model
-    class ConnectorBroker connector
-
-    class Redis,Postgres,Qdrant,S3,Clickhouse store
-    class TelemetryMesh telemetry
-    class ExtLLM,ExtConn external
+  class CDN,GW edge
+  class ORCH,CAT,AUTH ctrl
+  class RT,SKILL,CONN rt
+  class MEM,RAG,ING,MG,GUARD intel
+  class PG,REDIS,PGV,S3,CH,KAFKA store
+  class CLAUDE,GPT,GEM,GMAIL ext
 ```
 
 ---

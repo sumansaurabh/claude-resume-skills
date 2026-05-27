@@ -754,6 +754,13 @@ body.sidebar-resizing {
   position: relative;
 }
 
+[data-theme="light"] .mermaid-container,
+[data-theme="light"] .mermaid-modal-viewport {
+  background-color: #ffffff;
+  background-image: radial-gradient(circle at 1px 1px, rgba(30, 102, 245, 0.12) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
 .mermaid-container .mermaid {
   display: flex;
   justify-content: center;
