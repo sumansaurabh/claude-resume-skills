@@ -745,20 +745,15 @@ body.sidebar-resizing {
 
 /* Mermaid container */
 .mermaid-container {
-  background: var(--bg-tertiary);
+  background-color: #ffffff;
+  background-image: radial-gradient(circle at 1px 1px, rgba(30, 102, 245, 0.12) 1px, transparent 0);
+  background-size: 24px 24px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 24px;
   margin: 20px 0;
   overflow-x: auto;
   position: relative;
-}
-
-[data-theme="light"] .mermaid-container,
-[data-theme="light"] .mermaid-modal-viewport {
-  background-color: #ffffff;
-  background-image: radial-gradient(circle at 1px 1px, rgba(30, 102, 245, 0.12) 1px, transparent 0);
-  background-size: 24px 24px;
 }
 
 .mermaid-container .mermaid {
@@ -939,6 +934,9 @@ body.sidebar-resizing {
   overflow: hidden;
   position: relative;
   cursor: grab;
+  background-color: #ffffff;
+  background-image: radial-gradient(circle at 1px 1px, rgba(30, 102, 245, 0.12) 1px, transparent 0);
+  background-size: 24px 24px;
 }
 
 .mermaid-modal-viewport.grabbing {

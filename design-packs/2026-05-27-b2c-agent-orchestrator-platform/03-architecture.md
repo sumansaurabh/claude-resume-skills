@@ -112,12 +112,12 @@ graph TB
 | `OrchestratorAPI` | Control | Agent CRUD, persona edits, connector OAuth callbacks, skill upload, corpus registration. Low QPS, transactional. | Burst on signup; bounded by Postgres write IOPS. |
 | `CatalogAPI` | Control | Browse, search, fork, install. Read-heavy; cache aggressively in Redis. | Hot agents (viral fork) - needs per-agent Redis caching with stampede protection. |
 | `AgentRuntime` | Data | Executes the LangGraph DAG per run. Pulls from `RunQueue`, runs Planner → ... → Aggregator. | 10K+ runs/day target initially; horizontal scale via pod count, durable checkpoints in Postgres. |
-| `SkillExecutor` | Data | Sandbox for user skill scripts. SOC-2-isolatable execution surface. | 1M+ executions/day envelope from sandbox plane (resume.txt:49, blackbox-experience.md points 3-5). |
+| `SkillExecutor` | Data | Sandbox for user skill scripts. SOC-2-isolatable execution surface. | -. |
 | `ConnectorBroker` | Data | Proxies MCP and OAuth calls so tokens never enter `AgentRuntime` process. | Per-tenant token decryption hot path; needs token cache with KMS-bounded TTL. |
 | `MemoryService` | Data | Read/write working, episodic, semantic, procedural memory. Critical-path latency. | Read p99 must stay < 80ms; `WorkingMemory` Redis hot key risk per session. |
-| `RAGService` | Data | kNN retrieval against `Qdrant`. | HNSW index pressure on writes; resume mentions HNSW + bm25 hybrid (resume.txt:60-61). |
+| `RAGService` | Data | kNN retrieval against `Qdrant`. | HNSW index pressure on writes. |
 | `IngestionPipeline` | Data (async) | Chunk → embed → index user-uploaded docs. Decoupled from query path. | Embedding throughput; `EmbedderTextV3` batch size + provider rate limits. |
-| `ModelGateway` | Data | Multi-provider LLM gateway, capability-aware routing - direct port of the BlackBox model router across Claude/GPT/Grok (resume.txt:55-56, blackbox-experience.md points 16-19). | 1B+ tokens/month envelope; provider rate-limit shaping. |
+| `ModelGateway` | Data | Multi-provider LLM gateway, capability-aware routing | 1B+ tokens/month envelope; provider rate-limit shaping. |
 | `GuardrailService` | Data | Input/output/tool-call policy enforcement. | In-line latency budget; needs sub-30ms p99 for shadow checks. |
 | `TelemetryMesh` | Data (out-of-band) | OTel collector + span buffering before Clickhouse. | - |
 
@@ -183,7 +183,7 @@ sequenceDiagram
 4. `AgentRuntime` enters the Planner node → asks `ModelGateway` for a plan → `ModelGateway` routes to Claude (capability-aware) and returns the plan.
 5. `Planner` output passes through `GuardrailService` (output check) before being committed to `WorkingMemory`.
 6. `Router` decides: tool call vs RAG retrieve vs respond.
-7. If RAG: `RAGService` runs HNSW + bm25 hybrid over the tenant's `Qdrant` partition (resume.txt:60-61), returns top-k chunks.
+7. If RAG: `RAGService` runs HNSW + bm25 hybrid over the tenant's `Qdrant` partition, returns top-k chunks.
 8. If tool: `ToolCaller` invokes either `ConnectorBroker` (Gmail/Slack/MCP) or `SkillExecutor` (Sandbox) with idempotency key. `ConnectorBroker` injects the token; `SkillExecutor` runs the script in the sandbox.
 9. Tool result → `Critic` node validates → `Aggregator` merges parallel branch results → write turn to `EpisodicMemory` (Postgres) and important facts to `SemanticMemory` (Qdrant`).
 10. If policy requires human approval → `HITL` node pauses run; checkpoint in `Postgres`; surfaces approval UI via websocket; user resumes → durable-execution restart of the DAG.
@@ -292,7 +292,7 @@ sequenceDiagram
 | `Gateway` | TLS, auth, rate limit, route to control vs data plane | Connection fan-in during launches | Fail closed; circuit-break upstream |
 | `OrchestratorAPI` | Authoring CRUD + OAuth callbacks + skill upload | Postgres write IOPS | 5xx returns; client retries idempotent PUT |
 | `CatalogAPI` | Browse / fork / install | Redis cache stampede on viral agent | Stale-while-revalidate fallback |
-| `AgentRuntime` | Run the LangGraph DAG with checkpoint + retry semantics (resume.txt:51-54) | Per-pod active runs ~ 50 | Checkpoint in `Postgres`; another pod resumes |
+| `AgentRuntime` | Run the LangGraph DAG with checkpoint + retry semantics | Per-pod active runs ~ 50 | Checkpoint in `Postgres`; another pod resumes |
 | `Planner` | Decompose prompt into steps | Token cost per plan | Falls back to single-step |
 | `Router` | Decide tool vs RAG vs respond | Tight latency budget | Default to "respond" with apology |
 | `ToolCaller` | Invoke connectors / skills with idempotency key | Side-effect safety (blackbox-experience.md point 17) | Idempotency-key dedupe in Redis |
@@ -302,11 +302,11 @@ sequenceDiagram
 | `SkillExecutor` | Run andboxed user scripts. Note: `SkillExecutor` is the sandbox **service**; `SkillRunner` is the graph **node** that invokes it. | 1M+ executions/day envelope | Sandbox crash → return structured error, no leak |
 | `ConnectorBroker` | OAuth + MCP proxy, token vault | Token decryption hot path | Token expiry → refresh + retry |
 | `MemoryService` | Facade over 4 memory types | Read p99 < 80ms | Degrade to working memory only |
-| `RAGService` | Hybrid retrieval (HNSW + bm25) (resume.txt:60-61) | Index pressure during ingest | Fallback to bm25-only |
+| `RAGService` | Hybrid retrieval (HNSW + bm25) | Index pressure during ingest | Fallback to bm25-only |
 | `IngestionPipeline` | Chunk + embed + index | Embedding provider rate limit | Backpressure to job queue |
-| `ModelGateway` | Multi-provider routing (resume.txt:55-56) | 1B+ tokens/month budget | Provider failover with capability match |
+| `ModelGateway` | Multi-provider routing | 1B+ tokens/month budget | Provider failover with capability match |
 | `GuardrailService` | Policy enforcement in-line | Sub-30ms p99 | Fail-closed for tool-call checks, fail-open for shadow checks |
-| `TelemetryMesh` | OTel collector → Clickhouse (resume.txt:58-59) | 50M spans/day | Local disk buffer, then drop with stat counter |
+| `TelemetryMesh` | OTel collector → Clickhouse  | 50M spans/day | Local disk buffer, then drop with stat counter |
 
 ---
 
